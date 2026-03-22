@@ -11,8 +11,7 @@ import { generateGroup } from './math/groupGenerator.js'
 import { presets } from './math/presets.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
-import { latticeToVector, getAllowedIsometries, findClosestDirection } from './math/latticeUtils.js'
-import ValidatedInput from './components/ValidatedInput.jsx'
+import { latticeToVector, getAllowedIsometries, findClosestDirection, latticeCoordsToCenter, centerToLatticeCoords, axisOffsetToPoint, pointToAxisOffset } from './math/latticeUtils.js'
 import './App.css'
 
 const PI = Math.PI
@@ -20,32 +19,35 @@ const PI = Math.PI
 function defaultGenerator(type, allowedIso) {
   switch (type) {
     case 'rotation':
-      return { type, order: (allowedIso.rotationOrders[0] || 2), cx: '0', cy: '0' }
+      return { type, order: (allowedIso.rotationOrders[0] || 2), centerS: 0, centerT: 0 }
     case 'reflection':
-      return { type, dirIndex: 0, px: '0', py: '0' }
+      return { type, dirIndex: 0, axisOffset: 0 }
     case 'glide-reflection':
-      return { type, dirIndex: 0, px: '0', py: '0' }
+      return { type, dirIndex: 0, axisOffset: 0 }
     default:
-      return { type: 'rotation', order: (allowedIso.rotationOrders[0] || 2), cx: '0', cy: '0' }
+      return { type: 'rotation', order: (allowedIso.rotationOrders[0] || 2), centerS: 0, centerT: 0 }
   }
 }
 
-function parseGenerator(gen, allowedIso) {
+function parseGenerator(gen, allowedIso, latticeVec) {
   switch (gen.type) {
     case 'rotation': {
       const order = gen.order || 2
       const angle = (2 * PI) / order
-      return rotation(angle, parseFloat(gen.cx), parseFloat(gen.cy))
+      const { cx, cy } = latticeCoordsToCenter(gen.centerS || 0, gen.centerT || 0, latticeVec)
+      return rotation(angle, cx, cy)
     }
     case 'reflection': {
       const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
       if (!dir) return null
-      return reflection(dir.angle, parseFloat(gen.px), parseFloat(gen.py))
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec)
+      return reflection(dir.angle, px, py)
     }
     case 'glide-reflection': {
       const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
       if (!dir) return null
-      return glideReflection(dir.angle, dir.dist, parseFloat(gen.px), parseFloat(gen.py))
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec)
+      return glideReflection(dir.angle, dir.dist, px, py)
     }
     default:
       return null
@@ -93,7 +95,7 @@ function adjustGenerators(generators, allowedIso) {
   return changed ? adjusted : null
 }
 
-function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
+function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso, latticeVec }) {
   const update = (field, value) => {
     onChange(index, { ...gen, [field]: value })
   }
@@ -123,19 +125,29 @@ function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
               ))}
             </select>
           </label>
-          <label>cx:
-            <ValidatedInput
-              value={gen.cx}
-              onChange={(v) => update('cx', String(v))}
-              validate={(v) => !isNaN(v)}
+          <label>center along a:
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={gen.centerS ?? 0}
+              onChange={(e) => update('centerS', parseFloat(e.target.value))}
+              className="gen-slider"
             />
+            <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
           </label>
-          <label>cy:
-            <ValidatedInput
-              value={gen.cy}
-              onChange={(v) => update('cy', String(v))}
-              validate={(v) => !isNaN(v)}
+          <label>center along b:
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={gen.centerT ?? 0}
+              onChange={(e) => update('centerT', parseFloat(e.target.value))}
+              className="gen-slider"
             />
+            <span className="slider-value">{(gen.centerT ?? 0).toFixed(2)}</span>
           </label>
         </>
       )}
@@ -152,19 +164,17 @@ function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
               ))}
             </select>
           </label>
-          <label>px:
-            <ValidatedInput
-              value={gen.px}
-              onChange={(v) => update('px', String(v))}
-              validate={(v) => !isNaN(v)}
+          <label>axis offset:
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={gen.axisOffset ?? 0}
+              onChange={(e) => update('axisOffset', parseFloat(e.target.value))}
+              className="gen-slider"
             />
-          </label>
-          <label>py:
-            <ValidatedInput
-              value={gen.py}
-              onChange={(v) => update('py', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
+            <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
           </label>
         </>
       )}
@@ -181,19 +191,17 @@ function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
               ))}
             </select>
           </label>
-          <label>px:
-            <ValidatedInput
-              value={gen.px}
-              onChange={(v) => update('px', String(v))}
-              validate={(v) => !isNaN(v)}
+          <label>axis offset:
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={gen.axisOffset ?? 0}
+              onChange={(e) => update('axisOffset', parseFloat(e.target.value))}
+              className="gen-slider"
             />
-          </label>
-          <label>py:
-            <ValidatedInput
-              value={gen.py}
-              onChange={(v) => update('py', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
+            <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
           </label>
         </>
       )}
@@ -203,7 +211,7 @@ function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
   )
 }
 
-function isometriesToEditorState(isometries, allowedIso) {
+function isometriesToEditorState(isometries, allowedIso, latticeVec) {
   return isometries
     .filter((iso) => !isTranslation(iso))
     .map((iso) => {
@@ -217,11 +225,12 @@ function isometriesToEditorState(isometries, allowedIso) {
           cx = ((1 - iso.d) * iso.tx + iso.b * iso.ty) / detM
           cy = (iso.c * iso.tx + (1 - iso.a) * iso.ty) / detM
         }
+        const { s, t } = centerToLatticeCoords(cx, cy, latticeVec)
         return {
           type: 'rotation',
           order: allowedIso.rotationOrders.includes(order) ? order : (allowedIso.rotationOrders[0] || 2),
-          cx: String(Math.round(cx * 1000) / 1000),
-          cy: String(Math.round(cy * 1000) / 1000),
+          centerS: Math.round(s * 1000) / 1000,
+          centerT: Math.round(t * 1000) / 1000,
         }
       }
       // Reflection or glide-reflection
@@ -233,19 +242,19 @@ function isometriesToEditorState(isometries, allowedIso) {
 
       if (Math.abs(glideDist) < 1e-9) {
         const dirIndex = findClosestDirection(axisAngle, allowedIso.reflections)
+        const offset = pointToAxisOffset(px, py, axisAngle, latticeVec)
         return {
           type: 'reflection',
           dirIndex,
-          px: String(Math.round(px * 1000) / 1000),
-          py: String(Math.round(py * 1000) / 1000),
+          axisOffset: Math.round(offset * 1000) / 1000,
         }
       }
       const dirIndex = findClosestDirection(axisAngle, allowedIso.glides)
+      const offset = pointToAxisOffset(px, py, axisAngle, latticeVec)
       return {
         type: 'glide-reflection',
         dirIndex,
-        px: String(Math.round(px * 1000) / 1000),
-        py: String(Math.round(py * 1000) / 1000),
+        axisOffset: Math.round(offset * 1000) / 1000,
       }
     })
 }
@@ -256,28 +265,32 @@ function buildJsonSpec(lattice, generators, allowedIso) {
     translations: [[0, 1], [parseFloat(vec.x.toFixed(6)), parseFloat(vec.y.toFixed(6))]],
     generators: generators.map((gen) => {
       switch (gen.type) {
-        case 'rotation':
+        case 'rotation': {
+          const { cx, cy } = latticeCoordsToCenter(gen.centerS || 0, gen.centerT || 0, vec)
           return {
             type: 'rotation',
             order: gen.order || 2,
             angle_degrees: 360 / (gen.order || 2),
-            center: [parseFloat(gen.cx), parseFloat(gen.cy)],
+            center: [parseFloat(cx.toFixed(6)), parseFloat(cy.toFixed(6))],
           }
+        }
         case 'reflection': {
           const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
+          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, vec)
           return {
             type: 'reflection',
             axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
-            point_on_axis: [parseFloat(gen.px), parseFloat(gen.py)],
+            point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
           }
         }
         case 'glide-reflection': {
           const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
+          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, vec)
           return {
             type: 'glide-reflection',
             axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
             glide_distance: dir ? parseFloat(dir.dist.toFixed(6)) : 0,
-            point_on_axis: [parseFloat(gen.px), parseFloat(gen.py)],
+            point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
           }
         }
         default:
@@ -291,7 +304,7 @@ function buildJsonSpec(lattice, generators, allowedIso) {
 export default function App() {
   const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
   const [generators, setGenerators] = useState([
-    { type: 'rotation', order: 4, cx: '0', cy: '0' },
+    { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
   ])
   const [maxWords, setMaxWords] = useState(6)
   const [copySuccess, setCopySuccess] = useState(false)
@@ -335,8 +348,9 @@ export default function App() {
     setSelectedPreset(presetName)
     setLattice(preset.lattice)
     const newAllowed = getAllowedIsometries(preset.lattice)
+    const presetVec = latticeToVector(preset.lattice)
     const isos = preset.generators()
-    setGenerators(isometriesToEditorState(isos, newAllowed))
+    setGenerators(isometriesToEditorState(isos, newAllowed, presetVec))
     prevLatticeType.current = newAllowed.latticeType
   }
 
@@ -347,7 +361,7 @@ export default function App() {
       const t1 = translation(0, 1)
       const t2 = translation(vec.x, vec.y)
 
-      const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso)).filter(Boolean)
+      const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso, vec)).filter(Boolean)
 
       const allIsos = [t1, t2, ...nonTransIsos]
       const res = generateGroup(allIsos, maxWords)
@@ -416,6 +430,7 @@ export default function App() {
             onChange={updateGenerator}
             onRemove={removeGenerator}
             allowedIso={allowedIso}
+            latticeVec={latticeToVector(lattice)}
           />
         ))}
         <button className="btn-add" onClick={addGenerator}>+ Add Generator</button>
@@ -424,12 +439,15 @@ export default function App() {
       {/* Controls */}
       <div className="controls">
         <label>
-          Max word length:{' '}
-          <ValidatedInput
+          Max word length: {maxWords}
+          <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
             value={maxWords}
-            onChange={(v) => setMaxWords(v)}
-            validate={(v) => Number.isInteger(v) && v >= 1 && v <= 20}
-            parse={(s) => parseInt(s, 10)}
+            onChange={(e) => setMaxWords(parseInt(e.target.value, 10))}
+            className="gen-slider"
           />
         </label>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

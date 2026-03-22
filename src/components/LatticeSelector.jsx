@@ -1,4 +1,3 @@
-import ValidatedInput from './ValidatedInput.jsx'
 import { latticeToVector } from '../math/latticeUtils.js'
 
 /**
@@ -160,15 +159,19 @@ function NotWellRoundedControls({ lattice, onChange }) {
         <div className="lattice-params">
           <label>
             x:
-            <ValidatedInput
+            <input
+              type="range"
+              min={Math.sqrt(0.75).toFixed(4)}
+              max="3"
+              step="0.01"
               value={lattice.x ?? 1.0}
-              onChange={(v) =>
-                onChange({ ...lattice, x: v })
+              onChange={(e) =>
+                onChange({ ...lattice, x: parseFloat(e.target.value) })
               }
-              validate={(v) => v >= 0 && v * v + 0.25 >= 1}
+              className="param-slider"
             />
+            <span className="slider-value">{(lattice.x ?? 1.0).toFixed(3)}</span>
           </label>
-          <span className="constraint-hint">x² + 0.25 ≥ 1 (x ≥ {Math.sqrt(0.75).toFixed(3)})</span>
         </div>
       )}
 
@@ -176,51 +179,64 @@ function NotWellRoundedControls({ lattice, onChange }) {
         <div className="lattice-params">
           <label>
             x:
-            <ValidatedInput
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.01"
               value={lattice.x ?? 1.5}
-              onChange={(v) =>
-                onChange({ ...lattice, x: v })
+              onChange={(e) =>
+                onChange({ ...lattice, x: parseFloat(e.target.value) })
               }
-              validate={(v) => v >= 1}
+              className="param-slider"
             />
+            <span className="slider-value">{(lattice.x ?? 1.5).toFixed(3)}</span>
           </label>
-          <span className="constraint-hint">x ≥ 1</span>
         </div>
       )}
 
-      {shape === 'oblique' && (
-        <div className="lattice-params">
-          <label>
-            x:
-            <ValidatedInput
-              value={lattice.x ?? 1.1}
-              onChange={(v) =>
-                onChange({ ...lattice, x: v })
-              }
-              validate={(v) => {
-                const yVal = lattice.y ?? 0.3
-                return v >= 0 && v * v + yVal * yVal >= 1
-              }}
-            />
-          </label>
-          <label>
-            y:
-            <ValidatedInput
-              value={lattice.y ?? 0.3}
-              onChange={(v) =>
-                onChange({ ...lattice, y: v })
-              }
-              validate={(v) => {
-                const xVal = lattice.x ?? 1.1
-                return v > 0 && v < 0.5 && xVal * xVal + v * v >= 1
-              }}
-            />
-          </label>
-          <span className="constraint-hint">
-            x ≥ 0, 0 &lt; y &lt; 0.5, x² + y² ≥ 1
-          </span>
-        </div>
-      )}
+      {shape === 'oblique' && (() => {
+        const yVal = lattice.y ?? 0.3
+        const xVal = lattice.x ?? 1.1
+        const xMin = Math.sqrt(Math.max(0, 1 - yVal * yVal))
+        return (
+          <div className="lattice-params lattice-params-column">
+            <label>
+              x:
+              <input
+                type="range"
+                min={xMin.toFixed(4)}
+                max="3"
+                step="0.01"
+                value={xVal}
+                onChange={(e) =>
+                  onChange({ ...lattice, x: parseFloat(e.target.value) })
+                }
+                className="param-slider"
+              />
+              <span className="slider-value">{xVal.toFixed(3)}</span>
+            </label>
+            <label>
+              y:
+              <input
+                type="range"
+                min="0.01"
+                max="0.49"
+                step="0.01"
+                value={yVal}
+                onChange={(e) => {
+                  const newY = parseFloat(e.target.value)
+                  const newXMin = Math.sqrt(Math.max(0, 1 - newY * newY))
+                  const newX = Math.max(xVal, newXMin)
+                  onChange({ ...lattice, y: newY, x: newX })
+                }}
+                className="param-slider"
+              />
+              <span className="slider-value">{yVal.toFixed(3)}</span>
+            </label>
+          </div>
+        )
+      })()}
     </div>
   )
 }
