@@ -4,6 +4,7 @@ import {
   rotationInfo,
   rotationOrder,
   reflectionInfo,
+  applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
 
@@ -76,6 +77,51 @@ function ReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 }
 
 /**
+ * The "F" shape vertices in math coordinates (origin-based).
+ * Drawn as a filled polygon with a shorter second horizontal bar.
+ * Size is ~0.3 units so it's visible but doesn't overwhelm the diagram.
+ */
+const F_OUTLINE = (() => {
+  const s = 0.12; // half-thickness of strokes
+  const h = 0.4;  // total height
+  const w = 0.28; // top bar width
+  const w2 = 0.18; // middle bar width (shorter)
+  const mh = 0.22; // middle bar height from bottom
+  // Trace an F shape as a closed polygon (counterclockwise)
+  return [
+    // left edge, bottom to top
+    [0, 0],
+    [0, h],
+    // top bar, going right
+    [w, h],
+    [w, h - s],
+    // back to stem
+    [s, h - s],
+    // down to middle bar
+    [s, mh + s],
+    // middle bar, going right
+    [w2, mh + s],
+    [w2, mh],
+    // back to stem
+    [s, mh],
+    // down to bottom
+    [s, 0],
+  ];
+})();
+
+/**
+ * Draw one F shape transformed by an isometry.
+ */
+function FShape({ isometry, svgCx, svgCy }) {
+  const pts = F_OUTLINE.map(([x, y]) => {
+    const p = applyToPoint(isometry, x, y);
+    return toSvg(p.x, p.y, svgCx, svgCy);
+  });
+  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
+  return <path d={d} fill="#2c3e50" fillOpacity="0.35" stroke="#2c3e50" strokeWidth="0.5" />;
+}
+
+/**
  * Draw a glide reflection line (dotted).
  */
 function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
@@ -109,7 +155,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors }) {
+export default function GroupVisualization({ elements, latticeVectors, showF }) {
   const width = 700;
   const height = 500;
   const svgCx = width / 2;
@@ -226,6 +272,11 @@ export default function GroupVisualization({ elements, latticeVectors }) {
             />
           );
         })}
+
+        {/* F shapes (one per group element) */}
+        {showF && elements && elements.map((el, i) => (
+          <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} />
+        ))}
 
         {/* Reflection lines (solid) */}
         {reflLines.map((r, i) => (

@@ -297,6 +297,7 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [showF, setShowF] = useState(true)
 
   const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
   const prevLatticeType = useRef(allowedIso.latticeType)
@@ -432,6 +433,10 @@ export default function App() {
             parse={(s) => parseInt(s, 10)}
           />
         </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
+          Show F
+        </label>
         <button className="btn-generate" onClick={generate}>Generate Group</button>
         <button className="btn-copy" onClick={copyToClipboard}>
           📋 Copy JSON
@@ -449,6 +454,7 @@ export default function App() {
         <GroupVisualization
           elements={result.elements}
           latticeVectors={result.latticeVectors}
+          showF={showF}
         />
       )}
     </div>
