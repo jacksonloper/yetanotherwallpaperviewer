@@ -225,8 +225,9 @@ Let Λ = ℤ**v** + ℤ**w** be an arbitrary rank-2 lattice.
    gives x² + y² ≥ 1.
 
 The result is unique up to boundary identifications and lattice symmetries:
-on the interior of the domain, distinct (x, y) give non-similar lattices.
-On the boundary (e.g. x² + y² = 1 at y = 0 or y = ½), the square and
+in the strict interior of the domain, distinct (x, y) correspond to
+non-similar lattices.  On the boundary (e.g. x² + y² = 1 at y = 0 or
+y = ½), the square and
 hexagonal lattices have extra automorphisms that identify some parameter
 values; and lattices with y = 0 or y = ½ sit on the boundary of the
 fundamental domain for the modular group.  These boundary identifications
