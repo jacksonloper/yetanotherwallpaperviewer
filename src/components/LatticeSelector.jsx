@@ -86,7 +86,7 @@ function WellRoundedControls({ lattice, onChange }) {
   return (
     <div className="well-rounded-controls">
       <div className="slider-row">
-        <span className="slider-label">Hex</span>
+        <span className="slider-label">Square</span>
         <input
           type="range"
           min="0"
@@ -96,7 +96,7 @@ function WellRoundedControls({ lattice, onChange }) {
           onChange={handleSlider}
           className="lattice-slider"
         />
-        <span className="slider-label">Square</span>
+        <span className="slider-label">Hex</span>
       </div>
       <div className="slider-info">
         {labelForValue(sliderValue)} — x = {x.toFixed(4)}, y = {y.toFixed(4)}

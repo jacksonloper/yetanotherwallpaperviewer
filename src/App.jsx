@@ -298,6 +298,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
+  const [selectedPreset, setSelectedPreset] = useState('')
 
   const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
   const prevLatticeType = useRef(allowedIso.latticeType)
@@ -305,6 +306,7 @@ export default function App() {
   // Wrap setLattice to auto-adjust generators when lattice type changes
   const handleLatticeChange = useCallback((newLattice) => {
     setLattice(newLattice)
+    setSelectedPreset('')
     const newAllowed = getAllowedIsometries(newLattice)
     if (prevLatticeType.current !== newAllowed.latticeType) {
       prevLatticeType.current = newAllowed.latticeType
@@ -314,21 +316,25 @@ export default function App() {
 
   const addGenerator = () => {
     setGenerators([...generators, defaultGenerator('rotation', allowedIso)])
+    setSelectedPreset('')
   }
 
   const removeGenerator = (index) => {
     setGenerators(generators.filter((_, i) => i !== index))
+    setSelectedPreset('')
   }
 
   const updateGenerator = (index, gen) => {
     const newGens = [...generators]
     newGens[index] = gen
     setGenerators(newGens)
+    setSelectedPreset('')
   }
 
   const loadPreset = (presetName) => {
     const preset = presets.find((p) => p.name === presetName)
     if (!preset) return
+    setSelectedPreset(presetName)
     setLattice(preset.lattice)
     const newAllowed = getAllowedIsometries(preset.lattice)
     const isos = preset.generators()
@@ -386,12 +392,12 @@ export default function App() {
       <div className="preset-selector">
         <label><strong>Load preset:</strong></label>
         <select
+          value={selectedPreset}
           onChange={(e) => {
             if (e.target.value) loadPreset(e.target.value)
           }}
-          defaultValue=""
         >
-          <option value="" disabled>Select a wallpaper group...</option>
+          <option value="">Select a wallpaper group...</option>
           {presets.map((p) => (
             <option key={p.name} value={p.name}>
               {p.name} – {p.description}
