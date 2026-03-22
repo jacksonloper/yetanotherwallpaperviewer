@@ -14,6 +14,188 @@ classification up to *conjugacy inside the full similarity group*
 
 ---
 
+## 0. The UI: a complete inventory
+
+This section is a reference for every control the viewer exposes.  The
+proof that these controls reach every wallpaper group begins in §1.
+
+### 0a. Lattice selection
+
+The lattice is always **a** = (0, 1) and **b** = (x, y) with
+x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.  The UI offers two top-level modes.
+
+**Well-rounded** (both basis vectors have equal length, x² + y² = 1):
+
+| Control | Range | Effect |
+|---|---|---|
+| Shape slider | 0 → 1 | Sweeps along the unit-circle arc from (1, 0) to (√3/2, ½). Left end = **square** lattice, right end = **hexagonal**, interior = **centered rectangular**. |
+
+Mapping: sliderValue *s* ∈ [0, 1] gives y = s/2, x = √(1 − y²).
+
+**Not well-rounded** (x² + y² > 1): a radio button selects one of three
+sub-shapes, each with its own sliders:
+
+| Sub-shape | y | x range | Sliders | Bravais type |
+|---|---|---|---|---|
+| Rectangular | 0 | (1, 3] | x | Rectangular |
+| Centered rectangular | 0.5 | (√3/2, 3] | x | Centered rectangular |
+| Oblique | (0.01, 0.49) | (√(1 − y²), 3] | x, y | Oblique |
+
+The five **Bravais lattice types** recognized by the viewer:
+
+| Type | Characterization in (x, y) space |
+|---|---|
+| Square | (x, y) = (1, 0) |
+| Hexagonal | (x, y) = (√3/2, ½) |
+| Centered rectangular | x² + y² = 1, 0 < y < ½  (well-rounded, not square/hex) *or*  y = ½, x > √3/2 |
+| Rectangular | y = 0, x > 1 |
+| Oblique | everything else (0 < y < ½, x² + y² > 1) |
+
+### 0b. Wallpaper type selection
+
+Once the lattice type is determined, a **dropdown** lists the compatible
+wallpaper group types.  Selecting a type resets the generators to their
+default placements.
+
+### 0c. Directions available per lattice type
+
+The direction indices (dirIndex) used by reflections and glides reference the
+following arrays.  These are produced by `getAllowedIsometries()` in
+latticeUtils.js; numbering here matches the 0-based array index.
+
+**Rectangular** (2 reflections, 2 glides):
+
+| Index | Direction | Reflection angle | Glide distance |
+|---|---|---|---|
+| 0 | along **a** (vertical) | π/2 | ½ |
+| 1 | along **b** (horizontal) | 0 | x/2 |
+
+**Centered rectangular — well-rounded** (2 reflections, 2 glides):
+
+| Index | Direction | Reflection angle | Glide distance |
+|---|---|---|---|
+| 0 | along **a** + **b** | atan2(1 + y, x) | ‖**a** + **b**‖/2 |
+| 1 | along **b** − **a** | atan2(y − 1, x) | ‖**b** − **a**‖/2 |
+
+**Centered rectangular — not-well-rounded** (y = ½, 2 reflections, 2 glides):
+
+| Index | Direction | Reflection angle | Glide distance |
+|---|---|---|---|
+| 0 | vertical (along **a**) | π/2 | ½ |
+| 1 | horizontal | 0 | x |
+
+**Square** (4 reflections, 4 glides):
+
+| Index | Direction | Reflection angle | Glide distance |
+|---|---|---|---|
+| 0 | along **a** + **b** (diagonal ↗) | π/4 | √2/2 |
+| 1 | along **b** − **a** (diagonal ↘) | −π/4 | √2/2 |
+| 2 | along **a** (vertical) | π/2 | ½ |
+| 3 | along **b** (horizontal) | 0 | ½ |
+
+**Hexagonal** (6 reflections, 6 glides):
+
+| Index | Direction | Reflection angle | Glide distance |
+|---|---|---|---|
+| 0 | along **a** + **b** | π/3 | √3/2 |
+| 1 | along **b** − **a** | −π/6 | ½ |
+| 2 | along **a** (vertical) | π/2 | ½ |
+| 3 | along **b** | π/6 | ½ |
+| 4 | along 2**b** − **a** (horizontal) | 0 | √3/2 |
+| 5 | along **b** − 2**a** | −π/3 | √3/2 |
+
+(The oblique lattice has no reflection or glide directions.)
+
+### 0d. Wallpaper types and their generators — complete list
+
+For every lattice type, the table below lists each wallpaper type, its
+generators, and the **continuous sliders** the UI exposes for that type.
+Direction indices refer to §0c.  Default slider values are shown in
+parentheses.
+
+**Oblique lattice:**
+
+| Type | Generators | Continuous sliders |
+|---|---|---|
+| p1 | *(none)* | *(none)* |
+| p2 | rotation order 2 | centerS (0), centerT (0) |
+
+**Rectangular lattice:**
+
+| Type | Generators | Continuous sliders |
+|---|---|---|
+| p1 | *(none)* | *(none)* |
+| p2 | rotation order 2 | centerS (0), centerT (0) |
+| pm | reflection dir 0 | axisOffset (0) |
+| pg | glide dir 0 | axisOffset (0) |
+| pmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
+| pmg | reflection dir 1 + glide dir 0 | axisOffset₀ (0), axisOffset₁ (0) |
+| pgg | glide dir 1 + glide dir 0 | axisOffset₀ (0.25), axisOffset₁ (0.25) |
+
+**Centered rectangular lattice:**
+
+| Type | Generators | Continuous sliders |
+|---|---|---|
+| p1 | *(none)* | *(none)* |
+| p2 | rotation order 2 | centerS (0), centerT (0) |
+| cm | reflection dir 0 | axisOffset (0) |
+| cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
+
+**Square lattice:**
+
+| Type | Generators | Continuous sliders |
+|---|---|---|
+| p1 | *(none)* | *(none)* |
+| p2 | rotation order 2 | centerS (0), centerT (0) |
+| pm | reflection dir 2 | axisOffset (0) |
+| pg | glide dir 2 | axisOffset (0) |
+| cm | reflection dir 0 | axisOffset (0) |
+| pmm | reflection dir 2 + reflection dir 3 | axisOffset₀ (0), axisOffset₁ (0) |
+| pmg | reflection dir 3 + glide dir 2 | axisOffset₀ (0), axisOffset₁ (0) |
+| pgg | glide dir 3 + glide dir 2 | axisOffset₀ (0.25), axisOffset₁ (0.25) |
+| cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
+| p4 | rotation order 4 | centerS (0), centerT (0) |
+| p4m | rotation order 4 + reflection dir 3 | centerS (0), centerT (0), axisOffset (0) |
+| p4g | rotation order 4 + reflection dir 3 | centerS (0.5), centerT (0.5), axisOffset (0) |
+
+**Hexagonal lattice:**
+
+| Type | Generators | Continuous sliders |
+|---|---|---|
+| p1 | *(none)* | *(none)* |
+| p2 | rotation order 2 | centerS (0), centerT (0) |
+| cm | reflection dir 0 | axisOffset (0) |
+| cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
+| p3 | rotation order 3 | centerS (0), centerT (0) |
+| p3m1 | rotation order 3 + reflection dir 2 | centerS (0), centerT (0), axisOffset (0) |
+| p31m | rotation order 3 + reflection dir 4 | centerS (0), centerT (0), axisOffset (0) |
+| p6 | rotation order 6 | centerS (0), centerT (0) |
+| p6m | rotation order 6 + reflection dir 4 | centerS (0), centerT (0), axisOffset (0) |
+
+### 0e. Slider semantics
+
+| Slider | Range | Meaning |
+|---|---|---|
+| centerS | [0, 1) | Displacement of rotation center along **a** = (0, 1), in lattice coordinates |
+| centerT | [0, 1) | Displacement of rotation center along **b** = (x, y), in lattice coordinates |
+| axisOffset | [0, 1) | Perpendicular offset of the reflection/glide axis, as a fraction of the fundamental period (computed by `computeAxisPeriod`) |
+
+Together, (centerS, centerT) parameterize the rotation center modulo the
+lattice — i.e. a point in ℝ²/Λ.  The axisOffset parameterizes the axis
+position modulo its periodicity.  See §3 for the proof that these ranges
+are sufficient.
+
+### 0f. Auxiliary controls
+
+| Control | Range | Purpose |
+|---|---|---|
+| Max word length | 1 – 20 | Limits the length of generator words explored during group generation |
+| Max elements | 100 – 5000 | Caps the number of group elements stored |
+| Show F | checkbox | Toggles display of a reference "F" glyph |
+| Copy JSON | button | Copies the current group specification to the clipboard |
+
+---
+
 ## 1. Normalizing the lattice
 
 **Claim.** Any rank-2 lattice in ℝ² can be brought by a similarity
