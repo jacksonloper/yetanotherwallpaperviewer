@@ -1,0 +1,277 @@
+.app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: left;
+}
+
+h1 {
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: #666;
+  margin-top: 0;
+}
+
+.preset-selector {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-selector select {
+  padding: 4px 8px;
+}
+
+/* Lattice Selector */
+.lattice-selector {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f0f4f8;
+  border-radius: 6px;
+  border: 1px solid #d0d7de;
+}
+
+.lattice-selector h3 {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.lattice-info {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 10px;
+}
+
+.lattice-mode-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.lattice-mode-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Well-rounded slider */
+.well-rounded-controls {
+  margin-top: 8px;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  min-width: 50px;
+  text-align: center;
+}
+
+.lattice-slider {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+}
+
+.slider-info {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* Not well-rounded controls */
+.not-well-rounded-controls {
+  margin-top: 8px;
+}
+
+.shape-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.shape-radios label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.lattice-params {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lattice-params label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.lattice-params input {
+  width: 70px;
+  padding: 3px 6px;
+}
+
+.constraint-hint {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+/* Generators section */
+.generators-section {
+  margin-bottom: 16px;
+}
+
+.generators-section h3 {
+  margin-bottom: 8px;
+}
+
+.no-generators {
+  font-size: 14px;
+  color: #888;
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.generator-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.generator-row select {
+  padding: 4px;
+}
+
+.generator-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.generator-row input {
+  width: 60px;
+  padding: 2px 4px;
+}
+
+.btn-remove {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.btn-add {
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.controls {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.controls input {
+  width: 60px;
+  padding: 4px;
+}
+
+.btn-generate {
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.error-box {
+  background: #fdedec;
+  border: 1px solid #e74c3c;
+  color: #c0392b;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+/* Validated input cue */
+.input-invalid {
+  border: 2px solid #e74c3c !important;
+  background-color: #fff0f0 !important;
+  outline: none;
+}
+
+/* Copy button */
+.btn-copy {
+  background: #8e44ad;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-copy:hover {
+  background: #7d3c98;
+}
+
+.copy-success {
+  color: #27ae60;
+  font-weight: bold;
+  font-size: 14px;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Lattice type badge */
+.lattice-type-badge {
+  font-size: 12px;
+  font-weight: normal;
+  color: #fff;
+  background: #7f8c8d;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
