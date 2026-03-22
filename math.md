@@ -457,3 +457,632 @@ If we classified only up to orientation-preserving similarity, we would
 need to allow x to range over all of ℝ (positive and negative) to
 distinguish a group from its mirror image.  Since the UI restricts x ≥ 0,
 the classification is necessarily up to full similarity.
+
+---
+
+## 6. Exact generator formulas: the UI → isometry pipeline
+
+This section gives the precise formulas the app uses to convert UI state
+into isometry generators.  All references are to the source files
+`App.jsx`, `isometry.js`, and `latticeUtils.js`.
+
+### 6a. Isometry representation
+
+Every isometry is stored as a 3×3 affine matrix:
+
+```
+[a  b  tx]
+[c  d  ty]
+[0  0   1]
+```
+
+where the top-left 2×2 block is orthogonal (det = ±1) and (tx, ty) is the
+translation component.
+
+### 6b. Translation generators
+
+Always two, determined entirely by the lattice:
+
+- **t₁** = translation(0, 1)  — the normalized first basis vector **a**.
+- **t₂** = translation(x, y)  — the second basis vector **b** from the UI.
+
+### 6c. `parseGenerator`: UI state → isometry
+
+The function `parseGenerator(gen, allowedIso, latticeVec)` in `App.jsx`
+converts each generator template into an isometry object.  The three cases:
+
+**Rotation** (gen.type = `'rotation'`):
+
+1. Compute angle: θ = 2π / gen.order
+2. Compute center: (cx, cy) = latticeCoordsToCenter(gen.centerS, gen.centerT, latticeVec)
+3. Return rotation(θ, cx, cy)
+
+**Reflection** (gen.type = `'reflection'`):
+
+1. Look up direction: dir = allowedIso.reflections[gen.dirIndex]
+2. Compute axis point: (px, py) = axisOffsetToPoint(gen.axisOffset, dir.angle, latticeVec)
+3. Return reflection(dir.angle, px, py)
+
+**Glide reflection** (gen.type = `'glide-reflection'`):
+
+1. Look up direction and distance: dir = allowedIso.glides[gen.dirIndex]
+2. Compute axis point: (px, py) = axisOffsetToPoint(gen.axisOffset, dir.angle, latticeVec)
+3. Return glideReflection(dir.angle, dir.dist, px, py)
+
+### 6d. Coordinate conversion formulas
+
+**latticeCoordsToCenter(s, t, {x, y})**:
+
+> (cx, cy) = t·(x, y) + s·(0, 1) = (t·x,  s + t·y)
+
+Maps lattice coordinates (s, t) ∈ [0, 1)² to Cartesian coordinates.
+
+**axisOffsetToPoint(offset, angle, latticeVec)**:
+
+> P = computeAxisPeriod(angle, latticeVec)
+>
+> d = offset · P
+>
+> (px, py) = d · (−sin(angle), cos(angle))
+
+The point (px, py) lies on the axis line at perpendicular distance d from
+the origin, measured in the direction normal to the axis.
+
+**computeAxisPeriod(angle, {x, y})**:
+
+> n = (−sin(angle), cos(angle))    *(unit normal to axis)*
+>
+> p₁ = |n · (0, 1)| = |cos(angle)|    *(perpendicular period from* ***a****)*
+>
+> p₂ = |n · (x, y)| = |−x·sin(angle) + y·cos(angle)|    *(perpendicular period from* ***b****)*
+>
+> period = gcd(p₁, p₂)    *(real-valued Euclidean GCD with tolerance)*
+
+### 6e. Isometry construction formulas
+
+**rotation(θ, cx, cy)** — rotation by θ about (cx, cy):
+
+> a = cos θ,  b = −sin θ,  c = sin θ,  d = cos θ
+>
+> tx = cx(1 − cos θ) + cy·sin θ
+>
+> ty = cy(1 − cos θ) − cx·sin θ
+
+**reflection(α, px, py)** — reflection across the line through (px, py)
+with direction angle α:
+
+> a = cos 2α,  b = sin 2α,  c = sin 2α,  d = −cos 2α
+>
+> tx = px − px·cos 2α − py·sin 2α
+>
+> ty = py − px·sin 2α + py·cos 2α
+
+**glideReflection(α, dist, px, py)** — reflect across the line through
+(px, py) with direction α, then translate by dist along the axis:
+
+> result = compose( translation(dist·cos α, dist·sin α),  reflection(α, px, py) )
+
+### 6f. Discrete vs continuous parameter summary
+
+| Parameter | Type | Determined by |
+|---|---|---|
+| Lattice (x, y) | Continuous | Lattice sliders |
+| Wallpaper type | Discrete (17 choices) | Dropdown, constrained by lattice type |
+| Rotation order | Discrete (2, 3, 4, 6) | Fixed per wallpaper type |
+| dirIndex | Discrete (index into direction list) | Fixed per wallpaper type |
+| Glide distance | Discrete (fixed per direction) | Computed from lattice by `getAllowedIsometries` |
+| centerS, centerT | Continuous, [0, 1) | Sliders (gauge choice — see §5) |
+| axisOffset | Continuous, [0, 1) | Slider (gauge choice — see §5) |
+
+---
+
+## 7. Case-by-case surjectivity analysis
+
+For each of the 17 crystallographic types, this section lists:
+1. The lattice restriction.
+2. The generators constructed by the UI.
+3. The exact isometry formulas with all free parameters.
+4. Hidden constraints.
+5. A surjectivity argument: given an arbitrary wallpaper group G of this
+   type in standard form, can UI parameters be found that produce a similar
+   group?
+
+Throughout, **a** = (0, 1), **b** = (x, y), and the lattice is
+Λ = ℤ**a** + ℤ**b** in the normalized domain of §1.
+
+---
+
+### p1 — Translations only
+
+| | |
+|---|---|
+| **Lattice** | Any (oblique, rectangular, centered-rectangular, square, hexagonal) |
+| **Generators** | None (translations only) |
+| **Free params** | Lattice (x, y) only |
+| **Constraints** | None |
+
+**Surjectivity.**  Every p1 group is determined entirely by its lattice.
+After normalization (§1), the lattice is parameterized by (x, y).  The UI
+covers the full normalized domain. ✔
+
+---
+
+### p2 — 180° rotation
+
+| | |
+|---|---|
+| **Lattice** | Any |
+| **Generators** | rotation(π, cx, cy) |
+| **Free params** | (x, y), centerS ∈ [0,1), centerT ∈ [0,1) |
+| **Constraints** | None beyond lattice |
+
+**Formula.**
+
+> (cx, cy) = (centerT · x,  centerS + centerT · y)
+>
+> Generator = rotation(π, cx, cy)
+
+**Surjectivity.**  A p2 group is determined by its lattice and the location
+of a 2-fold center mod Λ.  The center can be placed anywhere in ℝ²/Λ; the
+sliders (centerS, centerT) parameterize this full torus.  For a given G,
+normalize the lattice, read off the center mod Λ, and set the sliders
+accordingly. ✔
+
+**Non-injectivity.**  Any translate of the origin shifts (centerS, centerT)
+but produces the same group up to similarity — the center position is a
+gauge choice.
+
+---
+
+### pm — One reflection
+
+| | |
+|---|---|
+| **Lattice** | Rectangular (y = 0, x > 1) or Square (x = 1, y = 0) |
+| **Generators** | reflection(π/2, px, py) — mirror along **a** (vertical) |
+| **Dir** | Rectangular: dirIndex 0 (angle π/2).  Square: dirIndex 2 (angle π/2). |
+| **Free params** | (x, y), axisOffset ∈ [0, 1) |
+| **Constraints** | Mirror direction is vertical (along **a**); only the perpendicular offset is free. |
+
+**Formula.**
+
+> period = computeAxisPeriod(π/2, (x, y)) = gcd(|cos(π/2)|, |−x·sin(π/2) + y·cos(π/2)|) = gcd(0, x) = x
+>
+> — wait, for rectangular: cos(π/2) = 0, so p₁ = 0. And p₂ = |−x·0 + 0·0| = 0 when y = 0... let's recompute:
+>
+> Actually: n = (−sin(π/2), cos(π/2)) = (−1, 0).
+>
+> p₁ = |n · a| = |n · (0,1)| = |0| = 0.
+>
+> p₂ = |n · b| = |n · (x, 0)| = |−x| = x.
+>
+> period = gcd(0, x) = x.
+>
+> d = axisOffset · x.
+>
+> (px, py) = d · (−sin(π/2), cos(π/2)) = d · (−1, 0) = (−d, 0)
+>
+> Generator = reflection(π/2, −axisOffset·x, 0)
+
+For the square lattice (x = 1): period = 1, so (px, py) = (−axisOffset, 0).
+
+**Surjectivity.**  A pm group has parallel mirror lines perpendicular to
+**b**, spaced by x/2.  Up to a lattice translation along **b**, any
+such mirror can be shifted to an offset in [0, x).  The slider
+axisOffset ∈ [0, 1) maps to [0, x) via multiplication by x, covering
+all valid placements. ✔
+
+---
+
+### pg — One glide reflection
+
+| | |
+|---|---|
+| **Lattice** | Rectangular or Square |
+| **Generators** | glideReflection(π/2, ½, px, py) — glide along **a**, distance ½ |
+| **Dir** | Rectangular: dirIndex 0 (angle π/2, dist ½).  Square: dirIndex 2 (angle π/2, dist ½). |
+| **Free params** | (x, y), axisOffset ∈ [0, 1) |
+| **Constraints** | Glide distance = ½ (half of ‖**a**‖ = 1), direction vertical. |
+
+**Formula.**
+
+> Same axis-period computation as pm: period = x (rectangular) or 1 (square).
+>
+> (px, py) = axisOffset · period · (−1, 0)
+>
+> Generator = glideReflection(π/2, 0.5, px, py)
+
+**Surjectivity.**  The only freedom is the perpendicular offset of the
+glide axis.  The glide distance is forced to ½.  The slider covers
+all offsets mod the period. ✔
+
+---
+
+### cm — Reflection on centered-rectangular/square/hexagonal lattice
+
+| | |
+|---|---|
+| **Lattice** | Centered rectangular, Square, or Hexagonal |
+| **Generators** | reflection(α, px, py) |
+| **Dir** | Centered-rect: dirIndex 0 (angle = atan2(1+y, x), along **a**+**b**).  Square: dirIndex 0 (angle π/4, diagonal).  Hex: dirIndex 0 (angle π/3, along **a**+**b**). |
+| **Free params** | (x, y), axisOffset ∈ [0, 1) |
+| **Constraints** | Lattice must have a centering that makes this a cm (not pm) group. |
+
+**Formula.**
+
+> α = direction angle (depends on lattice type, see §0c)
+>
+> period = computeAxisPeriod(α, (x, y))
+>
+> (px, py) = axisOffset · period · (−sin α, cos α)
+>
+> Generator = reflection(α, px, py)
+
+**Surjectivity.**  In a cm group the mirror direction is fixed by the
+lattice; the only freedom is the perpendicular offset, which the slider
+parameterizes modulo the period. ✔
+
+---
+
+### pmm — Two perpendicular reflections
+
+| | |
+|---|---|
+| **Lattice** | Rectangular or Square |
+| **Generators** | reflection(π/2, px₀, py₀) + reflection(0, px₁, py₁) |
+| **Dir** | Rectangular: dir 0 (π/2, vertical) + dir 1 (0, horizontal).  Square: dir 2 (π/2) + dir 3 (0). |
+| **Free params** | axisOffset₀ ∈ [0, 1), axisOffset₁ ∈ [0, 1) |
+| **Constraints** | The two mirror directions are perpendicular; offsets are independent. |
+
+**Formulas.**
+
+> Generator 0 (vertical mirror): same as pm computation.
+>
+> Generator 1 (horizontal mirror):
+>
+> n = (−sin 0, cos 0) = (0, 1).  p₁ = |cos 0| = 1.  p₂ = |y·1| = y (= 0 for rectangular).
+>
+> For rectangular (y = 0): period = gcd(1, 0) = 1.
+>
+> (px₁, py₁) = axisOffset₁ · 1 · (0, 1) = (0, axisOffset₁)
+>
+> Generator 1 = reflection(0, 0, axisOffset₁)
+
+**Surjectivity.**  The pmm group has two families of perpendicular mirror
+lines.  Each family's offset is parameterized independently by the
+corresponding axisOffset slider.  Every valid configuration is reached. ✔
+
+---
+
+### pmg — Reflection + glide in perpendicular directions
+
+| | |
+|---|---|
+| **Lattice** | Rectangular or Square |
+| **Generators** | reflection(0, px₀, py₀) + glideReflection(π/2, ½, px₁, py₁) |
+| **Dir** | Rectangular: reflection dir 1 (0, horizontal) + glide dir 0 (π/2, vertical).  Square: reflection dir 3 (0) + glide dir 2 (π/2). |
+| **Free params** | axisOffset₀ ∈ [0, 1), axisOffset₁ ∈ [0, 1) |
+| **Constraints** | The mirror is horizontal; the glide is vertical with distance ½. |
+
+**Formulas.**
+
+> Generator 0 = reflection(0, 0, axisOffset₀ · period₀)  — horizontal mirror
+>
+> Generator 1 = glideReflection(π/2, 0.5, −axisOffset₁ · period₁, 0)  — vertical glide
+
+**Surjectivity.**  For a pmg group, valid configurations are: horizontal
+mirrors at spacing 1/2, vertical glides interleaved at spacing x/2.  The
+two axisOffset sliders independently position one representative from
+each family.  Every admissible offset pair is realized. ✔
+
+**Key check.**  The pmg type requires the *reflection* and *glide* to be in
+perpendicular directions.  The UI enforces this by fixing the dirIndex
+values in the template.  The distinction between pmg and pmm/pgg comes
+from the choice of reflection vs. glide for each direction.
+
+---
+
+### pgg — Two perpendicular glide reflections
+
+| | |
+|---|---|
+| **Lattice** | Rectangular or Square |
+| **Generators** | glideReflection(0, dist₀, px₀, py₀) + glideReflection(π/2, ½, px₁, py₁) |
+| **Dir** | Rectangular: glide dir 1 (0, horizontal, dist = x/2) + glide dir 0 (π/2, vertical, dist = ½).  Square: glide dir 3 (0, dist ½) + glide dir 2 (π/2, dist ½). |
+| **Free params** | axisOffset₀ ∈ [0, 1), axisOffset₁ ∈ [0, 1) |
+| **Default** | axisOffset₀ = 0.25, axisOffset₁ = 0.25 |
+| **Constraints** | The two glide axes must be in perpendicular directions; glide distances are determined by lattice. |
+
+**Formulas.**
+
+> Generator 0 = glideReflection(0, x/2, 0, axisOffset₀ · period₀)  — horizontal glide
+>
+> Generator 1 = glideReflection(π/2, 0.5, −axisOffset₁ · period₁, 0)  — vertical glide
+
+**Surjectivity.**  Valid configurations require the two glide axes to be
+offset from each other by a quarter-period (the default offset 0.25 is one
+such choice).  The sliders can reach every admissible pairing. ✔
+
+---
+
+### cmm — Two reflections on centered lattice
+
+| | |
+|---|---|
+| **Lattice** | Centered rectangular, Square, or Hexagonal |
+| **Generators** | reflection(α₀, px₀, py₀) + reflection(α₁, px₁, py₁) |
+| **Dir** | Centered-rect: dir 0 + dir 1 (along **a**+**b** and **b**−**a**).  Square: dir 0 (π/4) + dir 1 (−π/4).  Hex: dir 0 (π/3) + dir 1 (−π/6). |
+| **Free params** | axisOffset₀ ∈ [0, 1), axisOffset₁ ∈ [0, 1) |
+| **Constraints** | Lattice must support centering; the two mirror directions are determined by the lattice. |
+
+**Surjectivity.**  A cmm group has two families of mirrors at angles
+determined by the lattice.  Each family's offset is independent and the
+slider covers the full period. ✔
+
+---
+
+### p4 — 90° rotation
+
+| | |
+|---|---|
+| **Lattice** | Square only (x = 1, y = 0) |
+| **Generators** | rotation(π/2, cx, cy) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1) |
+| **Constraints** | Lattice must be square. |
+
+**Formula.**
+
+> (cx, cy) = (centerT, centerS)   *(since x = 1, y = 0)*
+>
+> Generator = rotation(π/2, centerT, centerS)
+
+**Surjectivity.**  A p4 group is determined by the location of its 4-fold
+center mod Λ.  The sliders parameterize the full torus ℝ²/Λ. ✔
+
+**Non-injectivity.**  The 4-fold symmetry of the square lattice means
+the four points (s, t), (t, 1−s), (1−s, 1−t), (1−t, s) all yield the
+same group up to conjugacy.
+
+---
+
+### p4m — 90° rotation + reflection (square lattice, mirrors through center)
+
+| | |
+|---|---|
+| **Lattice** | Square only |
+| **Generators** | rotation(π/2, cx, cy) + reflection(0, px, py) |
+| **Dir** | Rotation order 4 + reflection dir 3 (angle 0, horizontal) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
+| **Default** | centerS = 0, centerT = 0, axisOffset = 0 |
+| **Constraints** | The mirror passes through the 4-fold center (in the standard placement). |
+
+**Formulas.**
+
+> Rotation generator = rotation(π/2, centerT, centerS)
+>
+> Mirror: period = gcd(1, 0) = 1.  (px, py) = (0, axisOffset).
+>
+> Reflection generator = reflection(0, 0, axisOffset)
+
+**Surjectivity.**  A p4m group has a 4-fold center with mirrors passing
+through it.  The center location (mod Λ) and mirror offset are
+independent continuous parameters.  For any valid p4m group, normalize
+the lattice to the unit square, then read off the center and mirror
+positions. ✔
+
+**Key check: p4m vs p4g.**  These are the two distinct ways to combine a
+4-fold rotation with mirrors on a square lattice:
+- **p4m**: mirrors pass through the 4-fold center (default center at origin, axisOffset 0).
+- **p4g**: mirrors are offset from the 4-fold center (default center at (½, ½)).
+The UI distinguishes them by setting different default values of centerS/T.
+
+---
+
+### p4g — 90° rotation + reflection (square lattice, mirrors offset from center)
+
+| | |
+|---|---|
+| **Lattice** | Square only |
+| **Generators** | rotation(π/2, cx, cy) + reflection(0, px, py) |
+| **Dir** | Rotation order 4 + reflection dir 3 (angle 0, horizontal) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
+| **Default** | centerS = 0.5, centerT = 0.5, axisOffset = 0 |
+| **Constraints** | The 4-fold center is at (½, ½), offset from the mirror by half a period. |
+
+**Formulas.**
+
+> Rotation generator = rotation(π/2, centerT, centerS) = rotation(π/2, 0.5, 0.5) at default
+>
+> Reflection generator = reflection(0, 0, axisOffset) = reflection(0, 0, 0) at default
+
+**Surjectivity.**  A p4g group has 4-fold centers at the midpoints of
+the fundamental cell, not on the mirror lines.  The default
+centerS = centerT = 0.5 places the 4-fold center at (½, ½), which is the
+standard p4g configuration.  Every p4g group on a square lattice can be
+brought to this form by a translation. ✔
+
+**Key distinction: p4m vs p4g.**  The two types use the *same* generator
+specification (rotation order 4 + reflection dir 3) but differ in the
+default center placement: p4m defaults to (0, 0) while p4g defaults to
+(0.5, 0.5).  Moving the sliders can in principle deform one into the
+other (the group structure changes), but the dropdown assignment fixes
+the intended type.  The group generator engine validates consistency
+via lattice compatibility checks.
+
+---
+
+### p3 — 120° rotation
+
+| | |
+|---|---|
+| **Lattice** | Hexagonal only (x = √3/2, y = ½) |
+| **Generators** | rotation(2π/3, cx, cy) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1) |
+| **Constraints** | Lattice must be hexagonal. |
+
+**Formula.**
+
+> (cx, cy) = (centerT · √3/2,  centerS + centerT · ½)
+>
+> Generator = rotation(2π/3, cx, cy)
+
+**Surjectivity.**  The 3-fold center can be anywhere mod Λ; the sliders
+cover the full torus. ✔
+
+---
+
+### p3m1 — 120° rotation + reflection (mirrors through rotation center)
+
+| | |
+|---|---|
+| **Lattice** | Hexagonal only |
+| **Generators** | rotation(2π/3, cx, cy) + reflection(π/2, px, py) |
+| **Dir** | Rotation order 3 + reflection dir 2 (angle π/2, along **a**) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
+| **Constraints** | Mirror along **a** passes through the 3-fold center. |
+
+**Formulas.**
+
+> Rotation = rotation(2π/3, cx, cy)
+>
+> Mirror: n = (−1, 0), period = gcd(0, √3/2) = √3/2.
+>
+> (px, py) = axisOffset · (√3/2) · (−1, 0) = (−axisOffset · √3/2, 0)
+>
+> Reflection = reflection(π/2, px, py)
+
+**Surjectivity.**  A p3m1 group has mirrors along **a** passing through the
+3-fold centers.  The key distinction from p31m is which set of mirror lines
+is present. ✔
+
+**Key check: p3m1 vs p31m.**  These are the two distinct ways to combine
+3-fold rotations with mirrors on a hexagonal lattice:
+- **p3m1**: mirrors along **a** (dirIndex 2, angle π/2) pass through the
+  3-fold centers.
+- **p31m**: mirrors along 2**b**−**a** (dirIndex 4, angle 0) pass between
+  the 3-fold centers.
+The UI distinguishes them by using different dirIndex values.
+
+---
+
+### p31m — 120° rotation + reflection (mirrors between rotation centers)
+
+| | |
+|---|---|
+| **Lattice** | Hexagonal only |
+| **Generators** | rotation(2π/3, cx, cy) + reflection(0, px, py) |
+| **Dir** | Rotation order 3 + reflection dir 4 (angle 0, along 2**b**−**a**) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
+| **Constraints** | Mirror along 2**b**−**a** does *not* pass through the 3-fold center. |
+
+**Formulas.**
+
+> Rotation = rotation(2π/3, cx, cy)
+>
+> Mirror direction angle = 0 (horizontal).  n = (0, 1).  period = gcd(1, ½) = ½.
+>
+> (px, py) = axisOffset · ½ · (0, 1) = (0, axisOffset/2)
+>
+> Reflection = reflection(0, px, py)
+
+**Surjectivity.**  The p31m group has 3-fold centers at positions *not* on
+the mirror lines.  The UI's independent control of center position and
+mirror offset allows all valid configurations. ✔
+
+---
+
+### p6 — 60° rotation
+
+| | |
+|---|---|
+| **Lattice** | Hexagonal only |
+| **Generators** | rotation(π/3, cx, cy) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1) |
+| **Constraints** | Lattice must be hexagonal. |
+
+**Formula.**
+
+> (cx, cy) = (centerT · √3/2,  centerS + centerT/2)
+>
+> Generator = rotation(π/3, cx, cy)
+
+**Surjectivity.**  Same argument as p3: the center can be anywhere mod Λ,
+and the sliders cover the full torus. ✔
+
+---
+
+### p6m — 60° rotation + reflection
+
+| | |
+|---|---|
+| **Lattice** | Hexagonal only |
+| **Generators** | rotation(π/3, cx, cy) + reflection(0, px, py) |
+| **Dir** | Rotation order 6 + reflection dir 4 (angle 0, horizontal, along 2**b**−**a**) |
+| **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
+| **Constraints** | Highest symmetry hexagonal group. |
+
+**Formulas.**
+
+> Rotation = rotation(π/3, cx, cy)
+>
+> Mirror: same as p31m mirror computation (direction 0, period ½).
+>
+> Reflection = reflection(0, 0, axisOffset/2)
+
+**Surjectivity.**  A p6m group has full hexagonal symmetry (6-fold rotation
++ all 6 mirror families).  The 6-fold center and one mirror offset
+determine the full group. ✔
+
+---
+
+### Summary table
+
+| Type | Lattice | Generators | Discrete params (fixed by type) | Continuous params (sliders) | Hidden constraints |
+|---|---|---|---|---|---|
+| p1 | Any | *(none)* | — | (x, y) | — |
+| p2 | Any | rot(π) | order = 2 | (x, y), centerS, centerT | Center is gauge |
+| pm | Rect/Sq | refl(π/2) | dirIndex = 0 or 2 | (x, y), axisOffset | Offset is gauge |
+| pg | Rect/Sq | glide(π/2, ½) | dirIndex = 0 or 2, dist = ½ | (x, y), axisOffset | Offset is gauge |
+| cm | CRect/Sq/Hex | refl(α) | dirIndex = 0 | (x, y), axisOffset | α depends on lattice shape |
+| pmm | Rect/Sq | refl(π/2) + refl(0) | dirs = (0,1) or (2,3) | (x, y), axisOffset₀, axisOffset₁ | Offsets are gauge |
+| pmg | Rect/Sq | refl(0) + glide(π/2, ½) | dirs = (1,0) or (3,2) | (x, y), axisOffset₀, axisOffset₁ | Offsets are gauge |
+| pgg | Rect/Sq | glide(0, d₀) + glide(π/2, ½) | dirs = (1,0) or (3,2), dists fixed | (x, y), axisOffset₀, axisOffset₁ | Default offset ¼ |
+| cmm | CRect/Sq/Hex | refl(α₀) + refl(α₁) | dirs = (0,1) | (x, y), axisOffset₀, axisOffset₁ | α₀, α₁ depend on lattice |
+| p4 | Square | rot(π/2) | order = 4 | centerS, centerT | Center is gauge |
+| p4m | Square | rot(π/2) + refl(0) | order = 4, dir = 3 | centerS, centerT, axisOffset | Mirror through center (default) |
+| p4g | Square | rot(π/2) + refl(0) | order = 4, dir = 3 | centerS, centerT, axisOffset | Center at (½,½) (default), off-mirror |
+| p3 | Hexagonal | rot(2π/3) | order = 3 | centerS, centerT | Center is gauge |
+| p3m1 | Hexagonal | rot(2π/3) + refl(π/2) | order = 3, dir = 2 | centerS, centerT, axisOffset | Mirror through center |
+| p31m | Hexagonal | rot(2π/3) + refl(0) | order = 3, dir = 4 | centerS, centerT, axisOffset | Mirror between centers |
+| p6 | Hexagonal | rot(π/3) | order = 6 | centerS, centerT | Center is gauge |
+| p6m | Hexagonal | rot(π/3) + refl(0) | order = 6, dir = 4 | centerS, centerT, axisOffset | Full hex symmetry |
+
+**Notation:** "Rect" = rectangular, "Sq" = square, "CRect" = centered rectangular, "Hex" = hexagonal.
+
+### Addressing the critical cases
+
+**pmg, pgg, cm, cmm** — These types require specific relationships between
+generator placements.  The UI handles this by fixing the dirIndex values
+in the templates (see wallpaperGroups.js) and allowing only axisOffset
+as the continuous parameter.  Since the direction and glide distance are
+determined by the lattice (not free), the only remaining question is
+whether all admissible perpendicular offsets are reachable — and they are,
+since axisOffset ∈ [0, 1) covers the full period.
+
+**p3m1 vs p31m** — The crucial distinction is which mirror direction is
+used:
+- p3m1 uses dirIndex 2 (angle π/2, along **a**), whose mirrors pass through
+  the 3-fold centers.
+- p31m uses dirIndex 4 (angle 0, along 2**b**−**a**), whose mirrors pass
+  between the 3-fold centers.
+These are genuinely different crystallographic types (not related by any
+lattice automorphism of the hexagonal lattice), and the UI correctly
+distinguishes them via dirIndex.
+
+**p4g** — The p4g arrangement requires the 4-fold center to be at a
+position *not* on the mirror line.  The default centerS = centerT = 0.5
+places it at the body center of the unit cell, which is the standard
+p4g configuration.  The mirror (axisOffset = 0) passes through the origin.
+This correctly produces the p4g pattern.  Since any p4g group can be
+translated so that the center is at (½, ½) and the mirror at the origin,
+surjectivity holds.
