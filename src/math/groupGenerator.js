@@ -48,15 +48,24 @@ function isDuplicate(elements, M) {
 /**
  * Generate group elements up to `maxWords` words in the generators.
  *
+ * Every distinct isometry found is kept (we do NOT reduce modulo the
+ * translation lattice).  This means the result list grows with depth
+ * and includes many translation copies of the same coset representative.
+ *
+ * While expanding we watch for pure translations that fall outside the
+ * lattice spanned by the two translation generators.  Finding any such
+ * translation means the generators are incompatible with the lattice
+ * (the resulting group would be non-discrete or have a different
+ * translation lattice) and we abort with an error.
+ *
  * @param {Array} generators – list of isometry objects (must include
  *   exactly two that are pure translations forming a lattice).
  * @param {number} maxWords – maximum word length to expand.
  * @returns {{ elements: Array, error: string|null }}
- *   On success, `elements` is the list of distinct isometries found
- *   (modulo the lattice – i.e. we reduce translations mod L).
- *   On failure, `error` contains a descriptive message.
  */
 export function generateGroup(generators, maxWords = 6) {
+  const MAX_ELEMENTS = 5000;
+
   // Identify the two translation generators
   const translationGens = generators.filter((g) => isTranslation(g));
   if (translationGens.length !== 2) {
@@ -95,8 +104,6 @@ export function generateGroup(generators, maxWords = 6) {
         };
       }
       if (!isInLattice(conjugate.tx, conjugate.ty, v1, v2)) {
-        // Check if it could produce a dense set (irrational rotation)
-        // by testing whether repeated conjugation stays outside the lattice
         const type = classify(g, EPS);
         if (type === 'rotation') {
           return {
@@ -127,25 +134,12 @@ export function generateGroup(generators, maxWords = 6) {
   }
 
   // BFS: explore all products of generators up to length maxWords.
-  // We keep track of elements modulo the lattice: two isometries are
-  // considered equivalent if they differ by a lattice translation.
+  // We use exact equality – every distinct isometry is kept.
   const id = identity();
-
-  /**
-   * Check whether two isometries are equivalent modulo the lattice.
-   */
-  function equivMod(A, B) {
-    // A ≡ B (mod L) iff A·B^{-1} is a lattice translation
-    const diff = compose(A, inverse(B));
-    if (!isTranslation(diff, EPS)) return false;
-    return isInLattice(diff.tx, diff.ty, v1, v2);
-  }
-
-  // The elements list (representatives modulo L)
   const elements = [id];
   let frontier = [id];
 
-  // Count of non-lattice pure translations found (for dense-detection)
+  // Count of non-lattice pure translations found (for error detection)
   let extraTranslationCount = 0;
   const EXTRA_TRANSLATION_LIMIT = 20;
 
@@ -156,7 +150,7 @@ export function generateGroup(generators, maxWords = 6) {
         const product = compose(gen, elem);
         const type = classify(product, EPS);
 
-        // Check for dense translations
+        // Check for non-lattice translations
         if (type === 'translation' && !isIdentity(product, EPS)) {
           if (!isInLattice(product.tx, product.ty, v1, v2)) {
             extraTranslationCount++;
@@ -171,18 +165,23 @@ export function generateGroup(generators, maxWords = 6) {
           }
         }
 
-        // Check if we've seen this modulo lattice
-        let isDup = false;
-        for (const e of elements) {
-          if (equivMod(product, e)) {
-            isDup = true;
-            break;
-          }
-        }
-
-        if (!isDup) {
+        // Check for exact duplicate
+        if (!isDuplicate(elements, product)) {
           elements.push(product);
           nextFrontier.push(product);
+
+          if (elements.length >= MAX_ELEMENTS) {
+            // Return what we have so far – the group is very large at this depth
+            if (extraTranslationCount > 0) {
+              return {
+                elements: [],
+                error:
+                  'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
+                  `Found ${extraTranslationCount} translation(s) outside the lattice.`,
+              };
+            }
+            return { elements, error: null };
+          }
         }
       }
     }
@@ -190,10 +189,7 @@ export function generateGroup(generators, maxWords = 6) {
     if (frontier.length === 0) break;
   }
 
-  // Final validation: check that the canonical translation subgroup equals L.
-  // The canonical translation group of the full symmetry group is the set of
-  // all pure translations in the generated group.
-  // We already flagged non-lattice translations above with the extra count.
+  // Final validation
   if (extraTranslationCount > 0) {
     return {
       elements: [],

@@ -203,7 +203,7 @@ export default function GroupVisualization({ elements, latticeVectors }) {
   return (
     <div>
       <div style={{ marginBottom: '8px', fontSize: '14px', color: '#666' }}>
-        Elements (mod lattice): {elements?.length || 0} |{' '}
+        Elements: {elements?.length || 0} |{' '}
         Rot: {counts.rotation} | Refl: {counts.reflection} |{' '}
         Glide: {counts['glide-reflection']} | Trans: {counts.translation}
       </div>
@@ -267,39 +267,6 @@ export default function GroupVisualization({ elements, latticeVectors }) {
 
         {/* Origin marker */}
         <circle cx={svgCx} cy={svgCy} r="4" fill="#222" />
-
-        {/* Lattice basis vectors */}
-        {latticeVectors && (
-          <>
-            {[latticeVectors.v1, latticeVectors.v2].map((v, i) => {
-              const end = toSvg(v.x, v.y, svgCx, svgCy);
-              return (
-                <line
-                  key={`basis-${i}`}
-                  x1={svgCx}
-                  y1={svgCy}
-                  x2={end.x}
-                  y2={end.y}
-                  stroke="#2c3e50"
-                  strokeWidth="2"
-                  markerEnd="url(#arrowhead)"
-                />
-              );
-            })}
-            <defs>
-              <marker
-                id="arrowhead"
-                markerWidth="8"
-                markerHeight="6"
-                refX="8"
-                refY="3"
-                orient="auto"
-              >
-                <polygon points="0 0, 8 3, 0 6" fill="#2c3e50" />
-              </marker>
-            </defs>
-          </>
-        )}
       </svg>
 
       {/* Legend */}
