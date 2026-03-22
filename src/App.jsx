@@ -443,7 +443,7 @@ export default function App() {
       </div>
 
       {/* Timing info */}
-      {timeMs != null && (
+      {timeMs !== null && (
         <div className="timing-info">
           Generation time: {timeMs.toFixed(1)} ms
         </div>
