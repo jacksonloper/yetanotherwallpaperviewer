@@ -4,15 +4,12 @@ import {
   rotation,
   reflection,
   glideReflection,
-  isTranslation,
-  rotationOrder,
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
-import { presets } from './math/presets.js'
 import { getWallpaperTypesForLattice } from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
-import { latticeToVector, getAllowedIsometries, findClosestDirection, latticeCoordsToCenter, centerToLatticeCoords, axisOffsetToPoint, pointToAxisOffset } from './math/latticeUtils.js'
+import { latticeToVector, getAllowedIsometries, latticeCoordsToCenter, axisOffsetToPoint } from './math/latticeUtils.js'
 import './App.css'
 
 const PI = Math.PI
@@ -40,56 +37,6 @@ function parseGenerator(gen, allowedIso, latticeVec) {
     default:
       return null
   }
-}
-
-
-
-function isometriesToEditorState(isometries, allowedIso, latticeVec) {
-  return isometries
-    .filter((iso) => !isTranslation(iso))
-    .map((iso) => {
-      const det = iso.a * iso.d - iso.b * iso.c
-      if (det > 0) {
-        // Rotation
-        const order = rotationOrder(iso) || 2
-        const detM = (1 - iso.a) * (1 - iso.d) - iso.b * iso.c
-        let cx = 0, cy = 0
-        if (Math.abs(detM) > 1e-10) {
-          cx = ((1 - iso.d) * iso.tx + iso.b * iso.ty) / detM
-          cy = (iso.c * iso.tx + (1 - iso.a) * iso.ty) / detM
-        }
-        const { s, t } = centerToLatticeCoords(cx, cy, latticeVec)
-        return {
-          type: 'rotation',
-          order: allowedIso.rotationOrders.includes(order) ? order : (allowedIso.rotationOrders[0] || 2),
-          centerS: Math.round(s * 1000) / 1000,
-          centerT: Math.round(t * 1000) / 1000,
-        }
-      }
-      // Reflection or glide-reflection
-      const axisAngle = Math.atan2(iso.c, iso.a) / 2
-      const glideDist = iso.tx * Math.cos(axisAngle) + iso.ty * Math.sin(axisAngle)
-      const perpDist = -iso.tx * Math.sin(axisAngle) + iso.ty * Math.cos(axisAngle)
-      const px = (perpDist / 2) * (-Math.sin(axisAngle))
-      const py = (perpDist / 2) * Math.cos(axisAngle)
-
-      if (Math.abs(glideDist) < 1e-9) {
-        const dirIndex = findClosestDirection(axisAngle, allowedIso.reflections)
-        const offset = pointToAxisOffset(px, py, axisAngle, latticeVec)
-        return {
-          type: 'reflection',
-          dirIndex,
-          axisOffset: Math.round(offset * 1000) / 1000,
-        }
-      }
-      const dirIndex = findClosestDirection(axisAngle, allowedIso.glides)
-      const offset = pointToAxisOffset(px, py, axisAngle, latticeVec)
-      return {
-        type: 'glide-reflection',
-        dirIndex,
-        axisOffset: Math.round(offset * 1000) / 1000,
-      }
-    })
 }
 
 function buildJsonSpec(lattice, generators, allowedIso) {
@@ -144,7 +91,6 @@ export default function App() {
   const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
-  const [selectedPreset, setSelectedPreset] = useState('')
 
   const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
   const prevLatticeType = useRef(allowedIso.latticeType)
@@ -160,13 +106,11 @@ export default function App() {
     if (wpType) {
       setGenerators(wpType.generators.map((g) => ({ ...g })))
     }
-    setSelectedPreset('')
   }
 
   // Wrap setLattice to auto-adjust wallpaper type & generators when lattice type changes
   const handleLatticeChange = useCallback((newLattice) => {
     setLattice(newLattice)
-    setSelectedPreset('')
     const newAllowed = getAllowedIsometries(newLattice)
     if (prevLatticeType.current !== newAllowed.latticeType) {
       prevLatticeType.current = newAllowed.latticeType
@@ -188,20 +132,6 @@ export default function App() {
     const newGens = [...generators]
     newGens[index] = gen
     setGenerators(newGens)
-    setSelectedPreset('')
-  }
-
-  const loadPreset = (presetName) => {
-    const preset = presets.find((p) => p.name === presetName)
-    if (!preset) return
-    setSelectedPreset(presetName)
-    setLattice(preset.lattice)
-    setWallpaperType(presetName)
-    const newAllowed = getAllowedIsometries(preset.lattice)
-    const presetVec = latticeToVector(preset.lattice)
-    const isos = preset.generators()
-    setGenerators(isometriesToEditorState(isos, newAllowed, presetVec))
-    prevLatticeType.current = newAllowed.latticeType
   }
 
   // Auto-generate the group whenever inputs change
@@ -244,24 +174,6 @@ export default function App() {
       <p className="subtitle">
         Choose a lattice, pick a wallpaper group, then adjust the continuous parameters. Updates live.
       </p>
-
-      {/* Preset selector */}
-      <div className="preset-selector">
-        <label><strong>Load preset:</strong></label>
-        <select
-          value={selectedPreset}
-          onChange={(e) => {
-            if (e.target.value) loadPreset(e.target.value)
-          }}
-        >
-          <option value="">Select a wallpaper group...</option>
-          {presets.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name} – {p.description}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {/* Lattice selector */}
       <LatticeSelector lattice={lattice} onChange={handleLatticeChange} />

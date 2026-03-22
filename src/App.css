@@ -15,17 +15,6 @@ h1 {
   margin-top: 0;
 }
 
-.preset-selector {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.preset-selector select {
-  padding: 4px 8px;
-}
-
 /* Lattice Selector */
 .lattice-selector {
   margin-bottom: 16px;
