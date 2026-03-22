@@ -61,9 +61,16 @@ function isDuplicate(elements, M) {
  * @param {Array} generators – list of isometry objects (must include
  *   exactly two that are pure translations forming a lattice).
  * @param {number} maxWords – maximum word length to expand.
- * @returns {{ elements: Array, error: string|null }}
+ * @returns {{ elements: Array, error: string|null, timeMs: number }}
  */
 export function generateGroup(generators, maxWords = 6) {
+  const t0 = performance.now();
+  const result = _generateGroup(generators, maxWords);
+  result.timeMs = performance.now() - t0;
+  return result;
+}
+
+function _generateGroup(generators, maxWords) {
   const MAX_ELEMENTS = 5000;
 
   // Identify the two translation generators
