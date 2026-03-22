@@ -307,6 +307,7 @@ export default function App() {
     { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
   ])
   const [maxWords, setMaxWords] = useState(6)
+  const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
   const [selectedPreset, setSelectedPreset] = useState('')
@@ -364,21 +365,21 @@ export default function App() {
       const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso, vec)).filter(Boolean)
 
       const allIsos = [t1, t2, ...nonTransIsos]
-      const res = generateGroup(allIsos, maxWords)
+      const res = generateGroup(allIsos, maxWords, maxElements)
       if (res.error) {
-        return { result: null, error: res.error, timeMs: res.timeMs }
+        return { result: null, error: res.error, warning: null, timeMs: res.timeMs }
       }
       const latticeVectors = {
         v1: { x: 0, y: 1 },
         v2: vec,
       }
-      return { result: { elements: res.elements, latticeVectors }, error: null, timeMs: res.timeMs }
+      return { result: { elements: res.elements, latticeVectors }, error: null, warning: res.warning, timeMs: res.timeMs }
     } catch (err) {
-      return { result: null, error: `Error: ${err.message}`, timeMs: 0 }
+      return { result: null, error: `Error: ${err.message}`, warning: null, timeMs: 0 }
     }
-  }, [generators, lattice, maxWords, allowedIso])
+  }, [generators, lattice, maxWords, maxElements, allowedIso])
 
-  const { result, error, timeMs } = groupResult
+  const { result, error, warning, timeMs } = groupResult
 
   const copyToClipboard = useCallback(() => {
     const json = buildJsonSpec(lattice, generators, allowedIso)
@@ -450,6 +451,18 @@ export default function App() {
             className="gen-slider"
           />
         </label>
+        <label>
+          Max elements: {maxElements}
+          <input
+            type="range"
+            min="100"
+            max="5000"
+            step="100"
+            value={maxElements}
+            onChange={(e) => setMaxElements(parseInt(e.target.value, 10))}
+            className="gen-slider"
+          />
+        </label>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
           Show F
@@ -470,6 +483,11 @@ export default function App() {
       {/* Error display */}
       {error && (
         <div className="error-box">{error}</div>
+      )}
+
+      {/* Warning display */}
+      {warning && (
+        <div className="warning-box">{warning}</div>
       )}
 
       {/* Visualization */}

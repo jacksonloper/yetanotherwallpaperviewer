@@ -56,22 +56,23 @@ function isDuplicate(elements, M) {
  * lattice spanned by the two translation generators.  Finding any such
  * translation means the generators are incompatible with the lattice
  * (the resulting group would be non-discrete or have a different
- * translation lattice) and we abort with an error.
+ * translation lattice).  We still return the elements found (up to
+ * maxElements) and set a warning string.
  *
  * @param {Array} generators – list of isometry objects (must include
  *   exactly two that are pure translations forming a lattice).
  * @param {number} maxWords – maximum word length to expand.
- * @returns {{ elements: Array, error: string|null, timeMs: number }}
+ * @param {number} maxElements – maximum number of elements to generate.
+ * @returns {{ elements: Array, error: string|null, warning: string|null, timeMs: number }}
  */
-export function generateGroup(generators, maxWords = 6) {
+export function generateGroup(generators, maxWords = 6, maxElements = 1000) {
   const t0 = performance.now();
-  const result = _generateGroup(generators, maxWords);
+  const result = _generateGroup(generators, maxWords, maxElements);
   result.timeMs = performance.now() - t0;
   return result;
 }
 
-function _generateGroup(generators, maxWords) {
-  const MAX_ELEMENTS = 5000;
+function _generateGroup(generators, maxWords, maxElements) {
 
   // Identify the two translation generators
   const translationGens = generators.filter((g) => isTranslation(g));
@@ -79,6 +80,7 @@ function _generateGroup(generators, maxWords) {
     return {
       elements: [],
       error: `Expected exactly 2 translation generators, got ${translationGens.length}.`,
+      warning: null,
     };
   }
 
@@ -91,6 +93,7 @@ function _generateGroup(generators, maxWords) {
     return {
       elements: [],
       error: 'The two translation generators are linearly dependent.',
+      warning: null,
     };
   }
 
@@ -98,34 +101,26 @@ function _generateGroup(generators, maxWords) {
   // If g is a generator and T is a lattice translation, then g∘T∘g⁻¹ must
   // also be a lattice translation. If not, the group produces translations
   // outside L, which means either a dense set or a strictly larger lattice.
+  // We record a warning but continue generating up to maxElements.
+  let warning = null;
   const nonTransGens = generators.filter((g) => !isTranslation(g));
   for (const g of nonTransGens) {
     const gInv = inverse(g);
     for (const T of translationGens) {
       const conjugate = compose(g, compose(T, gInv));
       if (!isTranslation(conjugate, EPS)) {
-        // Shouldn't happen for isometries, but just in case
-        return {
-          elements: [],
-          error: 'A generator conjugates a lattice translation into a non-translation. Check inputs.',
-        };
-      }
-      if (!isInLattice(conjugate.tx, conjugate.ty, v1, v2)) {
+        warning = 'A generator conjugates a lattice translation into a non-translation. Check inputs.';
+      } else if (!isInLattice(conjugate.tx, conjugate.ty, v1, v2)) {
         const type = classify(g, EPS);
         if (type === 'rotation') {
-          return {
-            elements: [],
-            error:
-              'The group generates translations outside the specified lattice. ' +
-              'This means the translations form a dense set. Aborting.',
-          };
-        }
-        return {
-          elements: [],
-          error:
+          warning =
+            'The group generates translations outside the specified lattice. ' +
+            'This means the translations form a dense set.';
+        } else {
+          warning =
             'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
-            'A generator maps the lattice to a different set of translations.',
-        };
+            'A generator maps the lattice to a different set of translations.';
+        }
       }
     }
   }
@@ -146,9 +141,8 @@ function _generateGroup(generators, maxWords) {
   const elements = [id];
   let frontier = [id];
 
-  // Count of non-lattice pure translations found (for error detection)
+  // Count of non-lattice pure translations found (for warning detection)
   let extraTranslationCount = 0;
-  const EXTRA_TRANSLATION_LIMIT = 20;
 
   for (let depth = 0; depth < maxWords; depth++) {
     const nextFrontier = [];
@@ -157,18 +151,10 @@ function _generateGroup(generators, maxWords) {
         const product = compose(gen, elem);
         const type = classify(product, EPS);
 
-        // Check for non-lattice translations
+        // Count non-lattice translations
         if (type === 'translation' && !isIdentity(product, EPS)) {
           if (!isInLattice(product.tx, product.ty, v1, v2)) {
             extraTranslationCount++;
-            if (extraTranslationCount > EXTRA_TRANSLATION_LIMIT) {
-              return {
-                elements: [],
-                error:
-                  'The group generates translations outside the specified lattice. ' +
-                  'This means the translations form a dense set. Aborting.',
-              };
-            }
           }
         }
 
@@ -177,17 +163,14 @@ function _generateGroup(generators, maxWords) {
           elements.push(product);
           nextFrontier.push(product);
 
-          if (elements.length >= MAX_ELEMENTS) {
-            // Return what we have so far – the group is very large at this depth
-            if (extraTranslationCount > 0) {
-              return {
-                elements: [],
-                error:
-                  'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
-                  `Found ${extraTranslationCount} translation(s) outside the lattice.`,
-              };
+          if (elements.length >= maxElements) {
+            // Return what we have so far – hit the element limit
+            if (extraTranslationCount > 0 && !warning) {
+              warning =
+                'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
+                `Found ${extraTranslationCount} translation(s) outside the lattice.`;
             }
-            return { elements, error: null };
+            return { elements, error: null, warning };
           }
         }
       }
@@ -196,17 +179,14 @@ function _generateGroup(generators, maxWords) {
     if (frontier.length === 0) break;
   }
 
-  // Final validation
-  if (extraTranslationCount > 0) {
-    return {
-      elements: [],
-      error:
-        'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
-        `Found ${extraTranslationCount} translation(s) outside the lattice.`,
-    };
+  // Final: note any extra translations as a warning
+  if (extraTranslationCount > 0 && !warning) {
+    warning =
+      'The canonical translation group of the symmetry group is not equal to the lattice L. ' +
+      `Found ${extraTranslationCount} translation(s) outside the lattice.`;
   }
 
-  return { elements, error: null };
+  return { elements, error: null, warning };
 }
 
 /**
