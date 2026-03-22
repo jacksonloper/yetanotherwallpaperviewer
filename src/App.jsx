@@ -1,86 +1,127 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import {
   translation,
   rotation,
   reflection,
   glideReflection,
   isTranslation,
+  rotationOrder,
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
 import { presets } from './math/presets.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
-import { latticeToVector } from './math/latticeUtils.js'
+import { latticeToVector, getAllowedIsometries, findClosestDirection } from './math/latticeUtils.js'
 import ValidatedInput from './components/ValidatedInput.jsx'
 import './App.css'
 
 const PI = Math.PI
 
-const ISOMETRY_TYPES = ['rotation', 'reflection', 'glide-reflection']
-
-function defaultGenerator(type) {
+function defaultGenerator(type, allowedIso) {
   switch (type) {
     case 'rotation':
-      return { type, angle: '90', cx: '0', cy: '0' }
+      return { type, order: (allowedIso.rotationOrders[0] || 2), cx: '0', cy: '0' }
     case 'reflection':
-      return { type, angle: '0', px: '0', py: '0' }
+      return { type, dirIndex: 0, px: '0', py: '0' }
     case 'glide-reflection':
-      return { type, angle: '0', dist: '0.5', px: '0', py: '0' }
+      return { type, dirIndex: 0, px: '0', py: '0' }
     default:
-      return { type: 'rotation', angle: '90', cx: '0', cy: '0' }
+      return { type: 'rotation', order: (allowedIso.rotationOrders[0] || 2), cx: '0', cy: '0' }
   }
 }
 
-function parseGenerator(gen) {
+function parseGenerator(gen, allowedIso) {
   switch (gen.type) {
-    case 'rotation':
-      return rotation(
-        (parseFloat(gen.angle) * PI) / 180,
-        parseFloat(gen.cx),
-        parseFloat(gen.cy)
-      )
-    case 'reflection':
-      return reflection(
-        (parseFloat(gen.angle) * PI) / 180,
-        parseFloat(gen.px),
-        parseFloat(gen.py)
-      )
-    case 'glide-reflection':
-      return glideReflection(
-        (parseFloat(gen.angle) * PI) / 180,
-        parseFloat(gen.dist),
-        parseFloat(gen.px),
-        parseFloat(gen.py)
-      )
+    case 'rotation': {
+      const order = gen.order || 2
+      const angle = (2 * PI) / order
+      return rotation(angle, parseFloat(gen.cx), parseFloat(gen.cy))
+    }
+    case 'reflection': {
+      const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
+      if (!dir) return null
+      return reflection(dir.angle, parseFloat(gen.px), parseFloat(gen.py))
+    }
+    case 'glide-reflection': {
+      const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
+      if (!dir) return null
+      return glideReflection(dir.angle, dir.dist, parseFloat(gen.px), parseFloat(gen.py))
+    }
     default:
       return null
   }
 }
 
-function GeneratorEditor({ gen, index, onChange, onRemove }) {
+function getAvailableTypes(allowedIso) {
+  const types = ['rotation']
+  if (allowedIso.reflections.length > 0) types.push('reflection')
+  if (allowedIso.glides.length > 0) types.push('glide-reflection')
+  return types
+}
+
+/**
+ * Adjust generators so they remain valid for the given allowed isometries.
+ * Returns null if no adjustment needed, otherwise returns the adjusted array.
+ */
+function adjustGenerators(generators, allowedIso) {
+  let changed = false
+  const adjusted = generators
+    .map((gen) => {
+      if (gen.type === 'reflection' && allowedIso.reflections.length === 0) {
+        changed = true
+        return null
+      }
+      if (gen.type === 'glide-reflection' && allowedIso.glides.length === 0) {
+        changed = true
+        return null
+      }
+      if (gen.type === 'rotation' && !allowedIso.rotationOrders.includes(gen.order)) {
+        changed = true
+        return { ...gen, order: allowedIso.rotationOrders[0] || 2 }
+      }
+      if (gen.type === 'reflection' && (gen.dirIndex || 0) >= allowedIso.reflections.length) {
+        changed = true
+        return { ...gen, dirIndex: 0 }
+      }
+      if (gen.type === 'glide-reflection' && (gen.dirIndex || 0) >= allowedIso.glides.length) {
+        changed = true
+        return { ...gen, dirIndex: 0 }
+      }
+      return gen
+    })
+    .filter(Boolean)
+  return changed ? adjusted : null
+}
+
+function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso }) {
   const update = (field, value) => {
     onChange(index, { ...gen, [field]: value })
   }
+
+  const availableTypes = getAvailableTypes(allowedIso)
 
   return (
     <div className="generator-row">
       <select
         value={gen.type}
-        onChange={(e) => onChange(index, defaultGenerator(e.target.value))}
+        onChange={(e) => onChange(index, defaultGenerator(e.target.value, allowedIso))}
       >
-        {ISOMETRY_TYPES.map((t) => (
+        {availableTypes.map((t) => (
           <option key={t} value={t}>{t}</option>
         ))}
       </select>
 
       {gen.type === 'rotation' && (
         <>
-          <label>angle°:
-            <ValidatedInput
-              value={gen.angle}
-              onChange={(v) => update('angle', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
+          <label>order:
+            <select
+              value={gen.order}
+              onChange={(e) => update('order', parseInt(e.target.value, 10))}
+            >
+              {allowedIso.rotationOrders.map((o) => (
+                <option key={o} value={o}>{360 / o}° (order {o})</option>
+              ))}
+            </select>
           </label>
           <label>cx:
             <ValidatedInput
@@ -101,12 +142,15 @@ function GeneratorEditor({ gen, index, onChange, onRemove }) {
 
       {gen.type === 'reflection' && (
         <>
-          <label>angle°:
-            <ValidatedInput
-              value={gen.angle}
-              onChange={(v) => update('angle', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
+          <label>direction:
+            <select
+              value={gen.dirIndex}
+              onChange={(e) => update('dirIndex', parseInt(e.target.value, 10))}
+            >
+              {allowedIso.reflections.map((r, i) => (
+                <option key={i} value={i}>{r.label}</option>
+              ))}
+            </select>
           </label>
           <label>px:
             <ValidatedInput
@@ -127,19 +171,15 @@ function GeneratorEditor({ gen, index, onChange, onRemove }) {
 
       {gen.type === 'glide-reflection' && (
         <>
-          <label>angle°:
-            <ValidatedInput
-              value={gen.angle}
-              onChange={(v) => update('angle', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
-          </label>
-          <label>dist:
-            <ValidatedInput
-              value={gen.dist}
-              onChange={(v) => update('dist', String(v))}
-              validate={(v) => !isNaN(v)}
-            />
+          <label>direction:
+            <select
+              value={gen.dirIndex}
+              onChange={(e) => update('dirIndex', parseInt(e.target.value, 10))}
+            >
+              {allowedIso.glides.map((g, i) => (
+                <option key={i} value={i}>{g.label}</option>
+              ))}
+            </select>
           </label>
           <label>px:
             <ValidatedInput
@@ -163,13 +203,14 @@ function GeneratorEditor({ gen, index, onChange, onRemove }) {
   )
 }
 
-function isometriesToEditorState(isometries) {
+function isometriesToEditorState(isometries, allowedIso) {
   return isometries
     .filter((iso) => !isTranslation(iso))
     .map((iso) => {
       const det = iso.a * iso.d - iso.b * iso.c
       if (det > 0) {
-        const angle = Math.atan2(iso.c, iso.a)
+        // Rotation
+        const order = rotationOrder(iso) || 2
         const detM = (1 - iso.a) * (1 - iso.d) - iso.b * iso.c
         let cx = 0, cy = 0
         if (Math.abs(detM) > 1e-10) {
@@ -178,11 +219,12 @@ function isometriesToEditorState(isometries) {
         }
         return {
           type: 'rotation',
-          angle: String(Math.round((angle * 180) / PI * 1000) / 1000),
+          order: allowedIso.rotationOrders.includes(order) ? order : (allowedIso.rotationOrders[0] || 2),
           cx: String(Math.round(cx * 1000) / 1000),
           cy: String(Math.round(cy * 1000) / 1000),
         }
       }
+      // Reflection or glide-reflection
       const axisAngle = Math.atan2(iso.c, iso.a) / 2
       const glideDist = iso.tx * Math.cos(axisAngle) + iso.ty * Math.sin(axisAngle)
       const perpDist = -iso.tx * Math.sin(axisAngle) + iso.ty * Math.cos(axisAngle)
@@ -190,34 +232,87 @@ function isometriesToEditorState(isometries) {
       const py = (perpDist / 2) * Math.cos(axisAngle)
 
       if (Math.abs(glideDist) < 1e-9) {
+        const dirIndex = findClosestDirection(axisAngle, allowedIso.reflections)
         return {
           type: 'reflection',
-          angle: String(Math.round((axisAngle * 180) / PI * 1000) / 1000),
+          dirIndex,
           px: String(Math.round(px * 1000) / 1000),
           py: String(Math.round(py * 1000) / 1000),
         }
       }
+      const dirIndex = findClosestDirection(axisAngle, allowedIso.glides)
       return {
         type: 'glide-reflection',
-        angle: String(Math.round((axisAngle * 180) / PI * 1000) / 1000),
-        dist: String(Math.round(glideDist * 1000) / 1000),
+        dirIndex,
         px: String(Math.round(px * 1000) / 1000),
         py: String(Math.round(py * 1000) / 1000),
       }
     })
 }
 
+function buildJsonSpec(lattice, generators, allowedIso) {
+  const vec = latticeToVector(lattice)
+  const spec = {
+    translations: [[0, 1], [parseFloat(vec.x.toFixed(6)), parseFloat(vec.y.toFixed(6))]],
+    generators: generators.map((gen) => {
+      switch (gen.type) {
+        case 'rotation':
+          return {
+            type: 'rotation',
+            order: gen.order || 2,
+            angle_degrees: 360 / (gen.order || 2),
+            center: [parseFloat(gen.cx), parseFloat(gen.cy)],
+          }
+        case 'reflection': {
+          const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
+          return {
+            type: 'reflection',
+            axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
+            point_on_axis: [parseFloat(gen.px), parseFloat(gen.py)],
+          }
+        }
+        case 'glide-reflection': {
+          const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
+          return {
+            type: 'glide-reflection',
+            axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
+            glide_distance: dir ? parseFloat(dir.dist.toFixed(6)) : 0,
+            point_on_axis: [parseFloat(gen.px), parseFloat(gen.py)],
+          }
+        }
+        default:
+          return gen
+      }
+    }),
+  }
+  return JSON.stringify(spec, null, 2)
+}
+
 export default function App() {
   const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
   const [generators, setGenerators] = useState([
-    { type: 'rotation', angle: '90', cx: '0', cy: '0' },
+    { type: 'rotation', order: 4, cx: '0', cy: '0' },
   ])
   const [maxWords, setMaxWords] = useState(6)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
+  const prevLatticeType = useRef(allowedIso.latticeType)
+
+  // Wrap setLattice to auto-adjust generators when lattice type changes
+  const handleLatticeChange = useCallback((newLattice) => {
+    setLattice(newLattice)
+    const newAllowed = getAllowedIsometries(newLattice)
+    if (prevLatticeType.current !== newAllowed.latticeType) {
+      prevLatticeType.current = newAllowed.latticeType
+      setGenerators((prev) => adjustGenerators(prev, newAllowed) ?? prev)
+    }
+  }, [])
 
   const addGenerator = () => {
-    setGenerators([...generators, defaultGenerator('rotation')])
+    setGenerators([...generators, defaultGenerator('rotation', allowedIso)])
   }
 
   const removeGenerator = (index) => {
@@ -234,8 +329,10 @@ export default function App() {
     const preset = presets.find((p) => p.name === presetName)
     if (!preset) return
     setLattice(preset.lattice)
+    const newAllowed = getAllowedIsometries(preset.lattice)
     const isos = preset.generators()
-    setGenerators(isometriesToEditorState(isos))
+    setGenerators(isometriesToEditorState(isos, newAllowed))
+    prevLatticeType.current = newAllowed.latticeType
     setResult(null)
     setError(null)
   }
@@ -248,7 +345,7 @@ export default function App() {
       const t2 = translation(vec.x, vec.y)
 
       // Build non-translation isometries from generator editors
-      const nonTransIsos = generators.map(parseGenerator).filter(Boolean)
+      const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso)).filter(Boolean)
 
       const allIsos = [t1, t2, ...nonTransIsos]
       const res = generateGroup(allIsos, maxWords)
@@ -267,7 +364,15 @@ export default function App() {
       setError(`Error: ${err.message}`)
       setResult(null)
     }
-  }, [generators, lattice, maxWords])
+  }, [generators, lattice, maxWords, allowedIso])
+
+  const copyToClipboard = useCallback(() => {
+    const json = buildJsonSpec(lattice, generators, allowedIso)
+    navigator.clipboard.writeText(json).then(() => {
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 1500)
+    })
+  }, [lattice, generators, allowedIso])
 
   return (
     <div className="app-container">
@@ -295,11 +400,11 @@ export default function App() {
       </div>
 
       {/* Lattice selector */}
-      <LatticeSelector lattice={lattice} onChange={setLattice} />
+      <LatticeSelector lattice={lattice} onChange={handleLatticeChange} />
 
       {/* Non-translation generators */}
       <div className="generators-section">
-        <h3>Symmetry Generators</h3>
+        <h3>Symmetry Generators <span className="lattice-type-badge">{allowedIso.latticeType} lattice</span></h3>
         {generators.length === 0 && (
           <p className="no-generators">No additional symmetry generators (pure translation group).</p>
         )}
@@ -310,6 +415,7 @@ export default function App() {
             index={i}
             onChange={updateGenerator}
             onRemove={removeGenerator}
+            allowedIso={allowedIso}
           />
         ))}
         <button className="btn-add" onClick={addGenerator}>+ Add Generator</button>
@@ -327,6 +433,10 @@ export default function App() {
           />
         </label>
         <button className="btn-generate" onClick={generate}>Generate Group</button>
+        <button className="btn-copy" onClick={copyToClipboard}>
+          📋 Copy JSON
+        </button>
+        {copySuccess && <span className="copy-success">✓ Copied!</span>}
       </div>
 
       {/* Error display */}

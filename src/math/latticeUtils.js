@@ -1,3 +1,6 @@
+const PI = Math.PI
+const TYPE_EPS = 1e-4
+
 /**
  * Compute the second lattice vector (x, y) from the lattice state.
  */
@@ -42,4 +45,168 @@ export function vectorToLattice(x, y) {
     return { mode: 'not-well-rounded', shape: 'rectangular', x }
   }
   return { mode: 'not-well-rounded', shape: 'oblique', x, y }
+}
+
+/**
+ * Determine the Bravais lattice type from the current lattice state.
+ *
+ * Returns one of: 'square', 'hexagonal', 'rectangular',
+ *                 'centered-rectangular', 'oblique'
+ */
+export function getLatticeType(lattice) {
+  const vec = latticeToVector(lattice)
+  const { x, y } = vec
+  const r2 = x * x + y * y
+
+  if (Math.abs(y) < TYPE_EPS && Math.abs(x - 1) < TYPE_EPS) return 'square'
+  if (Math.abs(y - 0.5) < TYPE_EPS && Math.abs(x - Math.sqrt(3) / 2) < TYPE_EPS) return 'hexagonal'
+  if (Math.abs(y) < TYPE_EPS) return 'rectangular'
+  if (Math.abs(r2 - 1) < TYPE_EPS) return 'centered-rectangular'
+  if (Math.abs(y - 0.5) < TYPE_EPS) return 'centered-rectangular'
+  return 'oblique'
+}
+
+/**
+ * Get the allowed isometry types for the current lattice.
+ *
+ * Based on the wallpaper group crystallographic restriction:
+ *
+ * | Lattice type           | Reflections             | Glides                           | Rotation orders |
+ * |------------------------|-------------------------|----------------------------------|-----------------|
+ * | Oblique                | none                    | none                             | 2               |
+ * | Rectangular            | a; b                    | along a: ½; along b: x/2         | 2               |
+ * | Centered rectangular   | a+b; b−a                | along a+b: ½|a+b|; b−a: ½|b−a|  | 2               |
+ * | Square                 | a; b; a+b; b−a          | along a,b: ½; diags: √2/2        | 2, 4            |
+ * | Hexagonal              | a; b; b−a; a+b; 2b−a;   | short: ½; long: √3/2             | 2, 3, 6         |
+ * |                        | b−2a                    |                                  |                 |
+ *
+ * Where a = (0,1), b = (x,y).
+ *
+ * Returns { latticeType, rotationOrders, reflections[], glides[] }
+ */
+export function getAllowedIsometries(lattice) {
+  const vec = latticeToVector(lattice)
+  const { x, y } = vec
+  const r2 = x * x + y * y
+  const latticeType = getLatticeType(lattice)
+
+  const result = {
+    latticeType,
+    rotationOrders: [],
+    reflections: [],
+    glides: [],
+  }
+
+  switch (latticeType) {
+    case 'oblique':
+      result.rotationOrders = [2]
+      break
+
+    case 'rectangular':
+      result.rotationOrders = [2]
+      result.reflections = [
+        { label: 'along a (vertical)', angle: PI / 2 },
+        { label: 'along b (horizontal)', angle: 0 },
+      ]
+      result.glides = [
+        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
+        { label: `along b, dist ${(x / 2).toFixed(3)}`, angle: 0, dist: x / 2 },
+      ]
+      break
+
+    case 'centered-rectangular': {
+      result.rotationOrders = [2]
+
+      if (Math.abs(r2 - 1) < TYPE_EPS) {
+        // Well-rounded: reflections along a+b and b-a
+        const apb = { x, y: 1 + y }
+        const bma = { x, y: y - 1 }
+        const apbAngle = Math.atan2(apb.y, apb.x)
+        const bmaAngle = Math.atan2(bma.y, bma.x)
+        const apbLen = Math.sqrt(apb.x * apb.x + apb.y * apb.y)
+        const bmaLen = Math.sqrt(bma.x * bma.x + bma.y * bma.y)
+
+        result.reflections = [
+          { label: 'along a+b', angle: apbAngle },
+          { label: 'along b−a', angle: bmaAngle },
+        ]
+        result.glides = [
+          { label: `along a+b, dist ${(apbLen / 2).toFixed(3)}`, angle: apbAngle, dist: apbLen / 2 },
+          { label: `along b−a, dist ${(bmaLen / 2).toFixed(3)}`, angle: bmaAngle, dist: bmaLen / 2 },
+        ]
+      } else {
+        // y ≈ 0.5 not-well-rounded: rectangular sublattice (2x,0)+(0,1)
+        result.reflections = [
+          { label: 'vertical (along a)', angle: PI / 2 },
+          { label: 'horizontal', angle: 0 },
+        ]
+        result.glides = [
+          { label: 'vertical, dist ½', angle: PI / 2, dist: 0.5 },
+          { label: `horizontal, dist ${x.toFixed(3)}`, angle: 0, dist: x },
+        ]
+      }
+      break
+    }
+
+    case 'square':
+      result.rotationOrders = [2, 4]
+      result.reflections = [
+        { label: 'along a (vertical)', angle: PI / 2 },
+        { label: 'along b (horizontal)', angle: 0 },
+        { label: 'along a+b (diagonal ↗)', angle: PI / 4 },
+        { label: 'along b−a (diagonal ↘)', angle: -PI / 4 },
+      ]
+      result.glides = [
+        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
+        { label: 'along b, dist ½', angle: 0, dist: 0.5 },
+        { label: 'along a+b, dist √2/2', angle: PI / 4, dist: Math.SQRT2 / 2 },
+        { label: 'along b−a, dist √2/2', angle: -PI / 4, dist: Math.SQRT2 / 2 },
+      ]
+      break
+
+    case 'hexagonal': {
+      result.rotationOrders = [2, 3, 6]
+      result.reflections = [
+        { label: 'along a (vertical)', angle: PI / 2 },
+        { label: 'along b', angle: PI / 6 },
+        { label: 'along b−a', angle: -PI / 6 },
+        { label: 'along a+b', angle: PI / 3 },
+        { label: 'along 2b−a (horizontal)', angle: 0 },
+        { label: 'along b−2a', angle: -PI / 3 },
+      ]
+      const s3h = Math.sqrt(3) / 2
+      result.glides = [
+        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
+        { label: 'along b, dist ½', angle: PI / 6, dist: 0.5 },
+        { label: 'along b−a, dist ½', angle: -PI / 6, dist: 0.5 },
+        { label: 'along a+b, dist √3/2', angle: PI / 3, dist: s3h },
+        { label: 'along 2b−a, dist √3/2', angle: 0, dist: s3h },
+        { label: 'along b−2a, dist √3/2', angle: -PI / 3, dist: s3h },
+      ]
+      break
+    }
+  }
+
+  return result
+}
+
+/**
+ * Find the index of the closest matching direction in a list of allowed directions.
+ * Reflection/glide directions are lines (ambiguous by π), so we check both.
+ */
+export function findClosestDirection(angle, directions) {
+  if (directions.length === 0) return 0
+  let bestIdx = 0
+  let bestDiff = Infinity
+  for (let i = 0; i < directions.length; i++) {
+    const diff = Math.abs(angle - directions[i].angle)
+    const diff2 = Math.abs(angle + PI - directions[i].angle)
+    const diff3 = Math.abs(angle - PI - directions[i].angle)
+    const minDiff = Math.min(diff, diff2, diff3)
+    if (minDiff < bestDiff) {
+      bestDiff = minDiff
+      bestIdx = i
+    }
+  }
+  return bestIdx
 }
