@@ -47,8 +47,10 @@ describe('generateGroup – basic validation', () => {
       [translation(0, 1), translation(1, 0), rotation(1, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
-    expect(result.error).toContain('outside the specified lattice');
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.warning).toContain('outside the specified lattice');
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 });
 
@@ -98,11 +100,21 @@ describe('generateGroup – all elements (no mod lattice)', () => {
     expect(counts.reflection).toBeGreaterThan(0);
   });
 
-  it('element count is capped at MAX_ELEMENTS', () => {
-    // With high maxWords on a group with many generators, should not exceed cap
+  it('element count is capped at maxElements (default 1000)', () => {
+    // With high maxWords on a group with many generators, should not exceed default cap
     const result = generateGroup(
       [...squareLattice(), rotation(PI / 2, 0, 0)],
       20
+    );
+    expect(result.error).toBeNull();
+    expect(result.elements.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('element count respects custom maxElements', () => {
+    const result = generateGroup(
+      [...squareLattice(), rotation(PI / 2, 0, 0)],
+      20,
+      5000
     );
     expect(result.error).toBeNull();
     expect(result.elements.length).toBeLessThanOrEqual(5000);
@@ -227,86 +239,104 @@ describe('generateGroup – all 17 preset generators are valid', () => {
   });
 });
 
-describe('generateGroup – invalid configurations should fail', () => {
+describe('generateGroup – invalid configurations should warn', () => {
   // Wrong rotation order for lattice type
-  it('rejects 3-fold rotation on square lattice', () => {
+  it('warns on 3-fold rotation on square lattice', () => {
     const result = generateGroup(
       [...squareLattice(), rotation((2 * PI) / 3, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects 4-fold rotation on hexagonal lattice', () => {
+  it('warns on 4-fold rotation on hexagonal lattice', () => {
     const result = generateGroup(
       [...hexLattice(), rotation(PI / 2, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects 6-fold rotation on square lattice', () => {
+  it('warns on 6-fold rotation on square lattice', () => {
     const result = generateGroup(
       [...squareLattice(), rotation(PI / 3, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects 3-fold rotation on rectangular lattice', () => {
+  it('warns on 3-fold rotation on rectangular lattice', () => {
     const result = generateGroup(
       [...rectLattice(1.5), rotation((2 * PI) / 3, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects 4-fold rotation on oblique lattice', () => {
+  it('warns on 4-fold rotation on oblique lattice', () => {
     const result = generateGroup(
       [...obliqueLattice(), rotation(PI / 2, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
   // Wrong reflection axis for lattice type
-  it('rejects diagonal reflection on rectangular lattice', () => {
+  it('warns on diagonal reflection on rectangular lattice', () => {
     const result = generateGroup(
       [...rectLattice(1.5), reflection(PI / 4, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects vertical reflection on oblique lattice', () => {
+  it('warns on vertical reflection on oblique lattice', () => {
     const result = generateGroup(
       [...obliqueLattice(), reflection(PI / 2, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
   // Wrong glide distance
-  it('rejects glide reflection with wrong distance on square lattice', () => {
+  it('warns on glide reflection with wrong distance on square lattice', () => {
     // Correct distance for vertical glide on square lattice is 0.5; using 0.3
     const result = generateGroup(
       [...squareLattice(), glideReflection(PI / 2, 0.3, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
-  it('rejects glide reflection with wrong distance on hexagonal lattice', () => {
+  it('warns on glide reflection with wrong distance on hexagonal lattice', () => {
     // Vertical glide on hex lattice should be 0.5; using 0.7
     const result = generateGroup(
       [...hexLattice(), glideReflection(PI / 2, 0.7, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
   // Two rotations at incompatible centers
-  it('rejects two 3-fold rotations at incompatible centers on hex lattice', () => {
+  it('warns on two 3-fold rotations at incompatible centers on hex lattice', () => {
     const result = generateGroup(
       [
         ...hexLattice(),
@@ -315,16 +345,20 @@ describe('generateGroup – invalid configurations should fail', () => {
       ],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 
   // Irrational rotation angle
-  it('rejects rotation by 1 radian (irrational angle)', () => {
+  it('warns on rotation by 1 radian (irrational angle)', () => {
     const result = generateGroup(
       [...squareLattice(), rotation(1, 0, 0)],
       6
     );
-    expect(result.error).toBeTruthy();
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeTruthy();
+    expect(result.elements.length).toBeGreaterThan(0);
   });
 });
 

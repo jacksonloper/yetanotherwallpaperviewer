@@ -250,6 +250,15 @@ h1 {
   margin-bottom: 16px;
 }
 
+.warning-box {
+  background: #fef9e7;
+  border: 1px solid #f39c12;
+  color: #7d6608;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
 /* Validated input cue */
 .input-invalid {
   border: 2px solid #e74c3c !important;
