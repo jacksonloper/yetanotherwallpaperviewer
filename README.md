@@ -1,16 +1,33 @@
-# React + Vite
+# Wallpaper Group Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A lightweight React + Vite web application for visualizing the 17 wallpaper groups (plane symmetry groups).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Interactive generator editor**: specify isometries (translations, rotations, reflections, glide reflections)
+- **Group generation**: computes all group elements up to a configurable word length using BFS
+- **Lattice validation**: detects dense translation sets and verifies the translation subgroup equals the specified lattice
+- **SVG visualization**:
+  - Rotation centres shown as polygons (◆ 2-fold, ▲ 3-fold, ■ 4-fold, ⬡ 6-fold)
+  - Reflection axes shown as solid lines
+  - Glide reflection axes shown as dotted lines
+  - Lattice points shown as dots
+- **17 preset wallpaper groups** (p1, p2, pm, pg, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g, p3, p3m1, p31m, p6, p6m)
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+## Scripts
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `npm run dev` – Start development server
+- `npm run build` – Build for production
+- `npm test` – Run tests
+- `npm run lint` – Lint with ESLint
+
+## Deployment
+
+Configured for [Netlify](https://www.netlify.com/) via `netlify.toml`. Push to deploy.
