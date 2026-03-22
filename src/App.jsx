@@ -9,16 +9,17 @@ import {
 import { generateGroup } from './math/groupGenerator.js'
 import { presets } from './math/presets.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
+import LatticeSelector from './components/LatticeSelector.jsx'
+import { latticeToVector } from './math/latticeUtils.js'
+import ValidatedInput from './components/ValidatedInput.jsx'
 import './App.css'
 
 const PI = Math.PI
 
-const ISOMETRY_TYPES = ['translation', 'rotation', 'reflection', 'glide-reflection']
+const ISOMETRY_TYPES = ['rotation', 'reflection', 'glide-reflection']
 
 function defaultGenerator(type) {
   switch (type) {
-    case 'translation':
-      return { type, tx: '1', ty: '0' }
     case 'rotation':
       return { type, angle: '90', cx: '0', cy: '0' }
     case 'reflection':
@@ -26,14 +27,12 @@ function defaultGenerator(type) {
     case 'glide-reflection':
       return { type, angle: '0', dist: '0.5', px: '0', py: '0' }
     default:
-      return { type: 'translation', tx: '1', ty: '0' }
+      return { type: 'rotation', angle: '90', cx: '0', cy: '0' }
   }
 }
 
 function parseGenerator(gen) {
   switch (gen.type) {
-    case 'translation':
-      return translation(parseFloat(gen.tx), parseFloat(gen.ty))
     case 'rotation':
       return rotation(
         (parseFloat(gen.angle) * PI) / 180,
@@ -74,35 +73,88 @@ function GeneratorEditor({ gen, index, onChange, onRemove }) {
         ))}
       </select>
 
-      {gen.type === 'translation' && (
-        <>
-          <label>tx:<input type="number" step="0.1" value={gen.tx} onChange={(e) => update('tx', e.target.value)} /></label>
-          <label>ty:<input type="number" step="0.1" value={gen.ty} onChange={(e) => update('ty', e.target.value)} /></label>
-        </>
-      )}
-
       {gen.type === 'rotation' && (
         <>
-          <label>angle°:<input type="number" step="15" value={gen.angle} onChange={(e) => update('angle', e.target.value)} /></label>
-          <label>cx:<input type="number" step="0.1" value={gen.cx} onChange={(e) => update('cx', e.target.value)} /></label>
-          <label>cy:<input type="number" step="0.1" value={gen.cy} onChange={(e) => update('cy', e.target.value)} /></label>
+          <label>angle°:
+            <ValidatedInput
+              value={gen.angle}
+              onChange={(v) => update('angle', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>cx:
+            <ValidatedInput
+              value={gen.cx}
+              onChange={(v) => update('cx', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>cy:
+            <ValidatedInput
+              value={gen.cy}
+              onChange={(v) => update('cy', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
         </>
       )}
 
       {gen.type === 'reflection' && (
         <>
-          <label>angle°:<input type="number" step="15" value={gen.angle} onChange={(e) => update('angle', e.target.value)} /></label>
-          <label>px:<input type="number" step="0.1" value={gen.px} onChange={(e) => update('px', e.target.value)} /></label>
-          <label>py:<input type="number" step="0.1" value={gen.py} onChange={(e) => update('py', e.target.value)} /></label>
+          <label>angle°:
+            <ValidatedInput
+              value={gen.angle}
+              onChange={(v) => update('angle', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>px:
+            <ValidatedInput
+              value={gen.px}
+              onChange={(v) => update('px', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>py:
+            <ValidatedInput
+              value={gen.py}
+              onChange={(v) => update('py', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
         </>
       )}
 
       {gen.type === 'glide-reflection' && (
         <>
-          <label>angle°:<input type="number" step="15" value={gen.angle} onChange={(e) => update('angle', e.target.value)} /></label>
-          <label>dist:<input type="number" step="0.1" value={gen.dist} onChange={(e) => update('dist', e.target.value)} /></label>
-          <label>px:<input type="number" step="0.1" value={gen.px} onChange={(e) => update('px', e.target.value)} /></label>
-          <label>py:<input type="number" step="0.1" value={gen.py} onChange={(e) => update('py', e.target.value)} /></label>
+          <label>angle°:
+            <ValidatedInput
+              value={gen.angle}
+              onChange={(v) => update('angle', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>dist:
+            <ValidatedInput
+              value={gen.dist}
+              onChange={(v) => update('dist', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>px:
+            <ValidatedInput
+              value={gen.px}
+              onChange={(v) => update('px', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
+          <label>py:
+            <ValidatedInput
+              value={gen.py}
+              onChange={(v) => update('py', String(v))}
+              validate={(v) => !isNaN(v)}
+            />
+          </label>
         </>
       )}
 
@@ -112,54 +164,52 @@ function GeneratorEditor({ gen, index, onChange, onRemove }) {
 }
 
 function isometriesToEditorState(isometries) {
-  return isometries.map((iso) => {
-    if (isTranslation(iso)) {
-      return { type: 'translation', tx: String(iso.tx), ty: String(iso.ty) }
-    }
-    const det = iso.a * iso.d - iso.b * iso.c
-    if (det > 0) {
-      const angle = Math.atan2(iso.c, iso.a)
-      const detM = (1 - iso.a) * (1 - iso.d) - iso.b * iso.c
-      let cx = 0, cy = 0
-      if (Math.abs(detM) > 1e-10) {
-        cx = ((1 - iso.d) * iso.tx + iso.b * iso.ty) / detM
-        cy = (iso.c * iso.tx + (1 - iso.a) * iso.ty) / detM
+  return isometries
+    .filter((iso) => !isTranslation(iso))
+    .map((iso) => {
+      const det = iso.a * iso.d - iso.b * iso.c
+      if (det > 0) {
+        const angle = Math.atan2(iso.c, iso.a)
+        const detM = (1 - iso.a) * (1 - iso.d) - iso.b * iso.c
+        let cx = 0, cy = 0
+        if (Math.abs(detM) > 1e-10) {
+          cx = ((1 - iso.d) * iso.tx + iso.b * iso.ty) / detM
+          cy = (iso.c * iso.tx + (1 - iso.a) * iso.ty) / detM
+        }
+        return {
+          type: 'rotation',
+          angle: String(Math.round((angle * 180) / PI * 1000) / 1000),
+          cx: String(Math.round(cx * 1000) / 1000),
+          cy: String(Math.round(cy * 1000) / 1000),
+        }
       }
-      return {
-        type: 'rotation',
-        angle: String(Math.round((angle * 180) / PI * 1000) / 1000),
-        cx: String(Math.round(cx * 1000) / 1000),
-        cy: String(Math.round(cy * 1000) / 1000),
-      }
-    }
-    const axisAngle = Math.atan2(iso.c, iso.a) / 2
-    const glideDist = iso.tx * Math.cos(axisAngle) + iso.ty * Math.sin(axisAngle)
-    const perpDist = -iso.tx * Math.sin(axisAngle) + iso.ty * Math.cos(axisAngle)
-    const px = (perpDist / 2) * (-Math.sin(axisAngle))
-    const py = (perpDist / 2) * Math.cos(axisAngle)
+      const axisAngle = Math.atan2(iso.c, iso.a) / 2
+      const glideDist = iso.tx * Math.cos(axisAngle) + iso.ty * Math.sin(axisAngle)
+      const perpDist = -iso.tx * Math.sin(axisAngle) + iso.ty * Math.cos(axisAngle)
+      const px = (perpDist / 2) * (-Math.sin(axisAngle))
+      const py = (perpDist / 2) * Math.cos(axisAngle)
 
-    if (Math.abs(glideDist) < 1e-9) {
+      if (Math.abs(glideDist) < 1e-9) {
+        return {
+          type: 'reflection',
+          angle: String(Math.round((axisAngle * 180) / PI * 1000) / 1000),
+          px: String(Math.round(px * 1000) / 1000),
+          py: String(Math.round(py * 1000) / 1000),
+        }
+      }
       return {
-        type: 'reflection',
+        type: 'glide-reflection',
         angle: String(Math.round((axisAngle * 180) / PI * 1000) / 1000),
+        dist: String(Math.round(glideDist * 1000) / 1000),
         px: String(Math.round(px * 1000) / 1000),
         py: String(Math.round(py * 1000) / 1000),
       }
-    }
-    return {
-      type: 'glide-reflection',
-      angle: String(Math.round((axisAngle * 180) / PI * 1000) / 1000),
-      dist: String(Math.round(glideDist * 1000) / 1000),
-      px: String(Math.round(px * 1000) / 1000),
-      py: String(Math.round(py * 1000) / 1000),
-    }
-  })
+    })
 }
 
 export default function App() {
+  const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
   const [generators, setGenerators] = useState([
-    defaultGenerator('translation'),
-    { type: 'translation', tx: '0', ty: '1' },
     { type: 'rotation', angle: '90', cx: '0', cy: '0' },
   ])
   const [maxWords, setMaxWords] = useState(6)
@@ -167,7 +217,7 @@ export default function App() {
   const [error, setError] = useState(null)
 
   const addGenerator = () => {
-    setGenerators([...generators, defaultGenerator('translation')])
+    setGenerators([...generators, defaultGenerator('rotation')])
   }
 
   const removeGenerator = (index) => {
@@ -183,6 +233,7 @@ export default function App() {
   const loadPreset = (presetName) => {
     const preset = presets.find((p) => p.name === presetName)
     if (!preset) return
+    setLattice(preset.lattice)
     const isos = preset.generators()
     setGenerators(isometriesToEditorState(isos))
     setResult(null)
@@ -191,41 +242,41 @@ export default function App() {
 
   const generate = useCallback(() => {
     try {
-      const isos = generators.map(parseGenerator).filter(Boolean)
-      if (isos.length === 0) {
-        setError('No valid generators specified.')
-        setResult(null)
-        return
-      }
-      const res = generateGroup(isos, maxWords)
+      // Build the two translation isometries from the lattice state
+      const vec = latticeToVector(lattice)
+      const t1 = translation(0, 1)
+      const t2 = translation(vec.x, vec.y)
+
+      // Build non-translation isometries from generator editors
+      const nonTransIsos = generators.map(parseGenerator).filter(Boolean)
+
+      const allIsos = [t1, t2, ...nonTransIsos]
+      const res = generateGroup(allIsos, maxWords)
       if (res.error) {
         setError(res.error)
         setResult(null)
       } else {
         setError(null)
-        const transGens = isos.filter((g) => isTranslation(g))
-        const latticeVectors =
-          transGens.length >= 2
-            ? {
-                v1: { x: transGens[0].tx, y: transGens[0].ty },
-                v2: { x: transGens[1].tx, y: transGens[1].ty },
-              }
-            : null
+        const latticeVectors = {
+          v1: { x: 0, y: 1 },
+          v2: vec,
+        }
         setResult({ elements: res.elements, latticeVectors })
       }
     } catch (err) {
       setError(`Error: ${err.message}`)
       setResult(null)
     }
-  }, [generators, maxWords])
+  }, [generators, lattice, maxWords])
 
   return (
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
       <p className="subtitle">
-        Specify generators (including exactly two translations for the lattice) and visualize the wallpaper group.
+        Configure the lattice and symmetry generators, then generate the wallpaper group.
       </p>
 
+      {/* Preset selector */}
       <div className="preset-selector">
         <label><strong>Load preset:</strong></label>
         <select
@@ -243,8 +294,15 @@ export default function App() {
         </select>
       </div>
 
+      {/* Lattice selector */}
+      <LatticeSelector lattice={lattice} onChange={setLattice} />
+
+      {/* Non-translation generators */}
       <div className="generators-section">
-        <h3>Generators</h3>
+        <h3>Symmetry Generators</h3>
+        {generators.length === 0 && (
+          <p className="no-generators">No additional symmetry generators (pure translation group).</p>
+        )}
         {generators.map((gen, i) => (
           <GeneratorEditor
             key={i}
@@ -257,24 +315,26 @@ export default function App() {
         <button className="btn-add" onClick={addGenerator}>+ Add Generator</button>
       </div>
 
+      {/* Controls */}
       <div className="controls">
         <label>
           Max word length:{' '}
-          <input
-            type="number"
-            min="1"
-            max="20"
+          <ValidatedInput
             value={maxWords}
-            onChange={(e) => setMaxWords(parseInt(e.target.value, 10) || 6)}
+            onChange={(v) => setMaxWords(v)}
+            validate={(v) => Number.isInteger(v) && v >= 1 && v <= 20}
+            parse={(s) => parseInt(s, 10)}
           />
         </label>
         <button className="btn-generate" onClick={generate}>Generate Group</button>
       </div>
 
+      {/* Error display */}
       {error && (
         <div className="error-box">{error}</div>
       )}
 
+      {/* Visualization */}
       {result && (
         <GroupVisualization
           elements={result.elements}

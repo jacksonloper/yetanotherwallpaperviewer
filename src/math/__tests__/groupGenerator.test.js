@@ -20,7 +20,7 @@ describe('generateGroup', () => {
   });
 
   it('p1: two translations only produces identity mod lattice', () => {
-    const result = generateGroup([translation(1, 0), translation(0, 1)], 4);
+    const result = generateGroup([translation(0, 1), translation(1.1, 0.3)], 4);
     expect(result.error).toBeNull();
     // Only identity should remain after reducing mod lattice
     expect(result.elements.length).toBe(1);
@@ -28,7 +28,7 @@ describe('generateGroup', () => {
 
   it('p2: 180° rotation produces 2 elements mod lattice', () => {
     const result = generateGroup(
-      [translation(1, 0), translation(0, 1), rotation(PI, 0, 0)],
+      [translation(0, 1), translation(1, 0), rotation(PI, 0, 0)],
       4
     );
     expect(result.error).toBeNull();
@@ -37,7 +37,7 @@ describe('generateGroup', () => {
 
   it('p4: 90° rotation produces 4 elements mod lattice', () => {
     const result = generateGroup(
-      [translation(1, 0), translation(0, 1), rotation(PI / 2, 0, 0)],
+      [translation(0, 1), translation(1, 0), rotation(PI / 2, 0, 0)],
       4
     );
     expect(result.error).toBeNull();
@@ -46,7 +46,7 @@ describe('generateGroup', () => {
 
   it('pm: reflection with rectangular lattice produces 2 elements', () => {
     const result = generateGroup(
-      [translation(1, 0), translation(0, 1), reflection(PI / 2, 0, 0)],
+      [translation(0, 1), translation(1, 0), reflection(PI / 2, 0, 0)],
       4
     );
     expect(result.error).toBeNull();
@@ -57,7 +57,7 @@ describe('generateGroup', () => {
     // A rotation by an irrational angle would produce dense translations
     // Use 1 radian which is irrational w.r.t. 2π
     const result = generateGroup(
-      [translation(1, 0), translation(0, 1), rotation(1, 0, 0)],
+      [translation(0, 1), translation(1, 0), rotation(1, 0, 0)],
       6
     );
     expect(result.error).toBeTruthy();

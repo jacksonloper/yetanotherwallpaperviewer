@@ -1,12 +1,20 @@
 /**
  * Preset examples for the 17 wallpaper groups.
  *
- * Each preset provides a name, a description, and a list of generators.
- * The generators always include exactly two translations forming the lattice.
+ * Each preset specifies:
+ *   - name, description
+ *   - lattice: configuration for the LatticeSelector
+ *     (first translation is always (0,1); lattice describes the second)
+ *   - generators: a function returning the non-translation generators
+ *
+ * Lattice conventions:
+ *   Well-rounded (x² + y² = 1):
+ *     { mode: 'well-rounded', sliderValue: 0–1 }  (0=square, 1=hex)
+ *   Not well-rounded (x² + y² > 1):
+ *     { mode: 'not-well-rounded', shape: 'rectangular'|'centered-rectangular'|'oblique', x, [y] }
  */
 
 import {
-  translation,
   rotation,
   reflection,
   glideReflection,
@@ -17,160 +25,107 @@ const PI = Math.PI;
 export const presets = [
   {
     name: 'p1',
-    description: 'Two translations only',
-    generators: () => [translation(1, 0), translation(0.3, 1)],
+    description: 'Translations only (oblique)',
+    lattice: { mode: 'not-well-rounded', shape: 'oblique', x: 1.1, y: 0.3 },
+    generators: () => [],
   },
   {
     name: 'p2',
-    description: 'Two translations + 180° rotation',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      rotation(PI, 0, 0),
-    ],
+    description: '180° rotation (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [rotation(PI, 0, 0)],
   },
   {
     name: 'pm',
-    description: 'Rectangular lattice + reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      reflection(PI / 2, 0, 0),
-    ],
+    description: 'Reflection (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [reflection(PI / 2, 0, 0)],
   },
   {
     name: 'pg',
-    description: 'Rectangular lattice + glide reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      glideReflection(PI / 2, 0.5, 0, 0),
-    ],
+    description: 'Glide reflection (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [glideReflection(PI / 2, 0.5, 0, 0)],
   },
   {
     name: 'cm',
-    description: 'Rhombic lattice + reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, 1),
-      reflection(PI / 2, 0, 0),
-    ],
+    description: 'Reflection (centered rectangular)',
+    lattice: { mode: 'not-well-rounded', shape: 'centered-rectangular', x: 1.0 },
+    generators: () => [reflection(PI / 2, 0, 0)],
   },
   {
     name: 'pmm',
-    description: 'Rectangular lattice + two reflections',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      reflection(0, 0, 0),
-      reflection(PI / 2, 0, 0),
-    ],
+    description: 'Two reflections (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [reflection(0, 0, 0), reflection(PI / 2, 0, 0)],
   },
   {
     name: 'pmg',
-    description: 'Rectangular lattice + reflection + glide reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      reflection(0, 0, 0),
-      glideReflection(PI / 2, 0.5, 0, 0),
-    ],
+    description: 'Reflection + glide reflection (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [reflection(0, 0, 0), glideReflection(PI / 2, 0.5, 0, 0)],
   },
   {
     name: 'pgg',
-    description: 'Rectangular lattice + two glide reflections',
+    description: 'Two glide reflections (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
     generators: () => [
-      translation(1, 0),
-      translation(0, 1),
       glideReflection(0, 0.5, 0, 0.25),
       glideReflection(PI / 2, 0.5, 0.25, 0),
     ],
   },
   {
     name: 'cmm',
-    description: 'Rhombic lattice + two reflections',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, 1),
-      reflection(0, 0, 0),
-      reflection(PI / 2, 0, 0),
-    ],
+    description: 'Two reflections (centered rectangular)',
+    lattice: { mode: 'not-well-rounded', shape: 'centered-rectangular', x: 1.0 },
+    generators: () => [reflection(0, 0, 0), reflection(PI / 2, 0, 0)],
   },
   {
     name: 'p4',
-    description: 'Square lattice + 90° rotation',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      rotation(PI / 2, 0, 0),
-    ],
+    description: '90° rotation (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [rotation(PI / 2, 0, 0)],
   },
   {
     name: 'p4m',
-    description: 'Square lattice + 90° rotation + reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      rotation(PI / 2, 0, 0),
-      reflection(0, 0, 0),
-    ],
+    description: '90° rotation + reflection (square)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [rotation(PI / 2, 0, 0), reflection(0, 0, 0)],
   },
   {
     name: 'p4g',
-    description: 'Square lattice + 90° rotation + reflection (alt)',
-    generators: () => [
-      translation(1, 0),
-      translation(0, 1),
-      rotation(PI / 2, 0.5, 0.5),
-      reflection(0, 0, 0),
-    ],
+    description: '90° rotation + reflection (square, alt)',
+    lattice: { mode: 'well-rounded', sliderValue: 0 },
+    generators: () => [rotation(PI / 2, 0.5, 0.5), reflection(0, 0, 0)],
   },
   {
     name: 'p3',
-    description: 'Hexagonal lattice + 120° rotation',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, Math.sqrt(3) / 2),
-      rotation((2 * PI) / 3, 0, 0),
-    ],
+    description: '120° rotation (hexagonal)',
+    lattice: { mode: 'well-rounded', sliderValue: 1 },
+    generators: () => [rotation((2 * PI) / 3, 0, 0)],
   },
   {
     name: 'p3m1',
-    description: 'Hexagonal lattice + 120° rotation + reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, Math.sqrt(3) / 2),
-      rotation((2 * PI) / 3, 0, 0),
-      reflection(PI / 2, 0, 0),
-    ],
+    description: '120° rotation + reflection (hexagonal)',
+    lattice: { mode: 'well-rounded', sliderValue: 1 },
+    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
   },
   {
     name: 'p31m',
-    description: 'Hexagonal lattice + 120° rotation + reflection (alt)',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, Math.sqrt(3) / 2),
-      rotation((2 * PI) / 3, 0, 0),
-      reflection(0, 0, 0),
-    ],
+    description: '120° rotation + reflection (hexagonal, alt)',
+    lattice: { mode: 'well-rounded', sliderValue: 1 },
+    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
   },
   {
     name: 'p6',
-    description: 'Hexagonal lattice + 60° rotation',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, Math.sqrt(3) / 2),
-      rotation(PI / 3, 0, 0),
-    ],
+    description: '60° rotation (hexagonal)',
+    lattice: { mode: 'well-rounded', sliderValue: 1 },
+    generators: () => [rotation(PI / 3, 0, 0)],
   },
   {
     name: 'p6m',
-    description: 'Hexagonal lattice + 60° rotation + reflection',
-    generators: () => [
-      translation(1, 0),
-      translation(0.5, Math.sqrt(3) / 2),
-      rotation(PI / 3, 0, 0),
-      reflection(0, 0, 0),
-    ],
+    description: '60° rotation + reflection (hexagonal)',
+    lattice: { mode: 'well-rounded', sliderValue: 1 },
+    generators: () => [rotation(PI / 3, 0, 0), reflection(0, 0, 0)],
   },
 ];
