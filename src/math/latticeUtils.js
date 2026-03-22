@@ -150,36 +150,38 @@ export function getAllowedIsometries(lattice) {
 
     case 'square':
       result.rotationOrders = [2, 4]
+      // a+b and b−a first so indices 0,1 match centered-rectangular ordering
       result.reflections = [
-        { label: 'along a (vertical)', angle: PI / 2 },
-        { label: 'along b (horizontal)', angle: 0 },
         { label: 'along a+b (diagonal ↗)', angle: PI / 4 },
         { label: 'along b−a (diagonal ↘)', angle: -PI / 4 },
+        { label: 'along a (vertical)', angle: PI / 2 },
+        { label: 'along b (horizontal)', angle: 0 },
       ]
       result.glides = [
-        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
-        { label: 'along b, dist ½', angle: 0, dist: 0.5 },
         { label: 'along a+b, dist √2/2', angle: PI / 4, dist: Math.SQRT2 / 2 },
         { label: 'along b−a, dist √2/2', angle: -PI / 4, dist: Math.SQRT2 / 2 },
+        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
+        { label: 'along b, dist ½', angle: 0, dist: 0.5 },
       ]
       break
 
     case 'hexagonal': {
       result.rotationOrders = [2, 3, 6]
+      // a+b and b−a first so indices 0,1 match centered-rectangular ordering
       result.reflections = [
+        { label: 'along a+b', angle: PI / 3 },
+        { label: 'along b−a', angle: -PI / 6 },
         { label: 'along a (vertical)', angle: PI / 2 },
         { label: 'along b', angle: PI / 6 },
-        { label: 'along b−a', angle: -PI / 6 },
-        { label: 'along a+b', angle: PI / 3 },
         { label: 'along 2b−a (horizontal)', angle: 0 },
         { label: 'along b−2a', angle: -PI / 3 },
       ]
       const s3h = Math.sqrt(3) / 2
       result.glides = [
+        { label: 'along a+b, dist √3/2', angle: PI / 3, dist: s3h },
+        { label: 'along b−a, dist ½', angle: -PI / 6, dist: 0.5 },
         { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
         { label: 'along b, dist ½', angle: PI / 6, dist: 0.5 },
-        { label: 'along b−a, dist ½', angle: -PI / 6, dist: 0.5 },
-        { label: 'along a+b, dist √3/2', angle: PI / 3, dist: s3h },
         { label: 'along 2b−a, dist √3/2', angle: 0, dist: s3h },
         { label: 'along b−2a, dist √3/2', angle: -PI / 3, dist: s3h },
       ]
