@@ -1,21 +1,23 @@
 # Completeness of the UI Parameterization
 
 This document argues that the UI of the wallpaper group viewer can reach
-**every wallpaper group up to similarity** (isometry + uniform scaling).
+**every wallpaper group up to similarity** (isometry + uniform scaling,
+including orientation-reversing similarities such as reflections).
 By "wallpaper group" we mean every discrete subgroup of Isom(ℝ²) whose
 translation subgroup is a rank-2 lattice.  There are infinitely many such
 groups — not just 17 — because sliding continuous parameters (lattice shape,
 rotation centers, axis offsets) produces genuinely different groups that are
-*not* related by any isometry or scaling.  The 17 IUC types classify them up
+*not* related by any similarity.  The 17 IUC types classify them up
 to *isomorphism as abstract groups*; this UI covers the much finer
-classification up to *conjugacy inside the similarity group*.
+classification up to *conjugacy inside the full similarity group*
+(orientation-preserving *and* orientation-reversing).
 
 ---
 
 ## 1. Normalizing the lattice
 
-**Claim.** Any rank-2 lattice in ℝ² can be brought by an orientation-preserving
-similarity into the normal form
+**Claim.** Any rank-2 lattice in ℝ² can be brought by a similarity
+(possibly orientation-reversing) into the normal form
 
 > **a** = (0, 1),  **b** = (x, y)  with  x ≥ 0,  0 ≤ y ≤ ½,  x² + y² ≥ 1.
 
@@ -27,10 +29,17 @@ Let Λ = ℤ**v** + ℤ**w** be an arbitrary rank-2 lattice.
 2. **Rotate.**  Rotate so that shortest vector is (0, 1) = **a**.
 3. **Choose second vector.**  Among all lattice vectors not parallel to **a**,
    pick **b** with minimal length ‖**b**‖ ≥ 1 (Minkowski-reduced).
-   Reflect **b** across the *y*-axis if needed so x ≥ 0, and reduce modulo **a**
-   so 0 ≤ y ≤ ½.  The condition ‖**b**‖ ≥ ‖**a**‖ = 1 gives x² + y² ≥ 1.
+   Reduce modulo **a** so 0 ≤ y ≤ ½.  If x < 0, apply the reflection
+   (x, y) → (−x, y) to the entire plane; this is an orientation-reversing
+   similarity that makes x ≥ 0.  The condition ‖**b**‖ ≥ ‖**a**‖ = 1
+   gives x² + y² ≥ 1.
 
-The result is unique: distinct (x, y) in this domain give non-similar lattices.
+The result is unique: distinct (x, y) in this domain give non-similar
+lattices.  Note that this uniqueness holds precisely because we allow
+orientation-reversing similarities in the normalization — if we did not
+(i.e. if we insisted on only orientation-preserving similarities), we
+would need to extend the domain to include x < 0 to distinguish a lattice
+from its mirror image.
 
 The UI offers exactly this parameterization:
 
@@ -141,12 +150,13 @@ These are exactly the slider controls the UI exposes for each generator.
 **Theorem.** *Let G be any wallpaper group (discrete subgroup of Isom(ℝ²)
 with rank-2 translation lattice).  Then there exist UI parameter values
 — a lattice (x, y), a wallpaper type, and continuous generator parameters —
-such that the group produced by the viewer is conjugate to G by an
-orientation-preserving similarity.*
+such that the group produced by the viewer is conjugate to G by a
+similarity (possibly orientation-reversing).*
 
 *Proof sketch.*
 
-1. **Normalize the lattice.**  By §1, apply a similarity to bring G's
+1. **Normalize the lattice.**  By §1, apply a similarity (which may include
+   a reflection to make x ≥ 0) to bring G's
    translation lattice into normal form **a** = (0,1), **b** = (x, y).
    The UI can set this (x, y).
 
@@ -177,24 +187,32 @@ Therefore, every wallpaper group is reachable. ∎
 
 ## 5. What "up to similarity" means concretely
 
-Two wallpaper groups G₁ and G₂ are considered equivalent if there exists an
-orientation-preserving similarity T (composition of rotation, translation,
+Two wallpaper groups G₁ and G₂ are considered equivalent if there exists a
+similarity T (composition of rotation, reflection, translation,
 and uniform scaling) such that G₂ = T G₁ T⁻¹.  Concretely:
 
 - **Scaling** the plane uniformly changes the lattice spacing but not the
   symmetry structure.
 - **Rotating** the plane changes which direction is "up" but not the group.
+- **Reflecting** the plane (orientation reversal) maps a group to its
+  mirror image.
 - **Translating** shifts the origin, conjugating all generators.
 
-Since the UI normalizes the first basis vector to (0, 1) (fixing scale and
-rotation) and expresses generator positions modulo lattice translations
-(absorbing overall translation), distinct UI parameter values yield
-**non-equivalent** groups.  The parameterization is (essentially) injective
-as well as surjective — it is a genuine coordinate system on the moduli
-space of wallpaper groups up to similarity.
+The normalization in §1 uses scaling + rotation to fix **a** = (0, 1), and
+a reflection (if needed) to ensure x ≥ 0.  This absorbs all four operations.
+Generator positions are expressed modulo lattice translations, absorbing
+overall translation.
 
-Note: we say "orientation-preserving similarity" because the choice of
-which lattice vector is **a** versus **b** and the constraint x ≥ 0 break
-orientation-reversing symmetry.  Including orientation-reversing similarities
-would identify a few more configurations, but the standard convention is to
-classify up to orientation-preserving equivalence.
+Therefore distinct UI parameter values yield **non-equivalent** groups under
+the full similarity group (including orientation reversal).  The
+parameterization is (essentially) injective as well as surjective — it is a
+genuine coordinate system on the moduli space of wallpaper groups up to
+similarity.
+
+**Why orientation-reversing similarities are included.**  The constraint
+x ≥ 0 is the key: a lattice with second vector (x, y) and its mirror image
+with second vector (−x, y) are identified by the reflection (x, y) → (−x, y).
+If we classified only up to orientation-preserving similarity, we would
+need to allow x to range over all of ℝ (positive and negative) to
+distinguish a group from its mirror image.  Since the UI restricts x ≥ 0,
+the classification is necessarily up to full similarity.
