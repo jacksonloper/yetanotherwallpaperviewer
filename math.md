@@ -4,13 +4,21 @@ This document argues that the UI of the wallpaper group viewer can reach
 **every wallpaper group up to similarity** (isometry + uniform scaling,
 including orientation-reversing similarities such as reflections).
 By "wallpaper group" we mean every discrete subgroup of Isom(ℝ²) whose
-translation subgroup is a rank-2 lattice.  There are infinitely many such
-groups — not just 17 — because sliding continuous parameters (lattice shape,
-rotation centers, axis offsets) produces genuinely different groups that are
-*not* related by any similarity.  The 17 IUC types classify them up
-to *isomorphism as abstract groups*; this UI covers the much finer
-classification up to *conjugacy inside the full similarity group*
-(orientation-preserving *and* orientation-reversing).
+translation subgroup is a rank-2 lattice.
+
+The 17 IUC wallpaper types are a *crystallographic* (geometric) classification:
+two wallpaper groups have the same type when they are related by an affine
+conjugacy that respects the lattice structure.  Within each of the 17 types
+there are infinitely many *similarity classes* — groups that share the same
+type but are not conjugate by any similarity.  The continuous freedom comes
+primarily from lattice shape (the (x, y) parameters); most other UI
+parameters (rotation centers, axis offsets) are **gauge choices** — they
+select a representative within a similarity class rather than distinguishing
+between classes.
+
+The UI map is therefore **surjective but highly non-injective**: every
+wallpaper group up to similarity is realized by at least one UI state, but
+many distinct UI states correspond to the same group up to similarity.
 
 ---
 
@@ -216,12 +224,14 @@ Let Λ = ℤ**v** + ℤ**w** be an arbitrary rank-2 lattice.
    similarity that makes x ≥ 0.  The condition ‖**b**‖ ≥ ‖**a**‖ = 1
    gives x² + y² ≥ 1.
 
-The result is unique: distinct (x, y) in this domain give non-similar
-lattices.  Note that this uniqueness holds precisely because we allow
-orientation-reversing similarities in the normalization — if we did not
-(i.e. if we insisted on only orientation-preserving similarities), we
-would need to extend the domain to include x < 0 to distinguish a lattice
-from its mirror image.
+The result is unique up to boundary identifications and lattice symmetries:
+on the interior of the domain, distinct (x, y) give non-similar lattices.
+On the boundary (e.g. x² + y² = 1 at y = 0 or y = ½), the square and
+hexagonal lattices have extra automorphisms that identify some parameter
+values; and lattices with y = 0 or y = ½ sit on the boundary of the
+fundamental domain for the modular group.  These boundary identifications
+mean uniqueness holds generically (almost everywhere) but not at every
+boundary point.
 
 The UI offers exactly this parameterization:
 
@@ -243,7 +253,11 @@ By the crystallographic restriction theorem, every wallpaper group's point
 group (its image in O(2) after quotienting out translations) is one of 10
 finite subgroups of O(2): {1, 2, 3, 4, 6, m, 2mm, 3m, 4mm, 6mm}.  Combined
 with the possible translation subgroups and extension choices, this gives
-exactly 17 abstract wallpaper group types.
+exactly 17 crystallographic wallpaper types.  These 17 types are a
+*geometric* classification (by affine conjugacy), not merely an algebraic
+one: groups of the same type share the same pattern of symmetry operations
+relative to their lattice, but different lattice shapes within the same type
+yield infinitely many distinct similarity classes.
 
 Each type constrains the lattice:
 
@@ -271,9 +285,19 @@ lattice category.
 
 Fixing the lattice and the wallpaper type determines the *discrete* structure
 (which rotation orders, which reflection/glide directions, which glide
-distances).  What remains free is the placement of generators within a
-fundamental domain — these are the **continuous moduli** of the wallpaper
-group up to similarity.
+distances).  What remains are the placement parameters for generators.
+
+**Important caveat.**  The true continuous *moduli* of a wallpaper group up
+to similarity come from the lattice shape — the (x, y) parameters.  For a
+fixed crystallographic type and fixed lattice, the symmetry constraints
+typically force the placement of mirrors, glide axes, and rotation centers
+into a discrete set of valid configurations (up to the equivalence imposed
+by lattice translations and the group's own symmetries).  The UI's
+continuous sliders (centerS, centerT, axisOffset) therefore mostly represent
+**gauge choices** — different origin conventions for the same group — rather
+than genuinely distinct wallpaper groups.  Nevertheless, these sliders are
+needed for *surjectivity*: they ensure the UI can realize every valid
+generator placement, not just the default one.
 
 ### 3a. Rotation center
 
@@ -329,11 +353,15 @@ These are exactly the slider controls the UI exposes for each generator.
 
 ## 4. Main theorem
 
-**Theorem.** *Let G be any wallpaper group (discrete subgroup of Isom(ℝ²)
-with rank-2 translation lattice).  Then there exist UI parameter values
-— a lattice (x, y), a wallpaper type, and continuous generator parameters —
-such that the group produced by the viewer is conjugate to G by a
-similarity (possibly orientation-reversing).*
+**Theorem (surjectivity).** *Let G be any wallpaper group (discrete subgroup
+of Isom(ℝ²) with rank-2 translation lattice).  Then there exist UI parameter
+values — a lattice (x, y), a wallpaper type, and continuous generator
+parameters — such that the group produced by the viewer is conjugate to G by
+a similarity (possibly orientation-reversing).*
+
+In other words, the UI map is surjective: every similarity class of
+wallpaper groups is realized.  The map is *not* injective — many UI states
+produce the same group up to similarity (see §5).
 
 *Proof sketch.*
 
@@ -343,8 +371,8 @@ similarity (possibly orientation-reversing).*
    The UI can set this (x, y).
 
 2. **Identify the wallpaper type.**  The normalized G has one of the 17
-   types.  By §2, this type is listed in the dropdown for the lattice type
-   determined by (x, y).
+   crystallographic types.  By §2, this type is listed in the dropdown for
+   the lattice type determined by (x, y).
 
 3. **Determine generator placements.**  Each non-translation generator in G
    is a rotation, reflection, or glide reflection.  After normalizing, its
@@ -353,8 +381,9 @@ similarity (possibly orientation-reversing).*
    - For reflections/glides: direction (fixed by type) and perpendicular
      offset ∈ [0,1) expressed as a fraction of the fundamental period.
 
-   The UI sliders for centerS, centerT, and axisOffset range over exactly
-   [0, 1) and thus reach every possible placement.
+   The UI sliders for centerS, centerT, and axisOffset range over [0, 1)
+   and thus offer enough placements (often redundantly) to realize all
+   valid configurations.
 
 4. **Completeness of generators.**  The wallpaper type dropdown selects
    the correct set of generator types and discrete parameters (rotation
@@ -367,7 +396,7 @@ Therefore, every wallpaper group is reachable. ∎
 
 ---
 
-## 5. What "up to similarity" means concretely
+## 5. Non-injectivity and what "up to similarity" means
 
 Two wallpaper groups G₁ and G₂ are considered equivalent if there exists a
 similarity T (composition of rotation, reflection, translation,
@@ -381,15 +410,44 @@ and uniform scaling) such that G₂ = T G₁ T⁻¹.  Concretely:
 - **Translating** shifts the origin, conjugating all generators.
 
 The normalization in §1 uses scaling + rotation to fix **a** = (0, 1), and
-a reflection (if needed) to ensure x ≥ 0.  This absorbs all four operations.
-Generator positions are expressed modulo lattice translations, absorbing
-overall translation.
+a reflection (if needed) to ensure x ≥ 0.  This absorbs scaling, rotation,
+and reflection.  However, translation is only *partially* absorbed:
+expressing generator positions modulo the lattice removes lattice
+translations, but a global translation of the origin can still map
+different (centerS, centerT) or axisOffset values to the same group.
+This is the primary source of **non-injectivity** in the UI parameterization.
 
-Therefore distinct UI parameter values yield **non-equivalent** groups under
-the full similarity group (including orientation reversal).  The
-parameterization is (essentially) injective as well as surjective — it is a
-genuine coordinate system on the moduli space of wallpaper groups up to
-similarity.
+### Sources of non-injectivity
+
+1. **Global translation (gauge freedom).**  Translating the plane by a
+   non-lattice vector conjugates every generator — shifting rotation centers
+   and axis offsets — but produces the same wallpaper group.  Consequently,
+   many combinations of (centerS, centerT, axisOffset) yield the same group
+   up to similarity.  For most wallpaper types, the continuous placement
+   sliders are entirely gauge: symmetry constrains the valid placements to
+   a discrete set of equivalence classes.
+
+2. **Lattice automorphisms.**  Even after lattice normalization, special
+   lattices (square, hexagonal) have automorphism groups larger than {±1}.
+   The square lattice has a 90° rotation symmetry; the hexagonal lattice
+   has a 60° rotation symmetry.  These automorphisms can map one set of
+   generator parameters to another while preserving the group.  This
+   creates additional identifications among UI states not captured by the
+   lattice normalization alone.
+
+3. **Boundary identifications.**  On the boundary of the (x, y) domain
+   (e.g. x² + y² = 1 at y = 0 or y = ½), the lattice acquires extra
+   symmetry and distinct parameter values may become equivalent.
+
+### Summary
+
+The UI provides a **surjective, highly non-injective** parameterization of
+wallpaper groups up to similarity.  The surjectivity argument (§4) is the
+main content of this document: every wallpaper group can be reached.  The
+non-injectivity means that the UI parameter space is much larger than the
+true moduli space — the continuous freedom comes from lattice shape, while
+most generator-placement sliders are gauge choices that do not change the
+similarity class of the group.
 
 **Why orientation-reversing similarities are included.**  The constraint
 x ≥ 0 is the key: a lattice with second vector (x, y) and its mirror image
