@@ -9,25 +9,13 @@ import {
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
 import { presets } from './math/presets.js'
+import { getWallpaperTypesForLattice } from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
 import { latticeToVector, getAllowedIsometries, findClosestDirection, latticeCoordsToCenter, centerToLatticeCoords, axisOffsetToPoint, pointToAxisOffset } from './math/latticeUtils.js'
 import './App.css'
 
 const PI = Math.PI
-
-function defaultGenerator(type, allowedIso) {
-  switch (type) {
-    case 'rotation':
-      return { type, order: (allowedIso.rotationOrders[0] || 2), centerS: 0, centerT: 0 }
-    case 'reflection':
-      return { type, dirIndex: 0, axisOffset: 0 }
-    case 'glide-reflection':
-      return { type, dirIndex: 0, axisOffset: 0 }
-    default:
-      return { type: 'rotation', order: (allowedIso.rotationOrders[0] || 2), centerS: 0, centerT: 0 }
-  }
-}
 
 function parseGenerator(gen, allowedIso, latticeVec) {
   switch (gen.type) {
@@ -54,162 +42,7 @@ function parseGenerator(gen, allowedIso, latticeVec) {
   }
 }
 
-function getAvailableTypes(allowedIso) {
-  const types = ['rotation']
-  if (allowedIso.reflections.length > 0) types.push('reflection')
-  if (allowedIso.glides.length > 0) types.push('glide-reflection')
-  return types
-}
 
-/**
- * Adjust generators so they remain valid for the given allowed isometries.
- * Returns null if no adjustment needed, otherwise returns the adjusted array.
- */
-function adjustGenerators(generators, allowedIso) {
-  let changed = false
-  const adjusted = generators
-    .map((gen) => {
-      if (gen.type === 'reflection' && allowedIso.reflections.length === 0) {
-        changed = true
-        return null
-      }
-      if (gen.type === 'glide-reflection' && allowedIso.glides.length === 0) {
-        changed = true
-        return null
-      }
-      if (gen.type === 'rotation' && !allowedIso.rotationOrders.includes(gen.order)) {
-        changed = true
-        return { ...gen, order: allowedIso.rotationOrders[0] || 2 }
-      }
-      if (gen.type === 'reflection' && (gen.dirIndex || 0) >= allowedIso.reflections.length) {
-        changed = true
-        return { ...gen, dirIndex: 0 }
-      }
-      if (gen.type === 'glide-reflection' && (gen.dirIndex || 0) >= allowedIso.glides.length) {
-        changed = true
-        return { ...gen, dirIndex: 0 }
-      }
-      return gen
-    })
-    .filter(Boolean)
-  return changed ? adjusted : null
-}
-
-function GeneratorEditor({ gen, index, onChange, onRemove, allowedIso, latticeVec }) {
-  const update = (field, value) => {
-    onChange(index, { ...gen, [field]: value })
-  }
-
-  const availableTypes = getAvailableTypes(allowedIso)
-
-  return (
-    <div className="generator-row">
-      <select
-        value={gen.type}
-        onChange={(e) => onChange(index, defaultGenerator(e.target.value, allowedIso))}
-      >
-        {availableTypes.map((t) => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-      </select>
-
-      {gen.type === 'rotation' && (
-        <>
-          <label>order:
-            <select
-              value={gen.order}
-              onChange={(e) => update('order', parseInt(e.target.value, 10))}
-            >
-              {allowedIso.rotationOrders.map((o) => (
-                <option key={o} value={o}>{360 / o}° (order {o})</option>
-              ))}
-            </select>
-          </label>
-          <label>center along a:
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={gen.centerS ?? 0}
-              onChange={(e) => update('centerS', parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-            <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
-          </label>
-          <label>center along b:
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={gen.centerT ?? 0}
-              onChange={(e) => update('centerT', parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-            <span className="slider-value">{(gen.centerT ?? 0).toFixed(2)}</span>
-          </label>
-        </>
-      )}
-
-      {gen.type === 'reflection' && (
-        <>
-          <label>direction:
-            <select
-              value={gen.dirIndex}
-              onChange={(e) => update('dirIndex', parseInt(e.target.value, 10))}
-            >
-              {allowedIso.reflections.map((r, i) => (
-                <option key={i} value={i}>{r.label}</option>
-              ))}
-            </select>
-          </label>
-          <label>axis offset:
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={gen.axisOffset ?? 0}
-              onChange={(e) => update('axisOffset', parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-            <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
-          </label>
-        </>
-      )}
-
-      {gen.type === 'glide-reflection' && (
-        <>
-          <label>direction:
-            <select
-              value={gen.dirIndex}
-              onChange={(e) => update('dirIndex', parseInt(e.target.value, 10))}
-            >
-              {allowedIso.glides.map((g, i) => (
-                <option key={i} value={i}>{g.label}</option>
-              ))}
-            </select>
-          </label>
-          <label>axis offset:
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={gen.axisOffset ?? 0}
-              onChange={(e) => update('axisOffset', parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-            <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
-          </label>
-        </>
-      )}
-
-      <button className="btn-remove" onClick={() => onRemove(index)}>✕</button>
-    </div>
-  )
-}
 
 function isometriesToEditorState(isometries, allowedIso, latticeVec) {
   return isometries
@@ -303,6 +136,7 @@ function buildJsonSpec(lattice, generators, allowedIso) {
 
 export default function App() {
   const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
+  const [wallpaperType, setWallpaperType] = useState('p4')
   const [generators, setGenerators] = useState([
     { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
   ])
@@ -315,26 +149,40 @@ export default function App() {
   const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
   const prevLatticeType = useRef(allowedIso.latticeType)
 
-  // Wrap setLattice to auto-adjust generators when lattice type changes
+  const availableWallpaperTypes = useMemo(
+    () => getWallpaperTypesForLattice(allowedIso.latticeType),
+    [allowedIso.latticeType]
+  )
+
+  const handleWallpaperTypeChange = (typeName) => {
+    setWallpaperType(typeName)
+    const wpType = availableWallpaperTypes.find((t) => t.name === typeName)
+    if (wpType) {
+      setGenerators(wpType.generators.map((g) => ({ ...g })))
+    }
+    setSelectedPreset('')
+  }
+
+  // Wrap setLattice to auto-adjust wallpaper type & generators when lattice type changes
   const handleLatticeChange = useCallback((newLattice) => {
     setLattice(newLattice)
     setSelectedPreset('')
     const newAllowed = getAllowedIsometries(newLattice)
     if (prevLatticeType.current !== newAllowed.latticeType) {
       prevLatticeType.current = newAllowed.latticeType
-      setGenerators((prev) => adjustGenerators(prev, newAllowed) ?? prev)
+      const newTypes = getWallpaperTypesForLattice(newAllowed.latticeType)
+      setWallpaperType((prevType) => {
+        const still = newTypes.find((t) => t.name === prevType)
+        if (still) {
+          setGenerators(still.generators.map((g) => ({ ...g })))
+          return prevType
+        }
+        const fallback = newTypes[0]
+        setGenerators(fallback ? fallback.generators.map((g) => ({ ...g })) : [])
+        return fallback ? fallback.name : 'p1'
+      })
     }
   }, [])
-
-  const addGenerator = () => {
-    setGenerators([...generators, defaultGenerator('rotation', allowedIso)])
-    setSelectedPreset('')
-  }
-
-  const removeGenerator = (index) => {
-    setGenerators(generators.filter((_, i) => i !== index))
-    setSelectedPreset('')
-  }
 
   const updateGenerator = (index, gen) => {
     const newGens = [...generators]
@@ -348,6 +196,7 @@ export default function App() {
     if (!preset) return
     setSelectedPreset(presetName)
     setLattice(preset.lattice)
+    setWallpaperType(presetName)
     const newAllowed = getAllowedIsometries(preset.lattice)
     const presetVec = latticeToVector(preset.lattice)
     const isos = preset.generators()
@@ -393,7 +242,7 @@ export default function App() {
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
       <p className="subtitle">
-        Configure the lattice and symmetry generators below. The wallpaper group updates live.
+        Choose a lattice, pick a wallpaper group, then adjust the continuous parameters. Updates live.
       </p>
 
       {/* Preset selector */}
@@ -417,24 +266,82 @@ export default function App() {
       {/* Lattice selector */}
       <LatticeSelector lattice={lattice} onChange={handleLatticeChange} />
 
-      {/* Non-translation generators */}
+      {/* Wallpaper type selector + continuous parameter sliders */}
       <div className="generators-section">
-        <h3>Symmetry Generators <span className="lattice-type-badge">{allowedIso.latticeType} lattice</span></h3>
+        <h3>Wallpaper Group <span className="lattice-type-badge">{allowedIso.latticeType} lattice</span></h3>
+
+        <div className="wallpaper-type-selector">
+          <label><strong>Type:</strong>
+            <select
+              value={wallpaperType}
+              onChange={(e) => handleWallpaperTypeChange(e.target.value)}
+            >
+              {availableWallpaperTypes.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name} – {t.description}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         {generators.length === 0 && (
-          <p className="no-generators">No additional symmetry generators (pure translation group).</p>
+          <p className="no-generators">Pure translation group — no parameters to adjust.</p>
         )}
+
         {generators.map((gen, i) => (
-          <GeneratorEditor
-            key={i}
-            gen={gen}
-            index={i}
-            onChange={updateGenerator}
-            onRemove={removeGenerator}
-            allowedIso={allowedIso}
-            latticeVec={latticeToVector(lattice)}
-          />
+          <div key={i} className="generator-params">
+            <div className="generator-title">
+              {gen.type === 'rotation' && `${360 / gen.order}° rotation`}
+              {gen.type === 'reflection' && `Reflection ${allowedIso.reflections[gen.dirIndex]?.label || ''}`}
+              {gen.type === 'glide-reflection' && `Glide ${allowedIso.glides[gen.dirIndex]?.label || ''}`}
+            </div>
+
+            {gen.type === 'rotation' && (
+              <>
+                <label>center along a:
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={gen.centerS ?? 0}
+                    onChange={(e) => updateGenerator(i, { ...gen, centerS: parseFloat(e.target.value) })}
+                    className="gen-slider"
+                  />
+                  <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
+                </label>
+                <label>center along b:
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={gen.centerT ?? 0}
+                    onChange={(e) => updateGenerator(i, { ...gen, centerT: parseFloat(e.target.value) })}
+                    className="gen-slider"
+                  />
+                  <span className="slider-value">{(gen.centerT ?? 0).toFixed(2)}</span>
+                </label>
+              </>
+            )}
+
+            {(gen.type === 'reflection' || gen.type === 'glide-reflection') && (
+              <label>axis offset:
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={gen.axisOffset ?? 0}
+                  onChange={(e) => updateGenerator(i, { ...gen, axisOffset: parseFloat(e.target.value) })}
+                  className="gen-slider"
+                />
+                <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
+              </label>
+            )}
+          </div>
         ))}
-        <button className="btn-add" onClick={addGenerator}>+ Add Generator</button>
       </div>
 
       {/* Controls */}
