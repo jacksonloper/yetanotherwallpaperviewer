@@ -130,6 +130,29 @@ h1 {
   padding: 3px 6px;
 }
 
+/* Parameter sliders in lattice and generator sections */
+.param-slider {
+  width: 150px;
+  cursor: pointer;
+}
+
+.gen-slider {
+  width: 120px;
+  cursor: pointer;
+}
+
+.slider-value {
+  font-size: 13px;
+  color: #555;
+  min-width: 40px;
+  display: inline-block;
+}
+
+.lattice-params-column {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .constraint-hint {
   font-size: 12px;
   color: #888;
@@ -174,9 +197,12 @@ h1 {
   font-size: 14px;
 }
 
-.generator-row input {
-  width: 60px;
-  padding: 2px 4px;
+.generator-row input[type="range"] {
+  width: 120px;
+}
+
+.controls input[type="range"] {
+  width: 120px;
 }
 
 .btn-remove {
@@ -205,9 +231,8 @@ h1 {
   align-items: center;
 }
 
-.controls input {
-  width: 60px;
-  padding: 4px;
+.controls input[type="checkbox"] {
+  width: auto;
 }
 
 .timing-info {

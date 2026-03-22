@@ -150,36 +150,38 @@ export function getAllowedIsometries(lattice) {
 
     case 'square':
       result.rotationOrders = [2, 4]
+      // a+b and b−a first so indices 0,1 match centered-rectangular ordering
       result.reflections = [
-        { label: 'along a (vertical)', angle: PI / 2 },
-        { label: 'along b (horizontal)', angle: 0 },
         { label: 'along a+b (diagonal ↗)', angle: PI / 4 },
         { label: 'along b−a (diagonal ↘)', angle: -PI / 4 },
+        { label: 'along a (vertical)', angle: PI / 2 },
+        { label: 'along b (horizontal)', angle: 0 },
       ]
       result.glides = [
-        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
-        { label: 'along b, dist ½', angle: 0, dist: 0.5 },
         { label: 'along a+b, dist √2/2', angle: PI / 4, dist: Math.SQRT2 / 2 },
         { label: 'along b−a, dist √2/2', angle: -PI / 4, dist: Math.SQRT2 / 2 },
+        { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
+        { label: 'along b, dist ½', angle: 0, dist: 0.5 },
       ]
       break
 
     case 'hexagonal': {
       result.rotationOrders = [2, 3, 6]
+      // a+b and b−a first so indices 0,1 match centered-rectangular ordering
       result.reflections = [
+        { label: 'along a+b', angle: PI / 3 },
+        { label: 'along b−a', angle: -PI / 6 },
         { label: 'along a (vertical)', angle: PI / 2 },
         { label: 'along b', angle: PI / 6 },
-        { label: 'along b−a', angle: -PI / 6 },
-        { label: 'along a+b', angle: PI / 3 },
         { label: 'along 2b−a (horizontal)', angle: 0 },
         { label: 'along b−2a', angle: -PI / 3 },
       ]
       const s3h = Math.sqrt(3) / 2
       result.glides = [
+        { label: 'along a+b, dist √3/2', angle: PI / 3, dist: s3h },
+        { label: 'along b−a, dist ½', angle: -PI / 6, dist: 0.5 },
         { label: 'along a, dist ½', angle: PI / 2, dist: 0.5 },
         { label: 'along b, dist ½', angle: PI / 6, dist: 0.5 },
-        { label: 'along b−a, dist ½', angle: -PI / 6, dist: 0.5 },
-        { label: 'along a+b, dist √3/2', angle: PI / 3, dist: s3h },
         { label: 'along 2b−a, dist √3/2', angle: 0, dist: s3h },
         { label: 'along b−2a, dist √3/2', angle: -PI / 3, dist: s3h },
       ]
@@ -188,6 +190,80 @@ export function getAllowedIsometries(lattice) {
   }
 
   return result
+}
+
+/**
+ * GCD for real numbers using the Euclidean algorithm with tolerance.
+ */
+function realGCD(a, b) {
+  a = Math.abs(a)
+  b = Math.abs(b)
+  if (a < 1e-10) return b
+  if (b < 1e-10) return a
+  if (b > a) { const tmp = a; a = b; b = tmp }
+  for (let i = 0; i < 50; i++) {
+    if (b < 1e-10) break
+    const r = a % b
+    a = b
+    b = r
+  }
+  return a
+}
+
+/**
+ * Compute the fundamental perpendicular period for an axis direction.
+ * Given the axis angle and the second lattice vector (the first is always (0,1)),
+ * returns the smallest positive perpendicular displacement that corresponds to
+ * a lattice translation.
+ */
+export function computeAxisPeriod(angle, latticeVec) {
+  const nx = -Math.sin(angle)
+  const ny = Math.cos(angle)
+  const p1 = Math.abs(ny)
+  const p2 = Math.abs(latticeVec.x * nx + latticeVec.y * ny)
+  const result = realGCD(p1, p2)
+  return result > 1e-10 ? result : 1
+}
+
+/**
+ * Convert (cx, cy) center coordinates to lattice-basis slider values (s, t) ∈ [0, 1).
+ * Point = s*(0,1) + t*(x_lat, y_lat)
+ */
+export function centerToLatticeCoords(cx, cy, latticeVec) {
+  const { x: xLat, y: yLat } = latticeVec
+  const t = ((cx / xLat) % 1 + 1) % 1
+  const s = (((cy - t * yLat) % 1) + 1) % 1
+  return { s, t }
+}
+
+/**
+ * Convert lattice-basis slider values (s, t) to (cx, cy) center coordinates.
+ */
+export function latticeCoordsToCenter(s, t, latticeVec) {
+  const { x: xLat, y: yLat } = latticeVec
+  return { cx: t * xLat, cy: s + t * yLat }
+}
+
+/**
+ * Convert (px, py) axis point to a slider offset ∈ [0, 1).
+ * The offset represents perpendicular displacement as a fraction of the period.
+ */
+export function pointToAxisOffset(px, py, angle, latticeVec) {
+  const nx = -Math.sin(angle)
+  const ny = Math.cos(angle)
+  const d = px * nx + py * ny
+  const period = computeAxisPeriod(angle, latticeVec)
+  if (period < 1e-10) return 0
+  return ((d / period) % 1 + 1) % 1
+}
+
+/**
+ * Convert axis offset slider value ∈ [0, 1) to (px, py) point on the axis.
+ */
+export function axisOffsetToPoint(offset, angle, latticeVec) {
+  const period = computeAxisPeriod(angle, latticeVec)
+  const d = offset * period
+  return { px: d * (-Math.sin(angle)), py: d * Math.cos(angle) }
 }
 
 /**
