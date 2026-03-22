@@ -294,8 +294,6 @@ export default function App() {
     { type: 'rotation', order: 4, cx: '0', cy: '0' },
   ])
   const [maxWords, setMaxWords] = useState(6)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
   const [selectedPreset, setSelectedPreset] = useState('')
@@ -340,38 +338,33 @@ export default function App() {
     const isos = preset.generators()
     setGenerators(isometriesToEditorState(isos, newAllowed))
     prevLatticeType.current = newAllowed.latticeType
-    setResult(null)
-    setError(null)
   }
 
-  const generate = useCallback(() => {
+  // Auto-generate the group whenever inputs change
+  const groupResult = useMemo(() => {
     try {
-      // Build the two translation isometries from the lattice state
       const vec = latticeToVector(lattice)
       const t1 = translation(0, 1)
       const t2 = translation(vec.x, vec.y)
 
-      // Build non-translation isometries from generator editors
       const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso)).filter(Boolean)
 
       const allIsos = [t1, t2, ...nonTransIsos]
       const res = generateGroup(allIsos, maxWords)
       if (res.error) {
-        setError(res.error)
-        setResult(null)
-      } else {
-        setError(null)
-        const latticeVectors = {
-          v1: { x: 0, y: 1 },
-          v2: vec,
-        }
-        setResult({ elements: res.elements, latticeVectors })
+        return { result: null, error: res.error, timeMs: res.timeMs }
       }
+      const latticeVectors = {
+        v1: { x: 0, y: 1 },
+        v2: vec,
+      }
+      return { result: { elements: res.elements, latticeVectors }, error: null, timeMs: res.timeMs }
     } catch (err) {
-      setError(`Error: ${err.message}`)
-      setResult(null)
+      return { result: null, error: `Error: ${err.message}`, timeMs: 0 }
     }
   }, [generators, lattice, maxWords, allowedIso])
+
+  const { result, error, timeMs } = groupResult
 
   const copyToClipboard = useCallback(() => {
     const json = buildJsonSpec(lattice, generators, allowedIso)
@@ -385,7 +378,7 @@ export default function App() {
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
       <p className="subtitle">
-        Configure the lattice and symmetry generators, then generate the wallpaper group.
+        Configure the lattice and symmetry generators below. The wallpaper group updates live.
       </p>
 
       {/* Preset selector */}
@@ -443,12 +436,18 @@ export default function App() {
           <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
           Show F
         </label>
-        <button className="btn-generate" onClick={generate}>Generate Group</button>
         <button className="btn-copy" onClick={copyToClipboard}>
           📋 Copy JSON
         </button>
         {copySuccess && <span className="copy-success">✓ Copied!</span>}
       </div>
+
+      {/* Timing info */}
+      {timeMs != null && (
+        <div className="timing-info">
+          Generation time: {timeMs.toFixed(1)} ms
+        </div>
+      )}
 
       {/* Error display */}
       {error && (
