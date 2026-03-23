@@ -285,24 +285,21 @@ const SQRT3H = Math.sqrt(3) / 2
 /**
  * Convert the cm-slider value (t ∈ [0,1]) to a lattice vector (x, y).
  *
- *   t = 0   → not-well-rounded centered-rect  (x = 3, y = 0.5)
- *   t = 0.5 → hexagonal                       (x = √3/2, y = 0.5)
- *   t = 1   → square                          (x = 1, y = 0)
+ * Uses the angle between the two lattice vectors as the parameter:
+ *   θ = π/6 + t·π/3   (30° at t=0, 60° at t=0.5, 90° at t=1)
+ *   b = (sin θ, cos θ)
  *
- * Left half  (t < 0.5): y = 0.5, x linearly interpolated from 3 → √3/2.
- * Right half (t > 0.5): well-rounded arc, y = 0.5(1 − (t−0.5)/0.5), x = √(1−y²).
+ * The lattice is always well-rounded (|a| = |b| = 1), so the cm mirror
+ * directions a+b and b−a are always valid lattice symmetries.
+ *
+ *   t = 0   → 30° angle, oblique rhombus  (x ≈ 0.5, y ≈ 0.866)
+ *   t = 0.5 → 60° angle, hexagonal        (x = √3/2, y = 0.5)
+ *   t = 1   → 90° angle, square           (x = 1, y = 0)
  */
 export function cmSliderToVector(t) {
-  if (t <= 0.5) {
-    // not-well-rounded segment
-    const frac = t / 0.5   // 0 at t=0, 1 at t=0.5
-    const x = 3 - (3 - SQRT3H) * frac
-    return { x, y: 0.5 }
-  }
-  // well-rounded segment (including hex endpoint and square endpoint)
-  const frac = (t - 0.5) / 0.5  // 0 at hex, 1 at square
-  const y = 0.5 * (1 - frac)
-  const x = Math.sqrt(Math.max(0, 1 - y * y))
+  const angle = PI / 6 + t * PI / 3
+  const x = Math.sin(angle)
+  const y = Math.cos(angle)
   return { x, y }
 }
 

@@ -82,7 +82,7 @@ function RectToSquareSlider({ value, onChange, latticeVec }) {
   )
 }
 
-// ─── CM slider (centered-rect → hex → well-rounded → square) ───
+// ─── CM slider (angle between lattice vectors: 30° → 60° → 90°) ───
 
 const HEX_SNAP = 0.02
 
@@ -94,17 +94,18 @@ function CmSlider({ value, onChange, latticeVec }) {
     onChange(v)
   }
 
+  const angle = 30 + value * 60
+
   const labelForValue = (v) => {
     if (Math.abs(v - 0.5) < 0.001) return 'Hexagonal'
     if (v > 0.99) return 'Square'
-    if (v > 0.5) return 'Centered Rect (well-rounded)'
-    return 'Centered Rect (not well-rounded)'
+    return 'Centered Rectangular'
   }
 
   return (
     <div className="well-rounded-controls">
       <div className="slider-row">
-        <span className="slider-label">Cent. Rect</span>
+        <span className="slider-label">Oblique</span>
         <input
           type="range"
           min="0"
@@ -117,7 +118,7 @@ function CmSlider({ value, onChange, latticeVec }) {
         <span className="slider-label">Square</span>
       </div>
       <div className="slider-info">
-        {labelForValue(value)} — x = {latticeVec.x.toFixed(4)}, y = {latticeVec.y.toFixed(4)}
+        {labelForValue(value)} — angle = {angle.toFixed(1)}°
         {Math.abs(value - 0.5) < 0.001 && ' ⬡'}
       </div>
     </div>
