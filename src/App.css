@@ -295,3 +295,21 @@ h1 {
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* Direction variant radios */
+.variant-radios {
+  margin-top: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.variant-radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}

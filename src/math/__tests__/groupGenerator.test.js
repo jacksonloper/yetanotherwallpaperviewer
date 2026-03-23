@@ -470,7 +470,7 @@ describe('p4m vs p4g — wallpaper type verification', () => {
 
 // --- wallpaper group template validation ---
 
-import { getWallpaperTypesForLattice } from '../wallpaperGroups.js';
+import { getWallpaperTypesForLattice, getGeneratorsForVariant } from '../wallpaperGroups.js';
 
 describe('wallpaper group templates have no continuous params', () => {
   const latticeTypes = ['oblique', 'rectangular', 'centered-rectangular', 'square', 'hexagonal'];
@@ -478,12 +478,17 @@ describe('wallpaper group templates have no continuous params', () => {
   for (const lt of latticeTypes) {
     const types = getWallpaperTypesForLattice(lt);
     for (const wpType of types) {
-      it(`${lt}/${wpType.name} generators have no centerS/centerT`, () => {
-        for (const gen of wpType.generators) {
-          expect(gen.centerS).toBeUndefined();
-          expect(gen.centerT).toBeUndefined();
-        }
-      });
+      const variantCount = wpType.variants ? wpType.variants.length : 1;
+      for (let vi = 0; vi < variantCount; vi++) {
+        const variantLabel = wpType.variants ? ` (variant ${vi}: ${wpType.variants[vi].label})` : '';
+        it(`${lt}/${wpType.name}${variantLabel} generators have no centerS/centerT`, () => {
+          const gens = getGeneratorsForVariant(wpType, vi);
+          for (const gen of gens) {
+            expect(gen.centerS).toBeUndefined();
+            expect(gen.centerT).toBeUndefined();
+          }
+        });
+      }
     }
   }
 
@@ -495,5 +500,22 @@ describe('wallpaper group templates have no continuous params', () => {
       }
     }
     expect(allNames.size).toBe(17);
+  });
+
+  it('getGeneratorsForVariant returns correct generators', () => {
+    // Types with variants should return different generators per variant
+    const squareTypes = getWallpaperTypesForLattice('square');
+    const pm = squareTypes.find(t => t.name === 'pm');
+    expect(pm.variants).toBeDefined();
+    expect(pm.variants.length).toBe(2);
+    const gens0 = getGeneratorsForVariant(pm, 0);
+    const gens1 = getGeneratorsForVariant(pm, 1);
+    expect(gens0[0].dirIndex).not.toBe(gens1[0].dirIndex);
+
+    // Types without variants should return generators directly
+    const p4 = squareTypes.find(t => t.name === 'p4');
+    expect(p4.variants).toBeUndefined();
+    const p4gens = getGeneratorsForVariant(p4, 0);
+    expect(p4gens).toBe(p4.generators);
   });
 });

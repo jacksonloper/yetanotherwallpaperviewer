@@ -6,7 +6,7 @@ import {
   glideReflection,
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
-import { getWallpaperTypesForLattice } from './math/wallpaperGroups.js'
+import { getWallpaperTypesForLattice, getGeneratorsForVariant } from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
 import { latticeToVector, getAllowedIsometries, axisOffsetToPoint } from './math/latticeUtils.js'
@@ -85,6 +85,7 @@ export default function App() {
   const [generators, setGenerators] = useState([
     { type: 'rotation', order: 4 },
   ])
+  const [variantIndex, setVariantIndex] = useState(0)
   const [maxWords, setMaxWords] = useState(6)
   const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
@@ -102,9 +103,18 @@ export default function App() {
 
   const handleWallpaperTypeChange = (typeName) => {
     setWallpaperType(typeName)
+    setVariantIndex(0)
     const wpType = availableWallpaperTypes.find((t) => t.name === typeName)
     if (wpType) {
-      setGenerators(wpType.generators.map((g) => ({ ...g })))
+      setGenerators(getGeneratorsForVariant(wpType, 0).map((g) => ({ ...g })))
+    }
+  }
+
+  const handleVariantChange = (idx) => {
+    setVariantIndex(idx)
+    const wpType = availableWallpaperTypes.find((t) => t.name === wallpaperType)
+    if (wpType) {
+      setGenerators(getGeneratorsForVariant(wpType, idx).map((g) => ({ ...g })))
     }
   }
 
@@ -115,14 +125,15 @@ export default function App() {
     if (prevLatticeType.current !== newAllowed.latticeType) {
       prevLatticeType.current = newAllowed.latticeType
       const newTypes = getWallpaperTypesForLattice(newAllowed.latticeType)
+      setVariantIndex(0)
       setWallpaperType((prevType) => {
         const still = newTypes.find((t) => t.name === prevType)
         if (still) {
-          setGenerators(still.generators.map((g) => ({ ...g })))
+          setGenerators(getGeneratorsForVariant(still, 0).map((g) => ({ ...g })))
           return prevType
         }
         const fallback = newTypes[0]
-        setGenerators(fallback ? fallback.generators.map((g) => ({ ...g })) : [])
+        setGenerators(fallback ? getGeneratorsForVariant(fallback, 0).map((g) => ({ ...g })) : [])
         return fallback ? fallback.name : 'p1'
       })
     }
@@ -190,6 +201,28 @@ export default function App() {
             </select>
           </label>
         </div>
+
+        {/* Direction variant radios */}
+        {(() => {
+          const wpType = availableWallpaperTypes.find((t) => t.name === wallpaperType)
+          if (!wpType || !wpType.variants || wpType.variants.length <= 1) return null
+          return (
+            <div className="variant-radios">
+              <strong>Direction:</strong>
+              {wpType.variants.map((v, i) => (
+                <label key={i} className="variant-radio-label">
+                  <input
+                    type="radio"
+                    name="variant"
+                    checked={variantIndex === i}
+                    onChange={() => handleVariantChange(i)}
+                  />
+                  {v.label}
+                </label>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Controls */}

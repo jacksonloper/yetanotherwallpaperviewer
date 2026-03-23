@@ -54,6 +54,11 @@ a type sets the generators to their fixed placements — all generator
 parameters (rotation centers, axis offsets) are determined by the type
 template with no adjustable sliders (see §3 for why).
 
+Some types have multiple **direction variants** when the lattice admits
+several inequivalent reflection/glide directions.  In these cases, a set
+of **radio buttons** appears below the dropdown, letting the user choose
+which direction class to use (see §3e for the full inventory).
+
 ### 0c. Directions available per lattice type
 
 The direction indices (dirIndex) used by reflections and glides reference the
@@ -107,7 +112,8 @@ latticeUtils.js; numbering here matches the 0-based array index.
 
 For every lattice type, the table below lists each wallpaper type and its
 generators.  Direction indices refer to §0c.  All generator placement
-parameters are fixed by the type template (see §3).
+parameters are fixed by the type template (see §3).  Types marked with
+**(V)** have direction variants selectable via radio buttons.
 
 **Oblique lattice:**
 
@@ -118,15 +124,15 @@ parameters are fixed by the type template (see §3).
 
 **Rectangular lattice:**
 
-| Type | Generators |
-|---|---|
-| p1 | *(none)* |
-| p2 | rotation order 2, center (0, 0) |
-| pm | reflection dir 0 |
-| pg | glide dir 0 |
-| pmm | reflection dir 0 + reflection dir 1 |
-| pmg | reflection dir 1 + glide dir 0 |
-| pgg | glide dir 1 (axisOffset 0.25) + glide dir 0 (axisOffset 0.25) |
+| Type | Generators | Variants |
+|---|---|---|
+| p1 | *(none)* | — |
+| p2 | rotation order 2, center (0, 0) | — |
+| pm **(V)** | reflection dir 0 *or* dir 1 | ∥ a (vertical) / ∥ b (horizontal) |
+| pg **(V)** | glide dir 0 *or* dir 1 | ∥ a (vertical) / ∥ b (horizontal) |
+| pmm | reflection dir 0 + reflection dir 1 | — |
+| pmg **(V)** | reflection dir 1 + glide dir 0, *or* dir 0 + dir 1 | Mirror ∥ b + glide ∥ a / Mirror ∥ a + glide ∥ b |
+| pgg | glide dir 1 (axisOffset 0.25) + glide dir 0 (axisOffset 0.25) | — |
 
 **Centered rectangular lattice:**
 
@@ -139,20 +145,20 @@ parameters are fixed by the type template (see §3).
 
 **Square lattice:**
 
-| Type | Generators |
-|---|---|
-| p1 | *(none)* |
-| p2 | rotation order 2, center (0, 0) |
-| pm | reflection dir 2 |
-| pg | glide dir 2 |
-| cm | reflection dir 0 |
-| pmm | reflection dir 2 + reflection dir 3 |
-| pmg | reflection dir 3 + glide dir 2 |
-| pgg | glide dir 3 (axisOffset 0.25) + glide dir 2 (axisOffset 0.25) |
-| cmm | reflection dir 0 + reflection dir 1 |
-| p4 | rotation order 4, center (0, 0) |
-| p4m | rotation order 4, center (0, 0) + reflection dir 3 |
-| p4g | rotation order 4, center (0, 0) + reflection dir 1 (axisOffset 0.5) |
+| Type | Generators (default variant) | Variants |
+|---|---|---|
+| p1 | *(none)* | — |
+| p2 | rotation order 2, center (0, 0) | — |
+| pm **(V)** | reflection dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
+| pg **(V)** | glide dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
+| cm **(V)** | reflection dir 0 *or* dir 1 | ∥ a+b (↗) / ∥ b−a (↘) |
+| pmm **(V)** | refl dir 2 + dir 3, *or* dir 0 + dir 1 | Axial pair / Diagonal pair |
+| pmg **(V)** | refl dir 3 + glide dir 2, *or* dir 2 + dir 3 | Mirror ∥ b + glide ∥ a / Mirror ∥ a + glide ∥ b |
+| pgg **(V)** | glide dir 3 + dir 2, *or* dir 1 + dir 0 (offset 0.25) | Axial glides / Diagonal glides |
+| cmm **(V)** | refl dir 0 + dir 1, *or* dir 2 + dir 3 | Diagonal pair / Axial pair |
+| p4 | rotation order 4, center (0, 0) | — |
+| p4m | rotation order 4, center (0, 0) + reflection dir 3 | — |
+| p4g | rotation order 4, center (0, 0) + reflection dir 1 (axisOffset 0.5) | — |
 
 **Hexagonal lattice:**
 
@@ -172,6 +178,7 @@ parameters are fixed by the type template (see §3).
 
 | Control | Range | Purpose |
 |---|---|---|
+| Direction variant (radio) | depends on type | Selects among inequivalent direction classes for the chosen wallpaper type (appears only when multiple variants exist) |
 | Max word length | 1 – 20 | Limits the length of generator words explored during group generation |
 | Max elements | 100 – 5000 | Caps the number of group elements stored |
 | Show F | checkbox | Toggles display of a reference "F" glyph |
@@ -315,7 +322,41 @@ The only genuine continuous freedom is **lattice shape** (x, y):
 | Types on oblique/rectangular/centered-rectangular lattices | Lattice shape (x, y) — 1 or 2 real parameters depending on lattice sub-mode |
 | Types on fixed lattices (p4, p4m, p4g on square; p3, p3m1, p31m, p6, p6m on hexagonal) | **Zero** — the lattice is uniquely determined |
 
-### 3e. The F offset is purely cosmetic
+### 3e. Discrete direction variants
+
+Although there are no *continuous* degrees of freedom, some wallpaper types
+have multiple **discrete direction choices** when the lattice admits
+several inequivalent reflection/glide directions.  These arise mainly on
+the rectangular and square lattices.
+
+The UI presents these as radio buttons.  The following table summarizes:
+
+| Type | Lattice | Variant count | Description |
+|---|---|---|---|
+| pm | Rectangular | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
+| pm | Square | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
+| pg | Rectangular | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
+| pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
+| cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) |
+| pmm | Square | 2 | Axial pair (∥ a + ∥ b) or diagonal pair (∥ a+b + ∥ b−a) |
+| pmg | Rectangular | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
+| pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
+| pgg | Square | 2 | Axial glides (∥ a + ∥ b) or diagonal glides (∥ a+b + ∥ b−a) |
+| cmm | Square | 2 | Diagonal pair (∥ a+b + ∥ b−a) or axial pair (∥ a + ∥ b) |
+
+All other types × lattice combinations have exactly 1 option (no radio).
+
+On the **square lattice**, many types have 2 variants because it has two
+families of reflection directions: axial {∥ a, ∥ b} and diagonal
+{∥ a+b, ∥ b−a}.  These families are exchanged by a 45° rotation but are
+inequivalent with respect to the square lattice.
+
+Note: the pmm "diagonal pair" variant on the square lattice produces the
+same group as the cmm "diagonal pair" default variant (and vice versa for
+the "axial pair" variants).  This overlap is intentional — it lets the
+user reach both groups from either dropdown entry.
+
+### 3f. The F offset is purely cosmetic
 
 The F offset controls (fOffsetX, fOffsetY) shift the display position of
 the reference "F" glyph.  They do not affect the mathematical group in any
@@ -485,9 +526,10 @@ with direction angle α:
 |---|---|---|
 | Lattice (x, y) | Continuous | Lattice sliders — the only genuine continuous freedom |
 | Wallpaper type | Discrete (17 choices) | Dropdown, constrained by lattice type |
+| Direction variant | Discrete (1 or 2) | Radio buttons when type has variants (see §3e) |
 | Rotation order | Discrete (2, 3, 4, 6) | Fixed per wallpaper type |
 | Rotation center | Fixed at (0, 0) | Template default (gauge choice — see §3) |
-| dirIndex | Discrete (index into direction list) | Fixed per wallpaper type |
+| dirIndex | Discrete (index into direction list) | Selected by variant radio or fixed per type |
 | axisOffset | Fixed (0, 0.25, or 0.5) | Template default (gauge choice — see §3) |
 | Glide distance | Fixed per direction | Computed from lattice by `getAllowedIsometries` |
 
@@ -524,22 +566,26 @@ the group (§3b), so the fixed center (0, 0) suffices. ✔
 ### pm — One reflection
 
 **Lattice:** Rectangular or Square.
-**Generator:** reflection(π/2, 0, 0) — vertical mirror through origin.
-**Dir:** Rectangular dirIndex 0 / Square dirIndex 2 (angle π/2).
+**Generator:** reflection at angle from dirIndex, through origin.
+**Variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
+square lattices (see §3e).
 
-**Surjectivity.**  A pm group has parallel vertical mirrors spaced by x/2.
-Any such mirror can be translated to pass through the origin. ✔
+**Surjectivity.**  A pm group has parallel mirrors.  The direction is
+selected by the variant radio.  Any mirror position can be translated to
+pass through the origin. ✔
 
 ---
 
 ### pg — One glide reflection
 
 **Lattice:** Rectangular or Square.
-**Generator:** glideReflection(π/2, ½, 0, 0) — vertical glide, distance ½.
-**Dir:** Rectangular dirIndex 0 / Square dirIndex 2.
+**Generator:** glideReflection at angle from dirIndex, distance from lattice.
+**Variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
+square lattices (see §3e).
 
-**Surjectivity.**  The glide distance is forced to ½.  Any glide axis can
-be translated to pass through the origin. ✔
+**Surjectivity.**  The glide distance is forced by the lattice.  The
+direction is selected by the variant radio.  Any glide axis can be
+translated to pass through the origin. ✔
 
 ---
 
@@ -548,17 +594,20 @@ be translated to pass through the origin. ✔
 **Lattice:** Centered rectangular, Square, or Hexagonal.
 **Generator:** reflection(α, 0, 0), where α is the direction angle for
 dirIndex 0 (see §0c).
+**Variants:** On the square lattice, 2 diagonal direction choices
+(∥ a+b or ∥ b−a); on other lattices, 1 option.
 
-**Surjectivity.**  The mirror direction is fixed by the lattice; any axis
-position can be translated to the origin. ✔
+**Surjectivity.**  The mirror direction is selected by the lattice type
+and variant radio; any axis position can be translated to the origin. ✔
 
 ---
 
 ### pmm — Two perpendicular reflections
 
 **Lattice:** Rectangular or Square.
-**Generators:** reflection(π/2, 0, 0) + reflection(0, 0, 0).
-**Dir:** Rectangular dirs (0, 1) / Square dirs (2, 3).
+**Generators:** Two perpendicular reflections through origin.
+**Variants:** On the square lattice, 2 pair choices: axial (∥ a + ∥ b)
+or diagonal (∥ a+b + ∥ b−a).  On rectangular, 1 option.
 
 **Surjectivity.**  The two mirror families are perpendicular.  Their
 intersection point can be translated to the origin. ✔
@@ -568,21 +617,21 @@ intersection point can be translated to the origin. ✔
 ### pmg — Reflection + glide in perpendicular directions
 
 **Lattice:** Rectangular or Square.
-**Generators:** reflection(0, 0, 0) + glideReflection(π/2, ½, 0, 0).
-**Dir:** Rectangular dirs (1, 0) / Square dirs (3, 2).
+**Generators:** One reflection + one perpendicular glide, both through origin.
+**Variants:** 2 direction choices — which direction gets the mirror and
+which gets the glide.
 
-**Surjectivity.**  The horizontal mirror and vertical glide can be
-translated so both pass through the origin. ✔
+**Surjectivity.**  The mirror and glide can be translated so both pass
+through the origin. ✔
 
 ---
 
 ### pgg — Two perpendicular glide reflections
 
 **Lattice:** Rectangular or Square.
-**Generators:** glideReflection(0, dist₀, 0, axisOffset₀·P₀) +
-glideReflection(π/2, ½, −axisOffset₁·P₁, 0), with axisOffset₀ =
-axisOffset₁ = 0.25.
-**Dir:** Rectangular dirs (1, 0) / Square dirs (3, 2).
+**Generators:** Two perpendicular glide reflections with axisOffset = 0.25.
+**Variants:** On the square lattice, 2 pair choices: axial (∥ a + ∥ b)
+or diagonal (∥ a+b + ∥ b−a).  On rectangular, 1 option.
 
 The fixed axisOffset = 0.25 places the two glide axes at a quarter-period
 offset from the origin, which is the unique correct relative displacement.
@@ -596,8 +645,9 @@ configuration; any other valid placement is related by translation. ✔
 ### cmm — Two reflections on centered lattice
 
 **Lattice:** Centered rectangular, Square, or Hexagonal.
-**Generators:** reflection(α₀, 0, 0) + reflection(α₁, 0, 0).
-**Dir:** dirs (0, 1) — angles depend on lattice type (see §0c).
+**Generators:** Two perpendicular reflections through origin.
+**Variants:** On the square lattice, 2 pair choices: diagonal (∥ a+b + ∥ b−a)
+or axial (∥ a + ∥ b).  On other lattices, 1 option (dirs 0, 1).
 
 **Surjectivity.**  The two mirror families' intersection point can be
 translated to the origin. ✔
@@ -728,28 +778,30 @@ origin. ✔
 
 ### Summary table
 
-| Type | Lattice | Generators | Fixed discrete params |
+| Type | Lattice | Generators | Direction variants |
 |---|---|---|---|
 | p1 | Any | *(none)* | — |
-| p2 | Any | rot(π) at origin | order = 2 |
-| pm | Rect/Sq | refl(π/2) at origin | dirIndex = 0 or 2 |
-| pg | Rect/Sq | glide(π/2, ½) at origin | dirIndex = 0 or 2, dist = ½ |
-| cm | CRect/Sq/Hex | refl(α) at origin | dirIndex = 0 |
-| pmm | Rect/Sq | refl(π/2) + refl(0) at origin | dirs = (0,1) or (2,3) |
-| pmg | Rect/Sq | refl(0) + glide(π/2, ½) at origin | dirs = (1,0) or (3,2) |
-| pgg | Rect/Sq | glide(0, d₀) + glide(π/2, ½), offset ¼ | dirs = (1,0) or (3,2), dists fixed |
-| cmm | CRect/Sq/Hex | refl(α₀) + refl(α₁) at origin | dirs = (0,1) |
-| p4 | Square | rot(π/2) at origin | order = 4 |
-| p4m | Square | rot(π/2) + refl(0) at origin | order = 4, dir = 3 (axial) |
-| p4g | Square | rot(π/2) at origin + refl(−π/4) offset ½ | order = 4, dir = 1 (diagonal) |
-| p3 | Hexagonal | rot(2π/3) at origin | order = 3 |
-| p3m1 | Hexagonal | rot(2π/3) + refl(π/2) at origin | order = 3, dir = 2 |
-| p31m | Hexagonal | rot(2π/3) + refl(0) at origin | order = 3, dir = 4 |
-| p6 | Hexagonal | rot(π/3) at origin | order = 6 |
-| p6m | Hexagonal | rot(π/3) + refl(0) at origin | order = 6, dir = 4 |
+| p2 | Any | rot(π) at origin | — |
+| pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 dirs on Sq |
+| pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 dirs on Sq |
+| cm | CRect/Sq/Hex | refl at origin | 1 on CRect/Hex; 2 dirs on Sq |
+| pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 2 pairs on Sq |
+| pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq |
+| pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 2 pairs on Sq |
+| cmm | CRect/Sq/Hex | refl + refl at origin | 1 on CRect/Hex; 2 pairs on Sq |
+| p4 | Square | rot(π/2) at origin | — |
+| p4m | Square | rot(π/2) + refl at origin | — |
+| p4g | Square | rot(π/2) + refl offset ½ | — |
+| p3 | Hexagonal | rot(2π/3) at origin | — |
+| p3m1 | Hexagonal | rot(2π/3) + refl at origin | — |
+| p31m | Hexagonal | rot(2π/3) + refl at origin | — |
+| p6 | Hexagonal | rot(π/3) at origin | — |
+| p6m | Hexagonal | rot(π/3) + refl at origin | — |
 
 **Notation:** "Rect" = rectangular, "Sq" = square, "CRect" = centered rectangular, "Hex" = hexagonal.
 
 All generator placements are fixed (center at origin, axisOffset = 0 except
 pgg at 0.25 and p4g at 0.5).  The only continuous freedom is lattice shape
 (x, y), which is zero for types requiring square or hexagonal lattices.
+Direction variants are discrete (radio buttons) — see §3e for the complete
+inventory.

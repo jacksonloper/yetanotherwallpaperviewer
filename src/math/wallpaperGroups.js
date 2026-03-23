@@ -7,16 +7,37 @@
  * similarity class of the group, so the templates use fixed default
  * values and no sliders are exposed.
  *
+ * Some types have multiple discrete direction variants on certain lattices
+ * (especially the square lattice, which has two inequivalent families of
+ * reflection/glide directions: axial and diagonal).  These are listed in
+ * a `variants` array; the UI shows radio buttons to let the user pick.
+ * When `variants` is absent, the `generators` field is the sole option.
+ *
  * Direction indices (dirIndex) reference the arrays returned by
  * getAllowedIsometries() in latticeUtils.js for each lattice type.
  */
 
 /**
  * Get the list of wallpaper types compatible with a given Bravais lattice type.
- * Each entry has: name, description, generators (array of generator templates).
+ * Each entry has: name, description, and either
+ *   generators (single option) or
+ *   variants (array of { label, generators }).
  */
 export function getWallpaperTypesForLattice(latticeType) {
   return wallpaperTypesByLattice[latticeType] || wallpaperTypesByLattice['oblique']
+}
+
+/**
+ * Get the generators for a wallpaper type entry, given a variant index.
+ * If the entry has variants, returns variants[idx].generators.
+ * Otherwise returns entry.generators.
+ */
+export function getGeneratorsForVariant(wpType, variantIndex) {
+  if (wpType.variants) {
+    const idx = Math.min(variantIndex, wpType.variants.length - 1)
+    return wpType.variants[idx].generators
+  }
+  return wpType.generators
 }
 
 const wallpaperTypesByLattice = {
@@ -32,19 +53,35 @@ const wallpaperTypesByLattice = {
     { name: 'p2', description: '180° rotation', generators: [
       { type: 'rotation', order: 2 },
     ]},
-    { name: 'pm', description: 'Reflection', generators: [
-      { type: 'reflection', dirIndex: 0 },
+    { name: 'pm', description: 'Reflection', variants: [
+      { label: 'Mirrors ∥ a (vertical)', generators: [
+        { type: 'reflection', dirIndex: 0 },
+      ]},
+      { label: 'Mirrors ∥ b (horizontal)', generators: [
+        { type: 'reflection', dirIndex: 1 },
+      ]},
     ]},
-    { name: 'pg', description: 'Glide reflection', generators: [
-      { type: 'glide-reflection', dirIndex: 0 },
+    { name: 'pg', description: 'Glide reflection', variants: [
+      { label: 'Glide ∥ a (vertical)', generators: [
+        { type: 'glide-reflection', dirIndex: 0 },
+      ]},
+      { label: 'Glide ∥ b (horizontal)', generators: [
+        { type: 'glide-reflection', dirIndex: 1 },
+      ]},
     ]},
     { name: 'pmm', description: 'Two reflections', generators: [
       { type: 'reflection', dirIndex: 0 },
       { type: 'reflection', dirIndex: 1 },
     ]},
-    { name: 'pmg', description: 'Reflection + glide', generators: [
-      { type: 'reflection', dirIndex: 1 },
-      { type: 'glide-reflection', dirIndex: 0 },
+    { name: 'pmg', description: 'Reflection + glide', variants: [
+      { label: 'Mirror ∥ b, glide ∥ a', generators: [
+        { type: 'reflection', dirIndex: 1 },
+        { type: 'glide-reflection', dirIndex: 0 },
+      ]},
+      { label: 'Mirror ∥ a, glide ∥ b', generators: [
+        { type: 'reflection', dirIndex: 0 },
+        { type: 'glide-reflection', dirIndex: 1 },
+      ]},
     ]},
     { name: 'pgg', description: 'Two glide reflections', generators: [
       { type: 'glide-reflection', dirIndex: 1, axisOffset: 0.25 },
@@ -71,30 +108,69 @@ const wallpaperTypesByLattice = {
     { name: 'p2', description: '180° rotation', generators: [
       { type: 'rotation', order: 2 },
     ]},
-    { name: 'pm', description: 'Reflection along axis', generators: [
-      { type: 'reflection', dirIndex: 2 },
+    { name: 'pm', description: 'Axial reflection', variants: [
+      { label: 'Mirrors ∥ a (vertical)', generators: [
+        { type: 'reflection', dirIndex: 2 },
+      ]},
+      { label: 'Mirrors ∥ b (horizontal)', generators: [
+        { type: 'reflection', dirIndex: 3 },
+      ]},
     ]},
-    { name: 'pg', description: 'Glide reflection along axis', generators: [
-      { type: 'glide-reflection', dirIndex: 2 },
+    { name: 'pg', description: 'Axial glide reflection', variants: [
+      { label: 'Glide ∥ a (vertical)', generators: [
+        { type: 'glide-reflection', dirIndex: 2 },
+      ]},
+      { label: 'Glide ∥ b (horizontal)', generators: [
+        { type: 'glide-reflection', dirIndex: 3 },
+      ]},
     ]},
-    { name: 'cm', description: 'Diagonal reflection', generators: [
-      { type: 'reflection', dirIndex: 0 },
+    { name: 'cm', description: 'Diagonal reflection', variants: [
+      { label: 'Mirror ∥ a+b (↗)', generators: [
+        { type: 'reflection', dirIndex: 0 },
+      ]},
+      { label: 'Mirror ∥ b−a (↘)', generators: [
+        { type: 'reflection', dirIndex: 1 },
+      ]},
     ]},
-    { name: 'pmm', description: 'Two axis reflections', generators: [
-      { type: 'reflection', dirIndex: 2 },
-      { type: 'reflection', dirIndex: 3 },
+    { name: 'pmm', description: 'Two reflections', variants: [
+      { label: 'Axial pair (∥ a + ∥ b)', generators: [
+        { type: 'reflection', dirIndex: 2 },
+        { type: 'reflection', dirIndex: 3 },
+      ]},
+      { label: 'Diagonal pair (∥ a+b + ∥ b−a)', generators: [
+        { type: 'reflection', dirIndex: 0 },
+        { type: 'reflection', dirIndex: 1 },
+      ]},
     ]},
-    { name: 'pmg', description: 'Reflection + glide', generators: [
-      { type: 'reflection', dirIndex: 3 },
-      { type: 'glide-reflection', dirIndex: 2 },
+    { name: 'pmg', description: 'Reflection + glide', variants: [
+      { label: 'Mirror ∥ b, glide ∥ a', generators: [
+        { type: 'reflection', dirIndex: 3 },
+        { type: 'glide-reflection', dirIndex: 2 },
+      ]},
+      { label: 'Mirror ∥ a, glide ∥ b', generators: [
+        { type: 'reflection', dirIndex: 2 },
+        { type: 'glide-reflection', dirIndex: 3 },
+      ]},
     ]},
-    { name: 'pgg', description: 'Two glide reflections', generators: [
-      { type: 'glide-reflection', dirIndex: 3, axisOffset: 0.25 },
-      { type: 'glide-reflection', dirIndex: 2, axisOffset: 0.25 },
+    { name: 'pgg', description: 'Two glide reflections', variants: [
+      { label: 'Axial glides (∥ a + ∥ b)', generators: [
+        { type: 'glide-reflection', dirIndex: 3, axisOffset: 0.25 },
+        { type: 'glide-reflection', dirIndex: 2, axisOffset: 0.25 },
+      ]},
+      { label: 'Diagonal glides (∥ a+b + ∥ b−a)', generators: [
+        { type: 'glide-reflection', dirIndex: 1, axisOffset: 0.25 },
+        { type: 'glide-reflection', dirIndex: 0, axisOffset: 0.25 },
+      ]},
     ]},
-    { name: 'cmm', description: 'Two diagonal reflections', generators: [
-      { type: 'reflection', dirIndex: 0 },
-      { type: 'reflection', dirIndex: 1 },
+    { name: 'cmm', description: 'Two reflections (diagonal)', variants: [
+      { label: 'Diagonal pair (∥ a+b + ∥ b−a)', generators: [
+        { type: 'reflection', dirIndex: 0 },
+        { type: 'reflection', dirIndex: 1 },
+      ]},
+      { label: 'Axial pair (∥ a + ∥ b)', generators: [
+        { type: 'reflection', dirIndex: 2 },
+        { type: 'reflection', dirIndex: 3 },
+      ]},
     ]},
     { name: 'p4', description: '90° rotation', generators: [
       { type: 'rotation', order: 4 },
