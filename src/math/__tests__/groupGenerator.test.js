@@ -150,6 +150,20 @@ describe('generateGroup – all 17 preset generators are valid', () => {
     expect(result.error).toBeNull();
   });
 
+  it('cm on nearly-hex lattice (slider-quantised x=0.866) should not warn', () => {
+    // When the centered-rectangular x-slider is at its minimum, the
+    // value 0.866 is slightly off from √3/2 ≈ 0.86602540378.  The 60°
+    // reflection (a+b direction) is still valid hex cm; it must not
+    // trigger a spurious "out of lattice" warning.
+    const result = generateGroup(
+      [translation(0, 1), translation(0.866, 0.5), reflection(PI / 3, 0, 0)],
+      4
+    );
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
+    expect(result.elements.length).toBeGreaterThan(2);
+  });
+
   it('pmm: square lattice, horizontal + vertical reflections', () => {
     const result = generateGroup(
       [...squareLattice(), reflection(0, 0, 0), reflection(PI / 2, 0, 0)],
