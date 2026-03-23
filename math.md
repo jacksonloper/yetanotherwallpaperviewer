@@ -136,12 +136,12 @@ parameters are fixed by the type template (see §3).  Types marked with
 
 **Centered rectangular lattice:**
 
-| Type | Generators |
-|---|---|
-| p1 | *(none)* |
-| p2 | rotation order 2, center (0, 0) |
-| cm | reflection dir 0 |
-| cmm | reflection dir 0 + reflection dir 1 |
+| Type | Generators | Variants |
+|---|---|---|
+| p1 | *(none)* | — |
+| p2 | rotation order 2, center (0, 0) | — |
+| cm **(V)** | reflection dir 0 *or* dir 1 | Mirror ∥ a+b / Mirror ∥ b−a |
+| cmm | reflection dir 0 + reflection dir 1 | — |
 
 **Square lattice:**
 
@@ -337,6 +337,7 @@ The UI presents these as radio buttons.  The following table summarizes:
 | pm | Square | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
 | pg | Rectangular | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
 | pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
+| cm | Centered rect | 2 | Mirror ∥ a+b or ∥ b−a |
 | cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) |
 | pmg | Rectangular | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
 | pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
@@ -565,7 +566,7 @@ the group (§3b), so the fixed center (0, 0) suffices. ✔
 
 **Lattice:** Rectangular or Square.
 **Generator:** reflection at angle from dirIndex, through origin.
-**Variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
+**Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
 square lattices (see §3e).
 
 **Surjectivity.**  A pm group has parallel mirrors.  The direction is
@@ -578,7 +579,7 @@ pass through the origin. ✔
 
 **Lattice:** Rectangular or Square.
 **Generator:** glideReflection at angle from dirIndex, distance from lattice.
-**Variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
+**Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
 square lattices (see §3e).
 
 **Surjectivity.**  The glide distance is forced by the lattice.  The
@@ -591,9 +592,9 @@ translated to pass through the origin. ✔
 
 **Lattice:** Centered rectangular, Square, or Hexagonal.
 **Generator:** reflection(α, 0, 0), where α is the direction angle for
-dirIndex 0 (see §0c).
-**Variants:** On the square lattice, 2 diagonal direction choices
-(∥ a+b or ∥ b−a); on other lattices, 1 option.
+the chosen dirIndex (see §0c).
+**Direction variants:** 2 choices on centered-rectangular (∥ a+b or ∥ b−a)
+and on square (∥ a+b (↗) or ∥ b−a (↘)); 1 option on hexagonal.
 
 **Surjectivity.**  The mirror direction is selected by the lattice type
 and variant radio; any axis position can be translated to the origin. ✔
@@ -604,8 +605,9 @@ and variant radio; any axis position can be translated to the origin. ✔
 
 **Lattice:** Rectangular or Square.
 **Generators:** Two perpendicular reflections through origin.
-**Variants:** On the square lattice, 2 pair choices: axial (∥ a + ∥ b)
-or diagonal (∥ a+b + ∥ b−a).  On rectangular, 1 option.
+**Direction variants:** None.  On rectangular: dirs 0, 1 (axial).  On square:
+dirs 2, 3 (axial).  Diagonal reflections on a square lattice produce cmm,
+not pmm (see §3e).
 
 **Surjectivity.**  The two mirror families are perpendicular.  Their
 intersection point can be translated to the origin. ✔
@@ -616,8 +618,8 @@ intersection point can be translated to the origin. ✔
 
 **Lattice:** Rectangular or Square.
 **Generators:** One reflection + one perpendicular glide, both through origin.
-**Variants:** 2 direction choices — which direction gets the mirror and
-which gets the glide.
+**Direction variants:** 2 on each lattice — which direction gets the mirror
+and which gets the glide.
 
 **Surjectivity.**  The mirror and glide can be translated so both pass
 through the origin. ✔
@@ -628,8 +630,9 @@ through the origin. ✔
 
 **Lattice:** Rectangular or Square.
 **Generators:** Two perpendicular glide reflections with axisOffset = 0.25.
-**Variants:** On the square lattice, 2 pair choices: axial (∥ a + ∥ b)
-or diagonal (∥ a+b + ∥ b−a).  On rectangular, 1 option.
+**Direction variants:** None.  On rectangular: glide dirs 1, 0.  On square:
+glide dirs 3, 2 (axial).  Diagonal glides on a square lattice produce cmm,
+not pgg (see §3e).
 
 The fixed axisOffset = 0.25 places the two glide axes at a quarter-period
 offset from the origin, which is the unique correct relative displacement.
@@ -643,9 +646,9 @@ configuration; any other valid placement is related by translation. ✔
 ### cmm — Two reflections on centered lattice
 
 **Lattice:** Centered rectangular, Square, or Hexagonal.
-**Generators:** Two perpendicular reflections through origin.
-**Variants:** On the square lattice, 2 pair choices: diagonal (∥ a+b + ∥ b−a)
-or axial (∥ a + ∥ b).  On other lattices, 1 option (dirs 0, 1).
+**Generators:** Two perpendicular reflections through origin (dirs 0, 1).
+**Direction variants:** None.  On all lattices the generator pair is dirs 0, 1.
+Axial reflections on a square lattice produce pmm, not cmm (see §3e).
 
 **Surjectivity.**  The two mirror families' intersection point can be
 translated to the origin. ✔
@@ -782,7 +785,7 @@ origin. ✔
 | p2 | Any | rot(π) at origin | — |
 | pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 dirs on Sq |
 | pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 dirs on Sq |
-| cm | CRect/Sq/Hex | refl at origin | 1 on CRect/Hex; 2 dirs on Sq |
+| cm | CRect/Sq/Hex | refl at origin | 2 on CRect; 2 dirs on Sq; 1 on Hex |
 | pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 1 on Sq |
 | pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq |
 | pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 1 on Sq |
