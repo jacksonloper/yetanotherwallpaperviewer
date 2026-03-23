@@ -162,9 +162,9 @@ parentheses.
 | pmg | reflection dir 3 + glide dir 2 | axisOffset₀ (0), axisOffset₁ (0) |
 | pgg | glide dir 3 + glide dir 2 | axisOffset₀ (0.25), axisOffset₁ (0.25) |
 | cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
-| p4 | rotation order 4 | centerS (0), centerT (0) |
-| p4m | rotation order 4 + reflection dir 3 | centerS (0), centerT (0), axisOffset (0) |
-| p4g | rotation order 4 + reflection dir 1 | centerS (0), centerT (0), axisOffset (0.5) |
+| p4 | rotation order 4 | *(none — determined by symmetry)* |
+| p4m | rotation order 4 + reflection dir 3 | *(none — determined by symmetry)* |
+| p4g | rotation order 4 + reflection dir 1 | *(none — determined by symmetry)* |
 
 **Hexagonal lattice:**
 
@@ -174,11 +174,11 @@ parentheses.
 | p2 | rotation order 2 | centerS (0), centerT (0) |
 | cm | reflection dir 0 | axisOffset (0) |
 | cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
-| p3 | rotation order 3 | centerS (0), centerT (0) |
-| p3m1 | rotation order 3 + reflection dir 2 | centerS (0), centerT (0), axisOffset (0) |
-| p31m | rotation order 3 + reflection dir 4 | centerS (0), centerT (0), axisOffset (0) |
-| p6 | rotation order 6 | centerS (0), centerT (0) |
-| p6m | rotation order 6 + reflection dir 4 | centerS (0), centerT (0), axisOffset (0) |
+| p3 | rotation order 3 | *(none — determined by symmetry)* |
+| p3m1 | rotation order 3 + reflection dir 2 | *(none — determined by symmetry)* |
+| p31m | rotation order 3 + reflection dir 4 | *(none — determined by symmetry)* |
+| p6 | rotation order 6 | *(none — determined by symmetry)* |
+| p6m | rotation order 6 + reflection dir 4 | *(none — determined by symmetry)* |
 
 ### 0e. Slider semantics
 
@@ -571,8 +571,8 @@ with direction angle α:
 | Rotation order | Discrete (2, 3, 4, 6) | Fixed per wallpaper type |
 | dirIndex | Discrete (index into direction list) | Fixed per wallpaper type |
 | Glide distance | Discrete (fixed per direction) | Computed from lattice by `getAllowedIsometries` |
-| centerS, centerT | Continuous, [0, 1) | Sliders (gauge choice — see §5) |
-| axisOffset | Continuous, [0, 1) | Slider (gauge choice — see §5) |
+| centerS, centerT | Continuous, [0, 1) | Sliders (gauge choice — see §5). Hidden for types on square/hex lattices (p4, p4m, p4g, p3, p3m1, p31m, p6, p6m) where the lattice is unique up to similarity and all params are determined by symmetry. |
+| axisOffset | Continuous, [0, 1) | Slider (gauge choice — see §5). Hidden for types on square/hex lattices (same list). |
 
 ---
 
@@ -1086,14 +1086,14 @@ determine the full group. ✔
 | pmg | Rect/Sq | refl(0) + glide(π/2, ½) | dirs = (1,0) or (3,2) | (x, y), axisOffset₀, axisOffset₁ | Offsets are gauge |
 | pgg | Rect/Sq | glide(0, d₀) + glide(π/2, ½) | dirs = (1,0) or (3,2), dists fixed | (x, y), axisOffset₀, axisOffset₁ | Default offset ¼ |
 | cmm | CRect/Sq/Hex | refl(α₀) + refl(α₁) | dirs = (0,1) | (x, y), axisOffset₀, axisOffset₁ | α₀, α₁ depend on lattice |
-| p4 | Square | rot(π/2) | order = 4 | centerS, centerT | Center is gauge |
-| p4m | Square | rot(π/2) + refl(0) | order = 4, dir = 3 (axial) | centerS, centerT, axisOffset | Axial mirror; mirrors in all 4 dirs |
-| p4g | Square | rot(π/2) + refl(−π/4) | order = 4, dir = 1 (diagonal), offset = 0.5 | centerS, centerT, axisOffset | Diagonal mirror offset from center; mirrors in 2 dirs, glides in 2 |
-| p3 | Hexagonal | rot(2π/3) | order = 3 | centerS, centerT | Center is gauge |
-| p3m1 | Hexagonal | rot(2π/3) + refl(π/2) | order = 3, dir = 2 | centerS, centerT, axisOffset | Mirror through center |
-| p31m | Hexagonal | rot(2π/3) + refl(0) | order = 3, dir = 4 | centerS, centerT, axisOffset | Mirror between centers |
-| p6 | Hexagonal | rot(π/3) | order = 6 | centerS, centerT | Center is gauge |
-| p6m | Hexagonal | rot(π/3) + refl(0) | order = 6, dir = 4 | centerS, centerT, axisOffset | Full hex symmetry |
+| p4 | Square | rot(π/2) | order = 4 | *(none — lattice fixed, center is gauge)* | No free params |
+| p4m | Square | rot(π/2) + refl(0) | order = 4, dir = 3 (axial) | *(none — lattice fixed, all params locked)* | Rotation center must lie on both mirror axes |
+| p4g | Square | rot(π/2) + refl(−π/4) | order = 4, dir = 1 (diagonal), offset = 0.5 | *(none — lattice fixed, all params locked)* | Diagonal mirror offset from center; mirrors in 2 dirs, glides in 2 |
+| p3 | Hexagonal | rot(2π/3) | order = 3 | *(none — lattice fixed, center is gauge)* | No free params |
+| p3m1 | Hexagonal | rot(2π/3) + refl(π/2) | order = 3, dir = 2 | *(none — lattice fixed, all params locked)* | Mirror through center |
+| p31m | Hexagonal | rot(2π/3) + refl(0) | order = 3, dir = 4 | *(none — lattice fixed, all params locked)* | Mirror between centers |
+| p6 | Hexagonal | rot(π/3) | order = 6 | *(none — lattice fixed, center is gauge)* | No free params |
+| p6m | Hexagonal | rot(π/3) + refl(0) | order = 6, dir = 4 | *(none — lattice fixed, all params locked)* | Full hex symmetry |
 
 **Notation:** "Rect" = rectangular, "Sq" = square, "CRect" = centered rectangular, "Hex" = hexagonal.
 

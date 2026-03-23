@@ -94,51 +94,23 @@ const wallpaperTypesByLattice = {
       { type: 'reflection', dirIndex: 0, axisOffset: 0 },
       { type: 'reflection', dirIndex: 1, axisOffset: 0 },
     ]},
-    { name: 'p4', description: '90° rotation', generators: [
+    // p4, p4m, p4g: no continuous degrees of freedom.
+    // The square lattice is unique up to similarity, and the rotation center
+    // is locked to discrete positions (e.g. (0,0), (0.5,0.5)).  For p4m the
+    // rotation center must lie on both mirror axes; for p4g the diagonal
+    // mirror offset is fixed at ½.  All valid parameter choices produce the
+    // same group up to translation, so no sliders are needed.
+    { name: 'p4', description: '90° rotation', noFreeParams: true, generators: [
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
     ]},
-    { name: 'p4m', description: '90° rotation + reflection', generators: [
+    { name: 'p4m', description: '90° rotation + reflection', noFreeParams: true, generators: [
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 3, axisOffset: 0 },
-    ],
-    // Constraint: centerS of rotation must equal axisOffset of reflection.
-    // Otherwise the composition (rotation ∘ horizontal reflection) produces a
-    // diagonal glide instead of a diagonal reflection, breaking p4m structure.
-    applyConstraints: (gens, changedIndex) => {
-      const newGens = gens.map(g => ({ ...g }))
-      if (changedIndex === 0) {
-        newGens[1].axisOffset = newGens[0].centerS ?? 0
-      } else if (changedIndex === 1) {
-        newGens[0].centerS = newGens[1].axisOffset ?? 0
-      }
-      return newGens
-    },
-    linkedRotationParams: ['centerS'],
-    constraintNote: 'Rotation center along a is linked to reflection axis offset.',
-    },
-    { name: 'p4g', description: '90° rotation + diagonal reflection', generators: [
+    ]},
+    { name: 'p4g', description: '90° rotation + diagonal reflection', noFreeParams: true, generators: [
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 1, axisOffset: 0.5 },
-    ],
-    // Constraint: axisOffset = (centerS + centerT − ½) mod 1.
-    // The composition (rotation ∘ diagonal reflection) must produce a
-    // horizontal glide with distance ½; deviating breaks p4g structure.
-    applyConstraints: (gens, changedIndex) => {
-      const newGens = gens.map(g => ({ ...g }))
-      if (changedIndex === 0) {
-        const cS = newGens[0].centerS ?? 0
-        const cT = newGens[0].centerT ?? 0
-        newGens[1].axisOffset = ((cS + cT - 0.5) % 1 + 1) % 1
-      } else if (changedIndex === 1) {
-        const alpha = newGens[1].axisOffset ?? 0
-        const cT = newGens[0].centerT ?? 0
-        newGens[0].centerS = ((alpha - cT + 0.5) % 1 + 1) % 1
-      }
-      return newGens
-    },
-    linkedRotationParams: ['centerS', 'centerT'],
-    constraintNote: 'Axis offset = rotation center along a + center along b − ½ (mod 1).',
-    },
+    ]},
   ],
 
   hexagonal: [
@@ -153,21 +125,27 @@ const wallpaperTypesByLattice = {
       { type: 'reflection', dirIndex: 0, axisOffset: 0 },
       { type: 'reflection', dirIndex: 1, axisOffset: 0 },
     ]},
-    { name: 'p3', description: '120° rotation', generators: [
+    // p3, p3m1, p31m, p6, p6m: no continuous degrees of freedom.
+    // The hexagonal lattice is unique up to similarity, and the rotation
+    // center is locked to discrete positions (e.g. (0,0), (1/3,1/3), (2/3,2/3)
+    // for order 3; only (0,0) for order 6).  Reflection axes must pass
+    // through the rotation center (p3m1, p6m) or be offset by a fixed amount
+    // (p31m).  All valid choices produce the same group up to translation.
+    { name: 'p3', description: '120° rotation', noFreeParams: true, generators: [
       { type: 'rotation', order: 3, centerS: 0, centerT: 0 },
     ]},
-    { name: 'p3m1', description: '120° rotation + reflection', generators: [
+    { name: 'p3m1', description: '120° rotation + reflection', noFreeParams: true, generators: [
       { type: 'rotation', order: 3, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 2, axisOffset: 0 },
     ]},
-    { name: 'p31m', description: '120° rotation + reflection (alt)', generators: [
+    { name: 'p31m', description: '120° rotation + reflection (alt)', noFreeParams: true, generators: [
       { type: 'rotation', order: 3, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 4, axisOffset: 0 },
     ]},
-    { name: 'p6', description: '60° rotation', generators: [
+    { name: 'p6', description: '60° rotation', noFreeParams: true, generators: [
       { type: 'rotation', order: 6, centerS: 0, centerT: 0 },
     ]},
-    { name: 'p6m', description: '60° rotation + reflection', generators: [
+    { name: 'p6m', description: '60° rotation + reflection', noFreeParams: true, generators: [
       { type: 'rotation', order: 6, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 4, axisOffset: 0 },
     ]},

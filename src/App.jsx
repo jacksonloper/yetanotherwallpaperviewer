@@ -134,11 +134,8 @@ export default function App() {
   )
 
   const updateGenerator = (index, gen) => {
-    let newGens = [...generators]
+    const newGens = [...generators]
     newGens[index] = gen
-    if (currentWpType?.applyConstraints) {
-      newGens = currentWpType.applyConstraints(newGens, index)
-    }
     setGenerators(newGens)
   }
 
@@ -209,7 +206,11 @@ export default function App() {
           <p className="no-generators">Pure translation group — no parameters to adjust.</p>
         )}
 
-        {generators.map((gen, i) => (
+        {generators.length > 0 && currentWpType?.noFreeParams && (
+          <p className="no-generators">All parameters are determined by symmetry — no adjustments needed.</p>
+        )}
+
+        {generators.length > 0 && !currentWpType?.noFreeParams && generators.map((gen, i) => (
           <div key={i} className="generator-params">
             <div className="generator-title">
               {gen.type === 'rotation' && `${360 / gen.order}° rotation`}
@@ -219,7 +220,7 @@ export default function App() {
 
             {gen.type === 'rotation' && (
               <>
-                <label>center along a{currentWpType?.linkedRotationParams?.includes('centerS') ? ' 🔗' : ''}:
+                <label>center along a:
                   <input
                     type="range"
                     min="0"
@@ -231,7 +232,7 @@ export default function App() {
                   />
                   <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
                 </label>
-                <label>center along b{currentWpType?.linkedRotationParams?.includes('centerT') ? ' 🔗' : ''}:
+                <label>center along b:
                   <input
                     type="range"
                     min="0"
@@ -247,7 +248,7 @@ export default function App() {
             )}
 
             {(gen.type === 'reflection' || gen.type === 'glide-reflection') && (
-              <label>axis offset{currentWpType?.applyConstraints ? ' 🔗' : ''}:
+              <label>axis offset:
                 <input
                   type="range"
                   min="0"
@@ -262,10 +263,6 @@ export default function App() {
             )}
           </div>
         ))}
-
-        {currentWpType?.constraintNote && (
-          <div className="constraint-note">🔗 {currentWpType.constraintNote}</div>
-        )}
       </div>
 
       {/* Controls */}
