@@ -117,34 +117,23 @@ export function getAllowedIsometries(lattice) {
     case 'centered-rectangular': {
       result.rotationOrders = [2]
 
-      if (Math.abs(r2 - 1) < TYPE_EPS) {
-        // Well-rounded: reflections along a+b and b-a
-        const apb = { x, y: 1 + y }
-        const bma = { x, y: y - 1 }
-        const apbAngle = Math.atan2(apb.y, apb.x)
-        const bmaAngle = Math.atan2(bma.y, bma.x)
-        const apbLen = Math.sqrt(apb.x * apb.x + apb.y * apb.y)
-        const bmaLen = Math.sqrt(bma.x * bma.x + bma.y * bma.y)
+      // Always use a+b and b−a directions, whether well-rounded or not.
+      // This ensures continuity through the hex boundary (x→√3/2, y→0.5).
+      const apb = { x, y: 1 + y }
+      const bma = { x, y: y - 1 }
+      const apbAngle = Math.atan2(apb.y, apb.x)
+      const bmaAngle = Math.atan2(bma.y, bma.x)
+      const apbLen = Math.sqrt(apb.x * apb.x + apb.y * apb.y)
+      const bmaLen = Math.sqrt(bma.x * bma.x + bma.y * bma.y)
 
-        result.reflections = [
-          { label: 'along a+b', angle: apbAngle },
-          { label: 'along b−a', angle: bmaAngle },
-        ]
-        result.glides = [
-          { label: `along a+b, dist ${(apbLen / 2).toFixed(3)}`, angle: apbAngle, dist: apbLen / 2 },
-          { label: `along b−a, dist ${(bmaLen / 2).toFixed(3)}`, angle: bmaAngle, dist: bmaLen / 2 },
-        ]
-      } else {
-        // y ≈ 0.5 not-well-rounded: rectangular sublattice (2x,0)+(0,1)
-        result.reflections = [
-          { label: 'vertical (along a)', angle: PI / 2 },
-          { label: 'horizontal', angle: 0 },
-        ]
-        result.glides = [
-          { label: 'vertical, dist ½', angle: PI / 2, dist: 0.5 },
-          { label: `horizontal, dist ${x.toFixed(3)}`, angle: 0, dist: x },
-        ]
-      }
+      result.reflections = [
+        { label: 'along a+b', angle: apbAngle },
+        { label: 'along b−a', angle: bmaAngle },
+      ]
+      result.glides = [
+        { label: `along a+b, dist ${(apbLen / 2).toFixed(3)}`, angle: apbAngle, dist: apbLen / 2 },
+        { label: `along b−a, dist ${(bmaLen / 2).toFixed(3)}`, angle: bmaAngle, dist: bmaLen / 2 },
+      ]
       break
     }
 

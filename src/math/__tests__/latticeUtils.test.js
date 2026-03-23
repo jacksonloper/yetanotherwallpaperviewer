@@ -88,3 +88,45 @@ describe('well-rounded slider continuity: near-hex → hex', () => {
       .toBeLessThan(TOLERANCE);
   });
 });
+
+/**
+ * Not-well-rounded centered-rectangular → hex continuity.
+ *
+ * In not-well-rounded mode with shape='centered-rectangular', y=0.5 is fixed
+ * and x varies. At x=√3/2 ≈ 0.866 the lattice becomes hexagonal.
+ * The reflection/glide directions must be continuous across this boundary.
+ */
+describe('not-well-rounded centered-rectangular → hex continuity', () => {
+  const sqrt3h = Math.sqrt(3) / 2;
+  const nearHex = getAllowedIsometries({
+    mode: 'not-well-rounded', shape: 'centered-rectangular', x: sqrt3h + 0.01,
+  });
+  const atHex = getAllowedIsometries({
+    mode: 'not-well-rounded', shape: 'centered-rectangular', x: sqrt3h,
+  });
+
+  it('lattice types are centered-rectangular and hexagonal respectively', () => {
+    expect(nearHex.latticeType).toBe('centered-rectangular');
+    expect(atHex.latticeType).toBe('hexagonal');
+  });
+
+  it('reflections[0] angle is continuous (along a+b)', () => {
+    expect(Math.abs(nearHex.reflections[0].angle - atHex.reflections[0].angle))
+      .toBeLessThan(TOLERANCE);
+  });
+
+  it('reflections[1] angle is continuous (along b−a)', () => {
+    expect(Math.abs(nearHex.reflections[1].angle - atHex.reflections[1].angle))
+      .toBeLessThan(TOLERANCE);
+  });
+
+  it('glides[0] angle is continuous (along a+b)', () => {
+    expect(Math.abs(nearHex.glides[0].angle - atHex.glides[0].angle))
+      .toBeLessThan(TOLERANCE);
+  });
+
+  it('glides[1] angle is continuous (along b−a)', () => {
+    expect(Math.abs(nearHex.glides[1].angle - atHex.glides[1].angle))
+      .toBeLessThan(TOLERANCE);
+  });
+});
