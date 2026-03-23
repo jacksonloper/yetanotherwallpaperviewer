@@ -27,8 +27,6 @@
  *   well-rounded:     cmDir 0 = along a+b,     cmDir 1 = along b−a
  */
 
-const PI = Math.PI
-
 /**
  * Get the generators for a wallpaper type entry, given a variant index.
  * If the entry has variants, returns variants[idx].generators.

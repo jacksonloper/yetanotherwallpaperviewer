@@ -266,7 +266,7 @@ function NotWellRoundedControls({ lattice, onChange }) {
             x:
             <input
               type="range"
-              min={Math.sqrt(0.75).toFixed(4)}
+              min={Math.sqrt(0.75).toFixed(4)} /* √(3/4) = √3/2 ≈ 0.866, hex boundary */
               max="3"
               step="0.01"
               value={lattice.x ?? 1.0}
