@@ -94,9 +94,9 @@ export const presets = [
   },
   {
     name: 'p4g',
-    description: '90° rotation + reflection (square, alt)',
+    description: '90° rotation + diagonal reflection (square)',
     lattice: { mode: 'well-rounded', sliderValue: 0 },
-    generators: () => [rotation(PI / 2, 0.5, 0.5), reflection(0, 0, 0)],
+    generators: () => [rotation(PI / 2, 0, 0), reflection(-PI / 4, 1 / 4, 1 / 4)],
   },
   {
     name: 'p3',

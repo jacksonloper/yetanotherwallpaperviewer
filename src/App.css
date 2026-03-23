@@ -15,17 +15,6 @@ h1 {
   margin-top: 0;
 }
 
-.preset-selector {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.preset-selector select {
-  padding: 4px 8px;
-}
-
 /* Lattice Selector */
 .lattice-selector {
   margin-bottom: 16px;
@@ -159,13 +148,34 @@ h1 {
   font-style: italic;
 }
 
-/* Generators section */
+.constraint-note {
+  font-size: 12px;
+  color: #b8860b;
+  font-style: italic;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff8e1;
+  border-radius: 4px;
+}
+
+/* Generators / Wallpaper Group section */
 .generators-section {
   margin-bottom: 16px;
 }
 
 .generators-section h3 {
   margin-bottom: 8px;
+}
+
+.wallpaper-type-selector {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wallpaper-type-selector select {
+  padding: 4px 8px;
 }
 
 .no-generators {
@@ -175,53 +185,34 @@ h1 {
   margin: 4px 0;
 }
 
-.generator-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.generator-params {
   padding: 8px;
   background: #f8f9fa;
   border-radius: 4px;
   margin-bottom: 4px;
-  flex-wrap: wrap;
 }
 
-.generator-row select {
-  padding: 4px;
+.generator-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 4px;
 }
 
-.generator-row label {
+.generator-params label {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 14px;
+  margin-bottom: 2px;
 }
 
-.generator-row input[type="range"] {
+.generator-params input[type="range"] {
   width: 120px;
 }
 
 .controls input[type="range"] {
   width: 120px;
-}
-
-.btn-remove {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.btn-add {
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  margin-top: 4px;
 }
 
 .controls {
@@ -303,4 +294,22 @@ h1 {
   border-radius: 10px;
   margin-left: 8px;
   vertical-align: middle;
+}
+
+/* Direction variant radios */
+.variant-radios {
+  margin-top: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.variant-radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 13px;
 }
