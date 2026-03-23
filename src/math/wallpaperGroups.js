@@ -101,9 +101,9 @@ const wallpaperTypesByLattice = {
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 3, axisOffset: 0 },
     ]},
-    { name: 'p4g', description: '90° rotation + reflection (alt)', generators: [
-      { type: 'rotation', order: 4, centerS: 0.5, centerT: 0.5 },
-      { type: 'reflection', dirIndex: 3, axisOffset: 0 },
+    { name: 'p4g', description: '90° rotation + diagonal reflection', generators: [
+      { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
+      { type: 'reflection', dirIndex: 1, axisOffset: 0.5 },
     ]},
   ],
 

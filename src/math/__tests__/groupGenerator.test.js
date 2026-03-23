@@ -5,6 +5,9 @@ import {
   reflection,
   glideReflection,
   classify,
+  reflectionInfo,
+  compose,
+  isometryEqual,
 } from '../isometry.js';
 import { generateGroup, generateLatticePoints } from '../groupGenerator.js';
 
@@ -196,9 +199,9 @@ describe('generateGroup – all 17 preset generators are valid', () => {
     expect(result.error).toBeNull();
   });
 
-  it('p4g: square lattice, 90° rotation at (0.5,0.5) + reflection', () => {
+  it('p4g: square lattice, 90° rotation at origin + diagonal reflection', () => {
     const result = generateGroup(
-      [...squareLattice(), rotation(PI / 2, 0.5, 0.5), reflection(0, 0, 0)],
+      [...squareLattice(), rotation(PI / 2, 0, 0), reflection(-PI / 4, 1 / 4, 1 / 4)],
       4
     );
     expect(result.error).toBeNull();
@@ -375,5 +378,95 @@ describe('generateLatticePoints', () => {
       expect(p.y).toBeGreaterThanOrEqual(-2);
       expect(p.y).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+/**
+ * Find all distinct reflection/glide axis DIRECTIONS present in the group elements.
+ * Returns { mirrorAngles: Set, glideAngles: Set }, where angles are rounded
+ * to multiples of 15° and normalized to (-90°, 90°].
+ */
+function classifyAxes(elements) {
+  const EPS = 1e-5;
+  const mirrorAngles = new Set();
+  const glideAngles = new Set();
+
+  for (const el of elements) {
+    const type = classify(el, EPS);
+    if (type === 'reflection' || type === 'glide-reflection') {
+      const info = reflectionInfo(el);
+      // Normalize angle to (-π/2, π/2]
+      let a = info.angle;
+      while (a <= -PI / 2 + EPS) a += PI;
+      while (a > PI / 2 + EPS) a -= PI;
+      // Round to nearest 15°
+      const deg = Math.round((a * 180) / PI / 15) * 15;
+      if (type === 'reflection') mirrorAngles.add(deg);
+      else glideAngles.add(deg);
+    }
+  }
+  return { mirrorAngles, glideAngles };
+}
+
+describe('p4m vs p4g — wallpaper type verification', () => {
+  it('p4g generators differ from p4m generators (not equivalent by lattice translation)', () => {
+    // The old (incorrect) p4g used rotation(π/2, 0.5, 0.5) + reflection(0, 0, 0).
+    // T₂⁻¹ ∘ rotation(π/2, 0.5, 0.5) = rotation(π/2, 0, 0), proving old p4g = p4m.
+    const R_p4m = rotation(PI / 2, 0, 0);
+    const R_old_p4g = rotation(PI / 2, 0.5, 0.5);
+    const T2inv = translation(-1, 0);
+    const product = compose(T2inv, R_old_p4g);
+    expect(isometryEqual(product, R_p4m, 1e-9)).toBe(true);
+  });
+
+  it('p4m has mirrors in 4 directions (0°, 45°, 90°, −45°)', () => {
+    const result = generateGroup(
+      [...squareLattice(), rotation(PI / 2, 0, 0), reflection(0, 0, 0)],
+      6,
+      5000
+    );
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
+    const { mirrorAngles } = classifyAxes(result.elements);
+    expect(mirrorAngles.has(0)).toBe(true);
+    expect(mirrorAngles.has(45)).toBe(true);
+    expect(mirrorAngles.has(90)).toBe(true);
+    expect(mirrorAngles.has(-45)).toBe(true);
+    expect(mirrorAngles.size).toBe(4);
+  });
+
+  it('p4g has mirrors in only 2 directions (diagonals), glides in the other 2 (axes)', () => {
+    const result = generateGroup(
+      [...squareLattice(), rotation(PI / 2, 0, 0), reflection(-PI / 4, 1 / 4, 1 / 4)],
+      6,
+      5000
+    );
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
+    const { mirrorAngles, glideAngles } = classifyAxes(result.elements);
+
+    // Mirrors should exist ONLY in diagonal directions
+    expect(mirrorAngles.has(45)).toBe(true);
+    expect(mirrorAngles.has(-45)).toBe(true);
+    expect(mirrorAngles.has(0)).toBe(false);   // no horizontal mirror
+    expect(mirrorAngles.has(90)).toBe(false);  // no vertical mirror
+
+    // Glides should exist in axial directions (and possibly also diagonals)
+    expect(glideAngles.has(0)).toBe(true);     // horizontal glide
+    expect(glideAngles.has(90)).toBe(true);    // vertical glide
+  });
+
+  it('p4g diagonal mirror does NOT pass through the 4-fold center', () => {
+    // The reflection(-π/4, 1/4, 1/4) has axis through (1/4, 1/4) at angle -45°.
+    // The 4-fold center is at (0, 0). Check that (0,0) is NOT on the mirror axis.
+    const sigma = reflection(-PI / 4, 1 / 4, 1 / 4);
+    const info = reflectionInfo(sigma);
+    // The perpendicular distance from origin to the axis should be nonzero
+    const perpDist = Math.abs(0 * (-Math.sin(info.angle)) + 0 * Math.cos(info.angle));
+    // The axis passes through (1/4, 1/4), NOT through origin
+    // Check: the origin is NOT a fixed point of the reflection
+    const mapped = { x: sigma.a * 0 + sigma.b * 0 + sigma.tx, y: sigma.c * 0 + sigma.d * 0 + sigma.ty };
+    const dist = Math.sqrt(mapped.x * mapped.x + mapped.y * mapped.y);
+    expect(dist).toBeGreaterThan(0.1); // origin maps to (0.5, 0.5), far from origin
   });
 });

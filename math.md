@@ -164,7 +164,7 @@ parentheses.
 | cmm | reflection dir 0 + reflection dir 1 | axisOffset₀ (0), axisOffset₁ (0) |
 | p4 | rotation order 4 | centerS (0), centerT (0) |
 | p4m | rotation order 4 + reflection dir 3 | centerS (0), centerT (0), axisOffset (0) |
-| p4g | rotation order 4 + reflection dir 3 | centerS (0.5), centerT (0.5), axisOffset (0) |
+| p4g | rotation order 4 + reflection dir 1 | centerS (0), centerT (0), axisOffset (0.5) |
 
 **Hexagonal lattice:**
 
@@ -845,7 +845,7 @@ same group up to conjugacy.
 
 ---
 
-### p4m — 90° rotation + reflection (square lattice, mirrors through center)
+### p4m — 90° rotation + axial reflection (square lattice)
 
 | | |
 |---|---|
@@ -854,7 +854,7 @@ same group up to conjugacy.
 | **Dir** | Rotation order 4 + reflection dir 3 (angle 0, horizontal) |
 | **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
 | **Default** | centerS = 0, centerT = 0, axisOffset = 0 |
-| **Constraints** | The mirror passes through the 4-fold center (in the standard placement). |
+| **Constraints** | Mirror is along an axis direction (horizontal). |
 
 **Formulas.**
 
@@ -864,50 +864,88 @@ same group up to conjugacy.
 >
 > Reflection generator = reflection(0, 0, axisOffset)
 
-**Surjectivity.**  A p4m group has a 4-fold center with mirrors passing
-through it.  The center location (mod Λ) and mirror offset are
-independent continuous parameters.  For any valid p4m group, normalize
-the lattice to the unit square, then read off the center and mirror
-positions. ✔
+**Surjectivity.**  A p4m group has a 4-fold center with mirrors in all
+four directions (two axial + two diagonal) passing through it.  When the
+4-fold center is at the origin and the horizontal mirror passes through
+the origin, conjugation by the 90° rotation produces vertical, and both
+diagonal mirrors — all through the origin.  The center and mirror offset
+sliders cover all placements mod Λ. ✔
 
-**Key check: p4m vs p4g.**  These are the two distinct ways to combine a
-4-fold rotation with mirrors on a square lattice:
-- **p4m**: mirrors pass through the 4-fold center (default center at origin, axisOffset 0).
-- **p4g**: mirrors are offset from the 4-fold center (default center at (½, ½)).
-The UI distinguishes them by setting different default values of centerS/T.
+**Mirror structure.**  With R₀ = rotation(π/2, 0, 0) and σ = reflection(0, 0, 0):
+- σ is a horizontal mirror through the origin.
+- R₀∘σ maps (x,y) → (y, x): diagonal mirror at π/4 through origin.
+- R₀²∘σ maps (x,y) → (−x, y): vertical mirror through origin.
+- R₀³∘σ maps (x,y) → (−y, −x): diagonal mirror at −π/4 through origin.
+All four are pure reflections (zero glide component), all passing through
+the 4-fold center.  This is the defining characteristic of **p4m**.
 
 ---
 
-### p4g — 90° rotation + reflection (square lattice, mirrors offset from center)
+### p4g — 90° rotation + diagonal reflection (square lattice)
 
 | | |
 |---|---|
 | **Lattice** | Square only |
-| **Generators** | rotation(π/2, cx, cy) + reflection(0, px, py) |
-| **Dir** | Rotation order 4 + reflection dir 3 (angle 0, horizontal) |
+| **Generators** | rotation(π/2, cx, cy) + reflection(−π/4, px, py) |
+| **Dir** | Rotation order 4 + reflection dir 1 (angle −π/4, along **b**−**a**) |
 | **Free params** | centerS ∈ [0, 1), centerT ∈ [0, 1), axisOffset ∈ [0, 1) |
-| **Default** | centerS = 0.5, centerT = 0.5, axisOffset = 0 |
-| **Constraints** | The 4-fold center is at (½, ½), offset from the mirror by half a period. |
+| **Default** | centerS = 0, centerT = 0, axisOffset = 0.5 |
+| **Constraints** | Mirror is along a diagonal direction, offset from the 4-fold center. |
 
 **Formulas.**
 
-> Rotation generator = rotation(π/2, centerT, centerS) = rotation(π/2, 0.5, 0.5) at default
+> Rotation generator = rotation(π/2, centerT, centerS) = rotation(π/2, 0, 0) at default
 >
-> Reflection generator = reflection(0, 0, axisOffset) = reflection(0, 0, 0) at default
+> Mirror direction: angle = −π/4 (along **b**−**a** diagonal).
+>
+> Period = computeAxisPeriod(−π/4, (1, 0)) = gcd(1/√2, 1/√2) = 1/√2 ≈ 0.707.
+>
+> At axisOffset = 0.5: d = 0.5 · 1/√2 = 1/(2√2).
+>
+> (px, py) = (1/4, 1/4).
+>
+> Reflection generator = reflection(−π/4, 1/4, 1/4)
+>
+> This is the isometry (x, y) → (−y + 1/2, −x + 1/2), which matches IUCr
+> p4g operation (8).
 
-**Surjectivity.**  A p4g group has 4-fold centers at the midpoints of
-the fundamental cell, not on the mirror lines.  The default
-centerS = centerT = 0.5 places the 4-fold center at (½, ½), which is the
-standard p4g configuration.  Every p4g group on a square lattice can be
-brought to this form by a translation. ✔
+**Mirror structure proof.**  With R₀ = rotation(π/2, 0, 0) and
+σ' = reflection(−π/4, 1/4, 1/4):
 
-**Key distinction: p4m vs p4g.**  The two types use the *same* generator
-specification (rotation order 4 + reflection dir 3) but differ in the
-default center placement: p4m defaults to (0, 0) while p4g defaults to
-(0.5, 0.5).  Moving the sliders can in principle deform one into the
-other (the group structure changes), but the dropdown assignment fixes
-the intended type.  The group generator engine validates consistency
-via lattice compatibility checks.
+- σ' maps (x, y) → (−y + 1/2, −x + 1/2): pure **reflection** at −π/4. ✔
+- R₀ ∘ σ' maps (x, y) → (x − 1/2, −y + 1/2): horizontal **glide** (distance 1/2). ✔
+- R₀² ∘ σ' maps (x, y) → (y − 1/2, x − 1/2): diagonal **glide** at π/4 (distance 1/√2). ✔
+- R₀³ ∘ σ' maps (x, y) → (−x + 1/2, y − 1/2): vertical **glide** (distance 1/2). ✔
+
+No lattice translation converts the horizontal or vertical glides into pure
+reflections, because the axial glide distance is 1/2, and the axial lattice
+period is 1; an integer shift cannot cancel 1/2 mod 1.  However, the
+diagonal glide R₀² ∘ σ' *can* be converted into a pure reflection by adding
+translation (0, 1): the result (y − 1/2, x + 1/2) has zero glide component.
+
+Summary: the group has **diagonal mirrors only** (at ±45°) and **axial
+glides only** (at 0° and 90°).  This is the defining characteristic of
+**p4g**, confirming it is genuinely different from p4m.
+
+**Key distinction: p4m vs p4g.**  These are distinguished by the mirror
+*direction*, not just the rotation center placement:
+- **p4m** uses an **axial** mirror (dir 3, angle 0°).  Conjugation by the
+  4-fold rotation produces mirrors in all 4 directions.
+- **p4g** uses a **diagonal** mirror (dir 1, angle −45°) **offset from the
+  4-fold center** (axisOffset = 0.5).  Conjugation produces diagonal mirrors
+  but only axial *glides*.
+
+**Why the old implementation was wrong.**  The previous p4g used the same
+axial mirror as p4m (dir 3, angle 0°) but shifted the rotation center to
+(1/2, 1/2).  Since rotation(π/2, 1/2, 1/2) = translation(1, 0) ∘ rotation(π/2, 0, 0),
+this is just the p4m rotation composed with a lattice translation — it
+generates exactly the same group as p4m.
+
+**Surjectivity.**  Every p4g group on a square lattice has diagonal mirrors
+not passing through the 4-fold centers.  Up to translation, we can place
+the 4-fold center at the origin and the diagonal mirror at axisOffset = 0.5.
+The continuous sliders allow translating the center and mirror
+independently, covering all valid placements. ✔
 
 ---
 
@@ -1049,8 +1087,8 @@ determine the full group. ✔
 | pgg | Rect/Sq | glide(0, d₀) + glide(π/2, ½) | dirs = (1,0) or (3,2), dists fixed | (x, y), axisOffset₀, axisOffset₁ | Default offset ¼ |
 | cmm | CRect/Sq/Hex | refl(α₀) + refl(α₁) | dirs = (0,1) | (x, y), axisOffset₀, axisOffset₁ | α₀, α₁ depend on lattice |
 | p4 | Square | rot(π/2) | order = 4 | centerS, centerT | Center is gauge |
-| p4m | Square | rot(π/2) + refl(0) | order = 4, dir = 3 | centerS, centerT, axisOffset | Mirror through center (default) |
-| p4g | Square | rot(π/2) + refl(0) | order = 4, dir = 3 | centerS, centerT, axisOffset | Center at (½,½) (default), off-mirror |
+| p4m | Square | rot(π/2) + refl(0) | order = 4, dir = 3 (axial) | centerS, centerT, axisOffset | Axial mirror; mirrors in all 4 dirs |
+| p4g | Square | rot(π/2) + refl(−π/4) | order = 4, dir = 1 (diagonal), offset = 0.5 | centerS, centerT, axisOffset | Diagonal mirror offset from center; mirrors in 2 dirs, glides in 2 |
 | p3 | Hexagonal | rot(2π/3) | order = 3 | centerS, centerT | Center is gauge |
 | p3m1 | Hexagonal | rot(2π/3) + refl(π/2) | order = 3, dir = 2 | centerS, centerT, axisOffset | Mirror through center |
 | p31m | Hexagonal | rot(2π/3) + refl(0) | order = 3, dir = 4 | centerS, centerT, axisOffset | Mirror between centers |
@@ -1079,10 +1117,21 @@ These are genuinely different crystallographic types (not related by any
 lattice automorphism of the hexagonal lattice), and the UI correctly
 distinguishes them via dirIndex.
 
-**p4g** — The p4g arrangement requires the 4-fold center to be at a
-position *not* on the mirror line.  The default centerS = centerT = 0.5
-places it at the body center of the unit cell, which is the standard
-p4g configuration.  The mirror (axisOffset = 0) passes through the origin.
-This correctly produces the p4g pattern.  Since any p4g group can be
-translated so that the center is at (½, ½) and the mirror at the origin,
-surjectivity holds.
+**p4g** — The previous implementation was **incorrect**: it used the same
+axial mirror direction (dir 3) as p4m and only shifted the rotation center
+to (½, ½).  Since rotation(π/2, ½, ½) = translation(1, 0) ∘ rotation(π/2, 0, 0),
+this produces *exactly the same group* as p4m — the center shift is
+absorbed by a lattice translation.
+
+The fix: p4g now uses a **diagonal** mirror direction (dir 1, angle −π/4)
+with axisOffset = 0.5, placing the mirror axis through (¼, ¼) — which
+does NOT pass through the 4-fold center at the origin.  Computation of
+all coset representatives confirms:
+- σ' at −45°: pure reflection ✔
+- R₀∘σ' at 0°: glide (distance ½) ✔
+- R₀²∘σ' at 45°: glide (distance 1/√2) ✔
+- R₀³∘σ' at 90°: glide (distance ½) ✔
+
+No lattice translation converts the axial glides into pure reflections
+(since 1/2 mod 1 ≠ 0).  But T₁ ∘ R₀² ∘ σ' gives a diagonal mirror at +45°.
+Result: **diagonal mirrors only, axial glides only** = textbook p4g.
