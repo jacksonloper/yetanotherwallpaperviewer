@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   translation,
   rotation,
@@ -6,68 +6,112 @@ import {
   glideReflection,
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
-import { getWallpaperTypesForLattice, getGeneratorsForVariant } from './math/wallpaperGroups.js'
+import {
+  ALL_WALLPAPER_TYPES,
+  getWallpaperTypeByName,
+  getGeneratorsForVariant,
+} from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
-import LatticeSelector from './components/LatticeSelector.jsx'
-import { latticeToVector, getAllowedIsometries, axisOffsetToPoint } from './math/latticeUtils.js'
+import LatticeControls from './components/LatticeControls.jsx'
+import {
+  latticeToVector,
+  getLatticeType,
+  axisOffsetToPoint,
+  resolveDirection,
+  resolveCmDirection,
+  cmSliderToVector,
+  rectSliderToVector,
+  fixedLatticeVector,
+} from './math/latticeUtils.js'
 import './App.css'
 
 const PI = Math.PI
 
-function parseGenerator(gen, allowedIso, latticeVec) {
+/**
+ * Compute the second lattice vector from the app state.
+ */
+function getLatticeVector(wpType, latticeState) {
+  switch (wpType.latticeControl) {
+    case 'none':
+      return fixedLatticeVector(wpType.fixedLattice)
+    case 'rect-to-square':
+      return rectSliderToVector(latticeState.rectSlider ?? 0.5)
+    case 'cm-slider':
+      return cmSliderToVector(latticeState.cmSlider ?? 0.75)
+    case 'full':
+    default:
+      return latticeToVector(latticeState.fullLattice ?? { mode: 'well-rounded', sliderValue: 0 })
+  }
+}
+
+/**
+ * Convert a new-format generator template to a concrete isometry.
+ */
+function parseGenerator(gen, latticeVec) {
   switch (gen.type) {
     case 'rotation': {
-      const order = gen.order || 2
-      const angle = (2 * PI) / order
+      const angle = (2 * PI) / (gen.order || 2)
       return rotation(angle, 0, 0)
     }
     case 'reflection': {
-      const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
-      if (!dir) return null
-      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec)
-      return reflection(dir.angle, px, py)
+      let angle
+      if ('dir' in gen) {
+        angle = resolveDirection(gen.dir, latticeVec).angle
+      } else if ('cmDir' in gen) {
+        angle = resolveCmDirection(gen.cmDir, latticeVec).angle
+      } else {
+        return null
+      }
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, angle, latticeVec)
+      return reflection(angle, px, py)
     }
-    case 'glide-reflection': {
-      const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
-      if (!dir) return null
-      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec)
-      return glideReflection(dir.angle, dir.dist, px, py)
+    case 'glide': {
+      if (!('dir' in gen)) return null
+      const d = resolveDirection(gen.dir, latticeVec)
+      const dist = d.length / 2
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, d.angle, latticeVec)
+      return glideReflection(d.angle, dist, px, py)
     }
     default:
       return null
   }
 }
 
-function buildJsonSpec(lattice, generators, allowedIso) {
-  const vec = latticeToVector(lattice)
+/**
+ * Build JSON spec for copy-to-clipboard.
+ */
+function buildJsonSpec(wpType, generators, latticeVec) {
   const spec = {
-    translations: [[0, 1], [parseFloat(vec.x.toFixed(6)), parseFloat(vec.y.toFixed(6))]],
+    translations: [[0, 1], [parseFloat(latticeVec.x.toFixed(6)), parseFloat(latticeVec.y.toFixed(6))]],
     generators: generators.map((gen) => {
       switch (gen.type) {
-        case 'rotation': {
+        case 'rotation':
           return {
             type: 'rotation',
             order: gen.order || 2,
             angle_degrees: 360 / (gen.order || 2),
             center: [0, 0],
           }
-        }
         case 'reflection': {
-          const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
-          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, vec)
+          let angle
+          if ('dir' in gen) angle = resolveDirection(gen.dir, latticeVec).angle
+          else if ('cmDir' in gen) angle = resolveCmDirection(gen.cmDir, latticeVec).angle
+          else angle = 0
+          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, angle, latticeVec)
           return {
             type: 'reflection',
-            axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
+            axis_angle_degrees: parseFloat(((angle * 180) / PI).toFixed(6)),
             point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
           }
         }
-        case 'glide-reflection': {
-          const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0]
-          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, vec)
+        case 'glide': {
+          const d = resolveDirection(gen.dir, latticeVec)
+          const dist = d.length / 2
+          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, d.angle, latticeVec)
           return {
             type: 'glide-reflection',
-            axis_angle_degrees: dir ? parseFloat(((dir.angle * 180) / PI).toFixed(6)) : 0,
-            glide_distance: dir ? parseFloat(dir.dist.toFixed(6)) : 0,
+            axis_angle_degrees: parseFloat(((d.angle * 180) / PI).toFixed(6)),
+            glide_distance: parseFloat(dist.toFixed(6)),
             point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
           }
         }
@@ -80,12 +124,13 @@ function buildJsonSpec(lattice, generators, allowedIso) {
 }
 
 export default function App() {
-  const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
   const [wallpaperType, setWallpaperType] = useState('p4')
-  const [generators, setGenerators] = useState([
-    { type: 'rotation', order: 4 },
-  ])
   const [variantIndex, setVariantIndex] = useState(0)
+  const [latticeState, setLatticeState] = useState({
+    rectSlider: 0.5,
+    cmSlider: 0.75,
+    fullLattice: { mode: 'well-rounded', sliderValue: 0 },
+  })
   const [maxWords, setMaxWords] = useState(6)
   const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
@@ -93,60 +138,60 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
 
-  const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
-  const prevLatticeType = useRef(allowedIso.latticeType)
+  const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
-  const availableWallpaperTypes = useMemo(
-    () => getWallpaperTypesForLattice(allowedIso.latticeType),
-    [allowedIso.latticeType]
+  const generators = useMemo(
+    () => getGeneratorsForVariant(wpType, variantIndex),
+    [wpType, variantIndex]
   )
+
+  const latticeVec = useMemo(
+    () => getLatticeVector(wpType, latticeState),
+    [wpType, latticeState]
+  )
+
+  const latticeType = useMemo(() => {
+    if (wpType.latticeControl === 'none') return wpType.fixedLattice
+    if (wpType.latticeControl === 'rect-to-square') {
+      const { x } = latticeVec
+      return Math.abs(x - 1) < 1e-4 ? 'square' : 'rectangular'
+    }
+    if (wpType.latticeControl === 'cm-slider') {
+      const { x, y } = latticeVec
+      const r2 = x * x + y * y
+      if (Math.abs(y) < 1e-4 && Math.abs(x - 1) < 1e-4) return 'square'
+      if (Math.abs(y - 0.5) < 1e-4 && Math.abs(x - Math.sqrt(3) / 2) < 1e-4) return 'hexagonal'
+      if (Math.abs(r2 - 1) < 1e-4) return 'centered-rectangular'
+      if (Math.abs(y - 0.5) < 1e-4) return 'centered-rectangular'
+      return 'oblique'
+    }
+    if (wpType.latticeControl === 'full') {
+      return getLatticeType(latticeState.fullLattice ?? { mode: 'well-rounded', sliderValue: 0 })
+    }
+    return 'oblique'
+  }, [wpType, latticeVec, latticeState])
 
   const handleWallpaperTypeChange = (typeName) => {
     setWallpaperType(typeName)
     setVariantIndex(0)
-    const wpType = availableWallpaperTypes.find((t) => t.name === typeName)
-    if (wpType) {
-      setGenerators(getGeneratorsForVariant(wpType, 0).map((g) => ({ ...g })))
-    }
   }
 
   const handleVariantChange = (idx) => {
     setVariantIndex(idx)
-    const wpType = availableWallpaperTypes.find((t) => t.name === wallpaperType)
-    if (wpType) {
-      setGenerators(getGeneratorsForVariant(wpType, idx).map((g) => ({ ...g })))
-    }
   }
 
-  // Wrap setLattice to auto-adjust wallpaper type & generators when lattice type changes
-  const handleLatticeChange = useCallback((newLattice) => {
-    setLattice(newLattice)
-    const newAllowed = getAllowedIsometries(newLattice)
-    if (prevLatticeType.current !== newAllowed.latticeType) {
-      prevLatticeType.current = newAllowed.latticeType
-      const newTypes = getWallpaperTypesForLattice(newAllowed.latticeType)
-      setVariantIndex(0)
-      setWallpaperType((prevType) => {
-        const still = newTypes.find((t) => t.name === prevType)
-        if (still) {
-          setGenerators(getGeneratorsForVariant(still, 0).map((g) => ({ ...g })))
-          return prevType
-        }
-        const fallback = newTypes[0]
-        setGenerators(fallback ? getGeneratorsForVariant(fallback, 0).map((g) => ({ ...g })) : [])
-        return fallback ? fallback.name : 'p1'
-      })
-    }
+  const handleLatticeStateChange = useCallback((newState) => {
+    setLatticeState(prev => ({ ...prev, ...newState }))
   }, [])
 
   // Auto-generate the group whenever inputs change
   const groupResult = useMemo(() => {
     try {
-      const vec = latticeToVector(lattice)
+      const vec = latticeVec
       const t1 = translation(0, 1)
       const t2 = translation(vec.x, vec.y)
 
-      const nonTransIsos = generators.map((g) => parseGenerator(g, allowedIso, vec)).filter(Boolean)
+      const nonTransIsos = generators.map((g) => parseGenerator(g, vec)).filter(Boolean)
 
       const allIsos = [t1, t2, ...nonTransIsos]
       const res = generateGroup(allIsos, maxWords, maxElements)
@@ -161,31 +206,28 @@ export default function App() {
     } catch (err) {
       return { result: null, error: `Error: ${err.message}`, warning: null, timeMs: 0 }
     }
-  }, [generators, lattice, maxWords, maxElements, allowedIso])
+  }, [generators, latticeVec, maxWords, maxElements])
 
   const { result, error, warning, timeMs } = groupResult
 
   const copyToClipboard = useCallback(() => {
-    const json = buildJsonSpec(lattice, generators, allowedIso)
+    const json = buildJsonSpec(wpType, generators, latticeVec)
     navigator.clipboard.writeText(json).then(() => {
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 1500)
     })
-  }, [lattice, generators, allowedIso])
+  }, [wpType, generators, latticeVec])
 
   return (
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
       <p className="subtitle">
-        Choose a lattice and pick a wallpaper group. Updates live.
+        Pick a wallpaper group, then adjust the lattice. Updates live.
       </p>
 
-      {/* Lattice selector */}
-      <LatticeSelector lattice={lattice} onChange={handleLatticeChange} />
-
-      {/* Wallpaper type selector */}
+      {/* Wallpaper type selector — FIRST */}
       <div className="generators-section">
-        <h3>Wallpaper Group <span className="lattice-type-badge">{allowedIso.latticeType} lattice</span></h3>
+        <h3>Wallpaper Group <span className="lattice-type-badge">{latticeType} lattice</span></h3>
 
         <div className="wallpaper-type-selector">
           <label><strong>Type:</strong>
@@ -193,7 +235,7 @@ export default function App() {
               value={wallpaperType}
               onChange={(e) => handleWallpaperTypeChange(e.target.value)}
             >
-              {availableWallpaperTypes.map((t) => (
+              {ALL_WALLPAPER_TYPES.map((t) => (
                 <option key={t.name} value={t.name}>
                   {t.name} – {t.description}
                 </option>
@@ -203,27 +245,31 @@ export default function App() {
         </div>
 
         {/* Direction variant radios */}
-        {(() => {
-          const wpType = availableWallpaperTypes.find((t) => t.name === wallpaperType)
-          if (!wpType || !wpType.variants || wpType.variants.length <= 1) return null
-          return (
-            <div className="variant-radios">
-              <strong>Direction:</strong>
-              {wpType.variants.map((v, i) => (
-                <label key={i} className="variant-radio-label">
-                  <input
-                    type="radio"
-                    name="variant"
-                    checked={variantIndex === i}
-                    onChange={() => handleVariantChange(i)}
-                  />
-                  {v.label}
-                </label>
-              ))}
-            </div>
-          )
-        })()}
+        {wpType.variants && wpType.variants.length > 1 && (
+          <div className="variant-radios">
+            <strong>Direction:</strong>
+            {wpType.variants.map((v, i) => (
+              <label key={i} className="variant-radio-label">
+                <input
+                  type="radio"
+                  name="variant"
+                  checked={variantIndex === i}
+                  onChange={() => handleVariantChange(i)}
+                />
+                {v.label}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Lattice controls — SECOND, determined by wallpaper type */}
+      <LatticeControls
+        wpType={wpType}
+        latticeState={latticeState}
+        latticeVec={latticeVec}
+        onChange={handleLatticeStateChange}
+      />
 
       {/* Controls */}
       <div className="controls">
