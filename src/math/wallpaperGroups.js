@@ -100,11 +100,43 @@ const wallpaperTypesByLattice = {
     { name: 'p4m', description: '90° rotation + reflection', generators: [
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 3, axisOffset: 0 },
-    ]},
+    ],
+    // Constraint: centerS of rotation must equal axisOffset of reflection.
+    // Otherwise the composed diagonal reflection becomes a glide and we lose
+    // the p4m lattice structure.
+    applyConstraints: (gens, changedIndex) => {
+      const newGens = gens.map(g => ({ ...g }))
+      if (changedIndex === 0) {
+        newGens[1].axisOffset = newGens[0].centerS ?? 0
+      } else if (changedIndex === 1) {
+        newGens[0].centerS = newGens[1].axisOffset ?? 0
+      }
+      return newGens
+    },
+    constraintNote: 'Rotation center along a is linked to reflection axis offset.',
+    },
     { name: 'p4g', description: '90° rotation + diagonal reflection', generators: [
       { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
       { type: 'reflection', dirIndex: 1, axisOffset: 0.5 },
-    ]},
+    ],
+    // Constraint: axisOffset = (centerS + centerT − ½) mod 1.
+    // The composed horizontal reflection must be a glide with distance ½;
+    // deviating breaks the p4g lattice structure.
+    applyConstraints: (gens, changedIndex) => {
+      const newGens = gens.map(g => ({ ...g }))
+      if (changedIndex === 0) {
+        const cS = newGens[0].centerS ?? 0
+        const cT = newGens[0].centerT ?? 0
+        newGens[1].axisOffset = ((cS + cT - 0.5) % 1 + 1) % 1
+      } else if (changedIndex === 1) {
+        const alpha = newGens[1].axisOffset ?? 0
+        const cT = newGens[0].centerT ?? 0
+        newGens[0].centerS = ((alpha - cT + 0.5) % 1 + 1) % 1
+      }
+      return newGens
+    },
+    constraintNote: 'Axis offset = rotation center along a + center along b − ½ (mod 1).',
+    },
   ],
 
   hexagonal: [

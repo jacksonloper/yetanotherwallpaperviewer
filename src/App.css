@@ -148,6 +148,16 @@ h1 {
   font-style: italic;
 }
 
+.constraint-note {
+  font-size: 12px;
+  color: #b8860b;
+  font-style: italic;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff8e1;
+  border-radius: 4px;
+}
+
 /* Generators / Wallpaper Group section */
 .generators-section {
   margin-bottom: 16px;

@@ -128,9 +128,17 @@ export default function App() {
     }
   }, [])
 
+  const currentWpType = useMemo(
+    () => availableWallpaperTypes.find(t => t.name === wallpaperType),
+    [availableWallpaperTypes, wallpaperType]
+  )
+
   const updateGenerator = (index, gen) => {
-    const newGens = [...generators]
+    let newGens = [...generators]
     newGens[index] = gen
+    if (currentWpType?.applyConstraints) {
+      newGens = currentWpType.applyConstraints(newGens, index)
+    }
     setGenerators(newGens)
   }
 
@@ -211,7 +219,7 @@ export default function App() {
 
             {gen.type === 'rotation' && (
               <>
-                <label>center along a:
+                <label>center along a{currentWpType?.applyConstraints ? ' 🔗' : ''}:
                   <input
                     type="range"
                     min="0"
@@ -223,7 +231,7 @@ export default function App() {
                   />
                   <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
                 </label>
-                <label>center along b:
+                <label>center along b{currentWpType?.applyConstraints && wallpaperType === 'p4g' ? ' 🔗' : ''}:
                   <input
                     type="range"
                     min="0"
@@ -239,7 +247,7 @@ export default function App() {
             )}
 
             {(gen.type === 'reflection' || gen.type === 'glide-reflection') && (
-              <label>axis offset:
+              <label>axis offset{currentWpType?.applyConstraints ? ' 🔗' : ''}:
                 <input
                   type="range"
                   min="0"
@@ -254,6 +262,10 @@ export default function App() {
             )}
           </div>
         ))}
+
+        {currentWpType?.constraintNote && (
+          <div className="constraint-note">🔗 {currentWpType.constraintNote}</div>
+        )}
       </div>
 
       {/* Controls */}

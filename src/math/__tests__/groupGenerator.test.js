@@ -467,3 +467,131 @@ describe('p4m vs p4g — wallpaper type verification', () => {
     expect(dist).toBeGreaterThan(0.1); // origin maps to (0.5, 0.5), far from origin
   });
 });
+
+// --- p4m / p4g parameter constraint tests ---
+
+import { getWallpaperTypesForLattice } from '../wallpaperGroups.js';
+import { axisOffsetToPoint } from '../latticeUtils.js';
+
+describe('p4m parameter constraints', () => {
+  const squareTypes = getWallpaperTypesForLattice('square');
+  const p4m = squareTypes.find(t => t.name === 'p4m');
+
+  it('has applyConstraints function', () => {
+    expect(p4m.applyConstraints).toBeInstanceOf(Function);
+  });
+
+  it('default generators satisfy centerS = axisOffset', () => {
+    expect(p4m.generators[0].centerS).toBe(p4m.generators[1].axisOffset);
+  });
+
+  it('updating centerS propagates to axisOffset', () => {
+    const gens = p4m.generators.map(g => ({ ...g }));
+    gens[0].centerS = 0.3;
+    const constrained = p4m.applyConstraints(gens, 0);
+    expect(constrained[1].axisOffset).toBeCloseTo(0.3, 10);
+  });
+
+  it('updating axisOffset propagates to centerS', () => {
+    const gens = p4m.generators.map(g => ({ ...g }));
+    gens[1].axisOffset = 0.7;
+    const constrained = p4m.applyConstraints(gens, 1);
+    expect(constrained[0].centerS).toBeCloseTo(0.7, 10);
+  });
+
+  it('constrained p4m with nonzero centerS still produces valid p4m group', () => {
+    const gens = p4m.generators.map(g => ({ ...g }));
+    gens[0].centerS = 0.25;
+    const constrained = p4m.applyConstraints(gens, 0);
+    // Build the group from constrained generators on square lattice
+    const latticeVec = { x: 1, y: 0 };
+    const cS = constrained[0].centerS ?? 0;
+    const cT = constrained[0].centerT ?? 0;
+    const rot = rotation(PI / 2, cT, cS);
+    const { px, py } = axisOffsetToPoint(constrained[1].axisOffset, 0, latticeVec);
+    const refl = reflection(0, px, py);
+    const result = generateGroup([...squareLattice(), rot, refl], 6, 5000);
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
+    // Should still have mirrors in 4 directions
+    const { mirrorAngles } = classifyAxes(result.elements);
+    expect(mirrorAngles.has(0)).toBe(true);
+    expect(mirrorAngles.has(45)).toBe(true);
+    expect(mirrorAngles.has(90)).toBe(true);
+    expect(mirrorAngles.has(-45)).toBe(true);
+  });
+
+  it('centerT is free (does not affect constraint)', () => {
+    const gens = p4m.generators.map(g => ({ ...g }));
+    gens[0].centerS = 0.2;
+    gens[0].centerT = 0.4;
+    const constrained = p4m.applyConstraints(gens, 0);
+    expect(constrained[1].axisOffset).toBeCloseTo(0.2, 10);
+    expect(constrained[0].centerT).toBeCloseTo(0.4, 10);
+  });
+});
+
+describe('p4g parameter constraints', () => {
+  const squareTypes = getWallpaperTypesForLattice('square');
+  const p4g = squareTypes.find(t => t.name === 'p4g');
+
+  it('has applyConstraints function', () => {
+    expect(p4g.applyConstraints).toBeInstanceOf(Function);
+  });
+
+  it('default generators satisfy axisOffset = (centerS + centerT - 0.5) mod 1', () => {
+    const cS = p4g.generators[0].centerS ?? 0;
+    const cT = p4g.generators[0].centerT ?? 0;
+    const expected = ((cS + cT - 0.5) % 1 + 1) % 1;
+    expect(p4g.generators[1].axisOffset).toBeCloseTo(expected, 10);
+  });
+
+  it('updating centerS propagates to axisOffset', () => {
+    const gens = p4g.generators.map(g => ({ ...g }));
+    gens[0].centerS = 0.3;
+    const constrained = p4g.applyConstraints(gens, 0);
+    // expected: (0.3 + 0 - 0.5) mod 1 = -0.2 mod 1 = 0.8
+    expect(constrained[1].axisOffset).toBeCloseTo(0.8, 10);
+  });
+
+  it('updating centerT propagates to axisOffset', () => {
+    const gens = p4g.generators.map(g => ({ ...g }));
+    gens[0].centerT = 0.2;
+    const constrained = p4g.applyConstraints(gens, 0);
+    // expected: (0 + 0.2 - 0.5) mod 1 = -0.3 mod 1 = 0.7
+    expect(constrained[1].axisOffset).toBeCloseTo(0.7, 10);
+  });
+
+  it('updating axisOffset propagates to centerS', () => {
+    const gens = p4g.generators.map(g => ({ ...g }));
+    gens[1].axisOffset = 0.1;
+    const constrained = p4g.applyConstraints(gens, 1);
+    // expected: (0.1 - 0 + 0.5) mod 1 = 0.6
+    expect(constrained[0].centerS).toBeCloseTo(0.6, 10);
+  });
+
+  it('constrained p4g with nonzero center still produces valid p4g group', () => {
+    const gens = p4g.generators.map(g => ({ ...g }));
+    gens[0].centerS = 0.3;
+    gens[0].centerT = 0.1;
+    const constrained = p4g.applyConstraints(gens, 0);
+    // Build the group
+    const latticeVec = { x: 1, y: 0 };
+    const cS = constrained[0].centerS ?? 0;
+    const cT = constrained[0].centerT ?? 0;
+    const rot = rotation(PI / 2, cT, cS);
+    const { px, py } = axisOffsetToPoint(constrained[1].axisOffset, -PI / 4, latticeVec);
+    const refl = reflection(-PI / 4, px, py);
+    const result = generateGroup([...squareLattice(), rot, refl], 6, 5000);
+    expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
+    // p4g: mirrors only in diagonal directions, glides in axial
+    const { mirrorAngles, glideAngles } = classifyAxes(result.elements);
+    expect(mirrorAngles.has(45)).toBe(true);
+    expect(mirrorAngles.has(-45)).toBe(true);
+    expect(mirrorAngles.has(0)).toBe(false);
+    expect(mirrorAngles.has(90)).toBe(false);
+    expect(glideAngles.has(0)).toBe(true);
+    expect(glideAngles.has(90)).toBe(true);
+  });
+});
