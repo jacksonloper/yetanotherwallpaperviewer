@@ -177,8 +177,13 @@ const wallpaperTypesByLattice = {
     { name: 'p2', description: '180° rotation', generators: [
       { type: 'rotation', order: 2 },
     ]},
-    { name: 'cm', description: 'Reflection', generators: [
-      { type: 'reflection', dirIndex: 0 },
+    { name: 'cm', description: 'Reflection', variants: [
+      { label: 'Mirror ∥ a+b', generators: [
+        { type: 'reflection', dirIndex: 0 },
+      ]},
+      { label: 'Mirror ∥ b−a', generators: [
+        { type: 'reflection', dirIndex: 1 },
+      ]},
     ]},
     { name: 'cmm', description: 'Two reflections', generators: [
       { type: 'reflection', dirIndex: 0 },

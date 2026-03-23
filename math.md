@@ -162,17 +162,17 @@ parameters are fixed by the type template (see §3).  Types marked with
 
 **Hexagonal lattice:**
 
-| Type | Generators |
-|---|---|
-| p1 | *(none)* |
-| p2 | rotation order 2, center (0, 0) |
-| cm | reflection dir 0 |
-| cmm | reflection dir 0 + reflection dir 1 |
-| p3 | rotation order 3, center (0, 0) |
-| p3m1 | rotation order 3, center (0, 0) + reflection dir 2 |
-| p31m | rotation order 3, center (0, 0) + reflection dir 4 |
-| p6 | rotation order 6, center (0, 0) |
-| p6m | rotation order 6, center (0, 0) + reflection dir 4 |
+| Type | Generators | Variants |
+|---|---|---|
+| p1 | *(none)* | — |
+| p2 | rotation order 2, center (0, 0) | — |
+| cm **(V)** | reflection dir 0 *or* dir 1 | Mirror ∥ a+b / Mirror ∥ b−a |
+| cmm | reflection dir 0 + reflection dir 1 | — |
+| p3 | rotation order 3, center (0, 0) | — |
+| p3m1 | rotation order 3, center (0, 0) + reflection dir 2 | — |
+| p31m | rotation order 3, center (0, 0) + reflection dir 4 | — |
+| p6 | rotation order 6, center (0, 0) | — |
+| p6m | rotation order 6, center (0, 0) + reflection dir 4 | — |
 
 ### 0e. Auxiliary controls
 
@@ -334,15 +334,26 @@ The UI presents these as radio buttons.  The following table summarizes:
 | Type | Lattice | Variant count | Description |
 |---|---|---|---|
 | pm | Rectangular | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
-| pm | Square | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
+| pm | Square | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) — *equivalent on square; see note below* |
 | pg | Rectangular | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
-| pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
+| pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) — *equivalent on square; see note below* |
 | cm | Centered rect | 2 | Mirror ∥ a+b or ∥ b−a |
-| cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) |
+| cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) — *equivalent on square; see note below* |
+| cm | Hexagonal | 2 | Mirror ∥ a+b or ∥ b−a — *equivalent on hex; see note below* |
 | pmg | Rectangular | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
-| pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
+| pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b — *equivalent on square; see note below* |
 
 All other types × lattice combinations have exactly 1 option (no radio).
+
+**Variant equivalences on high-symmetry lattices.**  On the square lattice,
+the two direction variants for pm, pg, and pmg are related by the lattice's
+90° rotation symmetry, so they produce the *same* group up to isometry.
+Similarly, the two cm variants are equivalent on both the square and hexagonal
+lattices (related by the 90° resp. 60° rotation symmetry of those lattices).
+We keep both variants selectable so the user can slide the lattice slider
+continuously through centered-rectangular (for cm) or rectangular (for
+pm/pg/pmg) shapes, where the two variants are *genuinely inequivalent*,
+without the selected variant disappearing at the boundary.
 
 **Why pmm, pgg, and cmm have no direction variants on the square lattice:**
 On the square lattice, pmm with axial reflections (dirs 2, 3) and cmm with
@@ -567,7 +578,10 @@ the group (§3b), so the fixed center (0, 0) suffices. ✔
 **Lattice:** Rectangular or Square.
 **Generator:** reflection at angle from dirIndex, through origin.
 **Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
-square lattices (see §3e).
+square lattices (see §3e).  On the square lattice the two variants are
+conjugate by the 90° lattice rotation (so they give the same group up to
+isometry); both are offered so the user can slide continuously through
+rectangular lattices where they are genuinely inequivalent.
 
 **Surjectivity.**  A pm group has parallel mirrors.  The direction is
 selected by the variant radio.  Any mirror position can be translated to
@@ -580,7 +594,9 @@ pass through the origin. ✔
 **Lattice:** Rectangular or Square.
 **Generator:** glideReflection at angle from dirIndex, distance from lattice.
 **Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
-square lattices (see §3e).
+square lattices (see §3e).  On the square lattice the two variants are
+conjugate by the 90° lattice rotation; both are offered for continuity with
+rectangular lattices where they are genuinely inequivalent.
 
 **Surjectivity.**  The glide distance is forced by the lattice.  The
 direction is selected by the variant radio.  Any glide axis can be
@@ -593,8 +609,11 @@ translated to pass through the origin. ✔
 **Lattice:** Centered rectangular, Square, or Hexagonal.
 **Generator:** reflection(α, 0, 0), where α is the direction angle for
 the chosen dirIndex (see §0c).
-**Direction variants:** 2 choices on centered-rectangular (∥ a+b or ∥ b−a)
-and on square (∥ a+b (↗) or ∥ b−a (↘)); 1 option on hexagonal.
+**Direction variants:** 2 choices on all three lattice types (∥ a+b or ∥ b−a).
+On the square and hexagonal lattices the two variants are conjugate by the
+lattice's rotational symmetry (90° resp. 60°), so they give the same group
+up to isometry; both are offered so the user can slide continuously through
+centered-rectangular lattices where they are genuinely inequivalent.
 
 **Surjectivity.**  The mirror direction is selected by the lattice type
 and variant radio; any axis position can be translated to the origin. ✔
@@ -619,7 +638,9 @@ intersection point can be translated to the origin. ✔
 **Lattice:** Rectangular or Square.
 **Generators:** One reflection + one perpendicular glide, both through origin.
 **Direction variants:** 2 on each lattice — which direction gets the mirror
-and which gets the glide.
+and which gets the glide.  On the square lattice the two variants are
+conjugate by the 90° lattice rotation; both are offered for continuity with
+rectangular lattices where they are genuinely inequivalent.
 
 **Surjectivity.**  The mirror and glide can be translated so both pass
 through the origin. ✔
@@ -783,11 +804,11 @@ origin. ✔
 |---|---|---|---|
 | p1 | Any | *(none)* | — |
 | p2 | Any | rot(π) at origin | — |
-| pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 dirs on Sq |
-| pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 dirs on Sq |
-| cm | CRect/Sq/Hex | refl at origin | 2 on CRect; 2 dirs on Sq; 1 on Hex |
+| pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 on Sq† |
+| pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 on Sq† |
+| cm | CRect/Sq/Hex | refl at origin | 2 on CRect; 2 on Sq†; 2 on Hex† |
 | pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 1 on Sq |
-| pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq |
+| pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq† |
 | pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 1 on Sq |
 | cmm | CRect/Sq/Hex | refl + refl at origin | 1 on CRect/Hex; 1 on Sq |
 | p4 | Square | rot(π/2) at origin | — |
@@ -800,6 +821,9 @@ origin. ✔
 | p6m | Hexagonal | rot(π/3) + refl at origin | — |
 
 **Notation:** "Rect" = rectangular, "Sq" = square, "CRect" = centered rectangular, "Hex" = hexagonal.
+**†** = variants are conjugate by the lattice's rotational symmetry on this
+lattice, so they give the same group up to isometry; both are offered for
+continuity when sliding the lattice slider (see §3e).
 
 All generator placements are fixed (center at origin, axisOffset = 0 except
 pgg at 0.25 and p4g at 0.5).  The only continuous freedom is lattice shape
