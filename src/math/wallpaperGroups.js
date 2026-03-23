@@ -1,31 +1,31 @@
 /**
- * Wallpaper group definitions for each Bravais lattice type.
+ * Wallpaper group definitions — type-first architecture.
  *
- * For each lattice type, lists compatible wallpaper groups with their
- * generator templates.  All continuous placement parameters (rotation
- * centers, axis offsets) are gauge choices that do not change the
- * similarity class of the group, so the templates use fixed default
- * values and no sliders are exposed.
+ * All 17 wallpaper types are listed in a single flat array.  Each entry
+ * specifies:
+ *   name          – IUCr short name (p1, pm, cm, p4m, …)
+ *   description   – human-readable label
+ *   latticeControl – what kind of lattice slider the UI shows:
+ *       'none'           fixed lattice (no slider)
+ *       'full'           full 2D lattice freedom (p1, p2 only)
+ *       'rect-to-square' 1D slider: rectangular (x>1, y=0) → square (x=1, y=0)
+ *       'cm-slider'      1D slider: not-well-rounded cent-rect → hex → well-rounded → square
+ *   fixedLattice   – for 'none': 'square' or 'hexagonal'
+ *   generators / variants – generator templates using direction keys (dir)
+ *       or cm-specific keys (cmDir) instead of dirIndex.
  *
- * Some types have multiple discrete direction variants on certain lattices
- * (especially the square lattice, which has two inequivalent families of
- * reflection/glide directions: axial and diagonal).  These are listed in
- * a `variants` array; the UI shows radio buttons to let the user pick.
- * When `variants` is absent, the `generators` field is the sole option.
+ * Direction keys reference lattice vectors:
+ *   'a'    → (0, 1)                angle = π/2         length = 1
+ *   'b'    → (x, y)                angle = atan2(y,x)  length = |b|
+ *   'apb'  → a+b = (x, 1+y)       angle = atan2(1+y,x)
+ *   'bma'  → b−a = (x, y−1)       angle = atan2(y−1,x)
+ *   '2bma' → 2b−a = (2x, 2y−1)    angle = atan2(2y−1,2x)
  *
- * Direction indices (dirIndex) reference the arrays returned by
- * getAllowedIsometries() in latticeUtils.js for each lattice type.
+ * cmDir is used for cm/cmm on the cm-slider where the mirror direction
+ * depends on which segment of the slider the user is on:
+ *   not-well-rounded: cmDir 0 = along a (90°), cmDir 1 = along 2b−a (0°)
+ *   well-rounded:     cmDir 0 = along a+b,     cmDir 1 = along b−a
  */
-
-/**
- * Get the list of wallpaper types compatible with a given Bravais lattice type.
- * Each entry has: name, description, and either
- *   generators (single option) or
- *   variants (array of { label, generators }).
- */
-export function getWallpaperTypesForLattice(latticeType) {
-  return wallpaperTypesByLattice[latticeType] || wallpaperTypesByLattice['oblique']
-}
 
 /**
  * Get the generators for a wallpaper type entry, given a variant index.
@@ -40,7 +40,132 @@ export function getGeneratorsForVariant(wpType, variantIndex) {
   return wpType.generators
 }
 
-const wallpaperTypesByLattice = {
+export const ALL_WALLPAPER_TYPES = [
+  // --- Full 2D freedom (any lattice) ---
+  { name: 'p1', description: 'Translations only', latticeControl: 'full',
+    generators: [] },
+  { name: 'p2', description: '180° rotation', latticeControl: 'full',
+    generators: [{ type: 'rotation', order: 2 }] },
+
+  // --- Rectangular → Square slider ---
+  { name: 'pm', description: 'Reflection', latticeControl: 'rect-to-square',
+    variants: [
+      { label: 'Mirrors ∥ a (vertical)', generators: [
+        { type: 'reflection', dir: 'a' },
+      ]},
+      { label: 'Mirrors ∥ b (horizontal)', generators: [
+        { type: 'reflection', dir: 'b' },
+      ]},
+    ]},
+  { name: 'pg', description: 'Glide reflection', latticeControl: 'rect-to-square',
+    variants: [
+      { label: 'Glide ∥ a (vertical)', generators: [
+        { type: 'glide', dir: 'a' },
+      ]},
+      { label: 'Glide ∥ b (horizontal)', generators: [
+        { type: 'glide', dir: 'b' },
+      ]},
+    ]},
+  { name: 'pmm', description: 'Two reflections', latticeControl: 'rect-to-square',
+    generators: [
+      { type: 'reflection', dir: 'a' },
+      { type: 'reflection', dir: 'b' },
+    ]},
+  { name: 'pmg', description: 'Reflection + glide', latticeControl: 'rect-to-square',
+    variants: [
+      { label: 'Mirror ∥ b, glide ∥ a', generators: [
+        { type: 'reflection', dir: 'b' },
+        { type: 'glide', dir: 'a' },
+      ]},
+      { label: 'Mirror ∥ a, glide ∥ b', generators: [
+        { type: 'reflection', dir: 'a' },
+        { type: 'glide', dir: 'b' },
+      ]},
+    ]},
+  { name: 'pgg', description: 'Two glide reflections', latticeControl: 'rect-to-square',
+    generators: [
+      { type: 'glide', dir: 'b', axisOffset: 0.25 },
+      { type: 'glide', dir: 'a', axisOffset: 0.25 },
+    ]},
+
+  // --- CM slider (centered-rect → hex → well-rounded → square) ---
+  { name: 'cm', description: 'Reflection (centered)', latticeControl: 'cm-slider',
+    variants: [
+      { label: 'Mirror variant 1', generators: [
+        { type: 'reflection', cmDir: 0 },
+      ]},
+      { label: 'Mirror variant 2', generators: [
+        { type: 'reflection', cmDir: 1 },
+      ]},
+    ]},
+  { name: 'cmm', description: 'Two reflections (centered)', latticeControl: 'cm-slider',
+    generators: [
+      { type: 'reflection', cmDir: 0 },
+      { type: 'reflection', cmDir: 1 },
+    ]},
+
+  // --- Fixed square lattice (no choices) ---
+  { name: 'p4', description: '90° rotation', latticeControl: 'none',
+    fixedLattice: 'square',
+    generators: [{ type: 'rotation', order: 4 }] },
+  { name: 'p4m', description: '90° rotation + reflection', latticeControl: 'none',
+    fixedLattice: 'square',
+    generators: [
+      { type: 'rotation', order: 4 },
+      { type: 'reflection', dir: 'b' },
+    ]},
+  { name: 'p4g', description: '90° rotation + diagonal reflection', latticeControl: 'none',
+    fixedLattice: 'square',
+    generators: [
+      { type: 'rotation', order: 4 },
+      { type: 'reflection', dir: 'bma', axisOffset: 0.5 },
+    ]},
+
+  // --- Fixed hexagonal lattice (no choices) ---
+  { name: 'p3', description: '120° rotation', latticeControl: 'none',
+    fixedLattice: 'hexagonal',
+    generators: [{ type: 'rotation', order: 3 }] },
+  { name: 'p3m1', description: '120° rotation + reflection', latticeControl: 'none',
+    fixedLattice: 'hexagonal',
+    generators: [
+      { type: 'rotation', order: 3 },
+      { type: 'reflection', dir: 'a' },
+    ]},
+  { name: 'p31m', description: '120° rotation + reflection (alt)', latticeControl: 'none',
+    fixedLattice: 'hexagonal',
+    generators: [
+      { type: 'rotation', order: 3 },
+      { type: 'reflection', dir: '2bma' },
+    ]},
+  { name: 'p6', description: '60° rotation', latticeControl: 'none',
+    fixedLattice: 'hexagonal',
+    generators: [{ type: 'rotation', order: 6 }] },
+  { name: 'p6m', description: '60° rotation + reflection', latticeControl: 'none',
+    fixedLattice: 'hexagonal',
+    generators: [
+      { type: 'rotation', order: 6 },
+      { type: 'reflection', dir: '2bma' },
+    ]},
+]
+
+/**
+ * Look up a wallpaper type by name from the flat list.
+ */
+export function getWallpaperTypeByName(name) {
+  return ALL_WALLPAPER_TYPES.find(t => t.name === name) || ALL_WALLPAPER_TYPES[0]
+}
+
+// --- Legacy compatibility layer for tests ---
+
+/**
+ * Get the list of wallpaper types compatible with a given Bravais lattice type.
+ * @deprecated Use ALL_WALLPAPER_TYPES directly; this exists for test compatibility.
+ */
+export function getWallpaperTypesForLattice(latticeType) {
+  return _wallpaperTypesByLattice[latticeType] || _wallpaperTypesByLattice['oblique']
+}
+
+const _wallpaperTypesByLattice = {
   oblique: [
     { name: 'p1', description: 'Translations only', generators: [] },
     { name: 'p2', description: '180° rotation', generators: [

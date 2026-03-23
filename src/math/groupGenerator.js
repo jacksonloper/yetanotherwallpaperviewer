@@ -22,6 +22,13 @@ import {
 
 const EPS = 1e-7;
 
+// Looser tolerance for lattice-membership checks.  Lattice vectors may
+// carry small errors from slider quantisation (step 0.01, toFixed(4)),
+// which propagate through Cramer's rule into coefficients that are off
+// by ~3e-5.  Genuine incompatibilities produce deviations ≥ 0.1, so
+// 1e-4 is safe and consistent with TYPE_EPS in latticeUtils.js.
+const LATTICE_EPS = 1e-4;
+
 /**
  * Check whether the translation (tx, ty) is an integer combination of
  * the lattice basis vectors v1 and v2 (within tolerance).
@@ -32,7 +39,7 @@ function isInLattice(tx, ty, v1, v2) {
   if (Math.abs(det) < 1e-12) return false; // degenerate lattice
   const a = (tx * v2.y - ty * v2.x) / det;
   const b = (v1.x * ty - v1.y * tx) / det;
-  return Math.abs(a - Math.round(a)) < EPS && Math.abs(b - Math.round(b)) < EPS;
+  return Math.abs(a - Math.round(a)) < LATTICE_EPS && Math.abs(b - Math.round(b)) < LATTICE_EPS;
 }
 
 /**

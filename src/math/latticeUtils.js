@@ -117,34 +117,23 @@ export function getAllowedIsometries(lattice) {
     case 'centered-rectangular': {
       result.rotationOrders = [2]
 
-      if (Math.abs(r2 - 1) < TYPE_EPS) {
-        // Well-rounded: reflections along a+b and b-a
-        const apb = { x, y: 1 + y }
-        const bma = { x, y: y - 1 }
-        const apbAngle = Math.atan2(apb.y, apb.x)
-        const bmaAngle = Math.atan2(bma.y, bma.x)
-        const apbLen = Math.sqrt(apb.x * apb.x + apb.y * apb.y)
-        const bmaLen = Math.sqrt(bma.x * bma.x + bma.y * bma.y)
+      // Always use a+b and b−a directions, whether well-rounded or not.
+      // This ensures continuity through the hex boundary (x→√3/2, y→0.5).
+      const apb = { x, y: 1 + y }
+      const bma = { x, y: y - 1 }
+      const apbAngle = Math.atan2(apb.y, apb.x)
+      const bmaAngle = Math.atan2(bma.y, bma.x)
+      const apbLen = Math.sqrt(apb.x * apb.x + apb.y * apb.y)
+      const bmaLen = Math.sqrt(bma.x * bma.x + bma.y * bma.y)
 
-        result.reflections = [
-          { label: 'along a+b', angle: apbAngle },
-          { label: 'along b−a', angle: bmaAngle },
-        ]
-        result.glides = [
-          { label: `along a+b, dist ${(apbLen / 2).toFixed(3)}`, angle: apbAngle, dist: apbLen / 2 },
-          { label: `along b−a, dist ${(bmaLen / 2).toFixed(3)}`, angle: bmaAngle, dist: bmaLen / 2 },
-        ]
-      } else {
-        // y ≈ 0.5 not-well-rounded: rectangular sublattice (2x,0)+(0,1)
-        result.reflections = [
-          { label: 'vertical (along a)', angle: PI / 2 },
-          { label: 'horizontal', angle: 0 },
-        ]
-        result.glides = [
-          { label: 'vertical, dist ½', angle: PI / 2, dist: 0.5 },
-          { label: `horizontal, dist ${x.toFixed(3)}`, angle: 0, dist: x },
-        ]
-      }
+      result.reflections = [
+        { label: 'along a+b', angle: apbAngle },
+        { label: 'along b−a', angle: bmaAngle },
+      ]
+      result.glides = [
+        { label: `along a+b, dist ${(apbLen / 2).toFixed(3)}`, angle: apbAngle, dist: apbLen / 2 },
+        { label: `along b−a, dist ${(bmaLen / 2).toFixed(3)}`, angle: bmaAngle, dist: bmaLen / 2 },
+      ]
       break
     }
 
@@ -285,4 +274,120 @@ export function findClosestDirection(angle, directions) {
     }
   }
   return bestIdx
+}
+
+// ───────────────────────────────────────────────────
+//  Slider → lattice-vector conversions (type-first UX)
+// ───────────────────────────────────────────────────
+
+const SQRT3H = Math.sqrt(3) / 2
+
+/**
+ * Convert the cm-slider value (t ∈ [0,1]) to a lattice vector (x, y).
+ *
+ *   t = 0   → not-well-rounded centered-rect  (x = 3, y = 0.5)
+ *   t = 0.5 → hexagonal                       (x = √3/2, y = 0.5)
+ *   t = 1   → square                          (x = 1, y = 0)
+ *
+ * Left half  (t < 0.5): y = 0.5, x linearly interpolated from 3 → √3/2.
+ * Right half (t > 0.5): well-rounded arc, y = 0.5(1 − (t−0.5)/0.5), x = √(1−y²).
+ */
+export function cmSliderToVector(t) {
+  if (t <= 0.5) {
+    // not-well-rounded segment
+    const frac = t / 0.5   // 0 at t=0, 1 at t=0.5
+    const x = 3 - (3 - SQRT3H) * frac
+    return { x, y: 0.5 }
+  }
+  // well-rounded segment (including hex endpoint and square endpoint)
+  const frac = (t - 0.5) / 0.5  // 0 at hex, 1 at square
+  const y = 0.5 * (1 - frac)
+  const x = Math.sqrt(Math.max(0, 1 - y * y))
+  return { x, y }
+}
+
+/**
+ * Convert the rect-to-square slider value (t ∈ [0,1]) to a lattice vector.
+ *
+ *   t = 0 → wide rectangle  (x = 3, y = 0)
+ *   t = 1 → square          (x = 1, y = 0)
+ */
+export function rectSliderToVector(t) {
+  return { x: 3 - 2 * t, y: 0 }
+}
+
+/**
+ * Get the fixed lattice vector for a lattice type with no freedom.
+ */
+export function fixedLatticeVector(latticeType) {
+  if (latticeType === 'square') return { x: 1, y: 0 }
+  if (latticeType === 'hexagonal') return { x: SQRT3H, y: 0.5 }
+  return { x: 1, y: 0 }
+}
+
+// ───────────────────────────────────────────────────
+//  Direction resolution for new-format generators
+// ───────────────────────────────────────────────────
+
+/**
+ * Resolve a direction key to an angle and length from the lattice vectors.
+ * Keys: 'a', 'b', 'apb', 'bma', '2bma'
+ */
+export function resolveDirection(dir, latticeVec) {
+  const { x, y } = latticeVec
+  switch (dir) {
+    case 'a':
+      return { angle: PI / 2, length: 1 }
+    case 'b':
+      return { angle: Math.atan2(y, x), length: Math.sqrt(x * x + y * y) }
+    case 'apb': {
+      const dy = 1 + y
+      return { angle: Math.atan2(dy, x), length: Math.sqrt(x * x + dy * dy) }
+    }
+    case 'bma': {
+      const dy = y - 1
+      return { angle: Math.atan2(dy, x), length: Math.sqrt(x * x + dy * dy) }
+    }
+    case '2bma': {
+      const dx = 2 * x
+      const dy = 2 * y - 1
+      return { angle: Math.atan2(dy, dx), length: Math.sqrt(dx * dx + dy * dy) }
+    }
+    default:
+      throw new Error(`Unknown direction key: ${dir}`)
+  }
+}
+
+/**
+ * Resolve a cm-specific direction index to angle and length.
+ *
+ * On not-well-rounded centered-rectangular (y ≈ 0.5, |b| > 1):
+ *   cmDir 0 → along a (vertical, 90°)
+ *   cmDir 1 → along 2b−a (horizontal, 0°)
+ *
+ * On well-rounded centered-rectangular / hex / square (|a| ≈ |b|):
+ *   cmDir 0 → along a+b
+ *   cmDir 1 → along b−a
+ */
+export function resolveCmDirection(cmDir, latticeVec) {
+  const { x, y } = latticeVec
+  const r2 = x * x + y * y
+  const isNotWellRounded = (Math.abs(y - 0.5) < 0.01) && (r2 > 1 + 0.01)
+
+  if (isNotWellRounded) {
+    if (cmDir === 0) {
+      return { angle: PI / 2, length: 1 }
+    } else {
+      const dx = 2 * x
+      return { angle: 0, length: dx }
+    }
+  }
+  // well-rounded (including hex and square boundary)
+  if (cmDir === 0) {
+    const dy = 1 + y
+    return { angle: Math.atan2(dy, x), length: Math.sqrt(x * x + dy * dy) }
+  } else {
+    const dy = y - 1
+    return { angle: Math.atan2(dy, x), length: Math.sqrt(x * x + dy * dy) }
+  }
 }
