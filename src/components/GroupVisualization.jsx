@@ -112,9 +112,11 @@ const F_OUTLINE = (() => {
 /**
  * Draw one F shape transformed by an isometry.
  */
-function FShape({ isometry, svgCx, svgCy }) {
+function FShape({ isometry, svgCx, svgCy, fOffset }) {
+  const ox = fOffset?.x || 0;
+  const oy = fOffset?.y || 0;
   const pts = F_OUTLINE.map(([x, y]) => {
-    const p = applyToPoint(isometry, x, y);
+    const p = applyToPoint(isometry, x + ox, y + oy);
     return toSvg(p.x, p.y, svgCx, svgCy);
   });
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
@@ -155,7 +157,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, showF }) {
+export default function GroupVisualization({ elements, latticeVectors, showF, fOffset }) {
   const width = 700;
   const height = 500;
   const svgCx = width / 2;
@@ -275,7 +277,7 @@ export default function GroupVisualization({ elements, latticeVectors, showF }) 
 
         {/* F shapes (one per group element) */}
         {showF && elements && elements.map((el, i) => (
-          <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} />
+          <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} fOffset={fOffset} />
         ))}
 
         {/* Reflection lines (solid) */}

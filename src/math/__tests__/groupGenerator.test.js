@@ -468,62 +468,32 @@ describe('p4m vs p4g — wallpaper type verification', () => {
   });
 });
 
-// --- noFreeParams tests for square/hexagonal lattice types ---
+// --- wallpaper group template validation ---
 
 import { getWallpaperTypesForLattice } from '../wallpaperGroups.js';
 
-describe('noFreeParams flag on square lattice types', () => {
-  const squareTypes = getWallpaperTypesForLattice('square');
+describe('wallpaper group templates have no continuous params', () => {
+  const latticeTypes = ['oblique', 'rectangular', 'centered-rectangular', 'square', 'hexagonal'];
 
-  it('p4 has noFreeParams', () => {
-    expect(squareTypes.find(t => t.name === 'p4').noFreeParams).toBe(true);
-  });
-
-  it('p4m has noFreeParams', () => {
-    expect(squareTypes.find(t => t.name === 'p4m').noFreeParams).toBe(true);
-  });
-
-  it('p4g has noFreeParams', () => {
-    expect(squareTypes.find(t => t.name === 'p4g').noFreeParams).toBe(true);
-  });
-
-  it('other square lattice types do NOT have noFreeParams', () => {
-    const freeTypes = ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm'];
-    for (const name of freeTypes) {
-      const t = squareTypes.find(t => t.name === name);
-      if (t) expect(t.noFreeParams).toBeFalsy();
+  for (const lt of latticeTypes) {
+    const types = getWallpaperTypesForLattice(lt);
+    for (const wpType of types) {
+      it(`${lt}/${wpType.name} generators have no centerS/centerT`, () => {
+        for (const gen of wpType.generators) {
+          expect(gen.centerS).toBeUndefined();
+          expect(gen.centerT).toBeUndefined();
+        }
+      });
     }
-  });
-});
+  }
 
-describe('noFreeParams flag on hexagonal lattice types', () => {
-  const hexTypes = getWallpaperTypesForLattice('hexagonal');
-
-  it('p3 has noFreeParams', () => {
-    expect(hexTypes.find(t => t.name === 'p3').noFreeParams).toBe(true);
-  });
-
-  it('p3m1 has noFreeParams', () => {
-    expect(hexTypes.find(t => t.name === 'p3m1').noFreeParams).toBe(true);
-  });
-
-  it('p31m has noFreeParams', () => {
-    expect(hexTypes.find(t => t.name === 'p31m').noFreeParams).toBe(true);
-  });
-
-  it('p6 has noFreeParams', () => {
-    expect(hexTypes.find(t => t.name === 'p6').noFreeParams).toBe(true);
-  });
-
-  it('p6m has noFreeParams', () => {
-    expect(hexTypes.find(t => t.name === 'p6m').noFreeParams).toBe(true);
-  });
-
-  it('other hexagonal lattice types do NOT have noFreeParams', () => {
-    const freeTypes = ['p1', 'p2', 'cm', 'cmm'];
-    for (const name of freeTypes) {
-      const t = hexTypes.find(t => t.name === name);
-      if (t) expect(t.noFreeParams).toBeFalsy();
+  it('all 17 distinct wallpaper type names are present', () => {
+    const allNames = new Set();
+    for (const lt of latticeTypes) {
+      for (const t of getWallpaperTypesForLattice(lt)) {
+        allNames.add(t.name);
+      }
     }
+    expect(allNames.size).toBe(17);
   });
 });

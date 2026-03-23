@@ -9,7 +9,7 @@ import { generateGroup } from './math/groupGenerator.js'
 import { getWallpaperTypesForLattice } from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeSelector from './components/LatticeSelector.jsx'
-import { latticeToVector, getAllowedIsometries, latticeCoordsToCenter, axisOffsetToPoint } from './math/latticeUtils.js'
+import { latticeToVector, getAllowedIsometries, axisOffsetToPoint } from './math/latticeUtils.js'
 import './App.css'
 
 const PI = Math.PI
@@ -19,8 +19,7 @@ function parseGenerator(gen, allowedIso, latticeVec) {
     case 'rotation': {
       const order = gen.order || 2
       const angle = (2 * PI) / order
-      const { cx, cy } = latticeCoordsToCenter(gen.centerS || 0, gen.centerT || 0, latticeVec)
-      return rotation(angle, cx, cy)
+      return rotation(angle, 0, 0)
     }
     case 'reflection': {
       const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0]
@@ -46,12 +45,11 @@ function buildJsonSpec(lattice, generators, allowedIso) {
     generators: generators.map((gen) => {
       switch (gen.type) {
         case 'rotation': {
-          const { cx, cy } = latticeCoordsToCenter(gen.centerS || 0, gen.centerT || 0, vec)
           return {
             type: 'rotation',
             order: gen.order || 2,
             angle_degrees: 360 / (gen.order || 2),
-            center: [parseFloat(cx.toFixed(6)), parseFloat(cy.toFixed(6))],
+            center: [0, 0],
           }
         }
         case 'reflection': {
@@ -85,12 +83,14 @@ export default function App() {
   const [lattice, setLattice] = useState({ mode: 'well-rounded', sliderValue: 0 })
   const [wallpaperType, setWallpaperType] = useState('p4')
   const [generators, setGenerators] = useState([
-    { type: 'rotation', order: 4, centerS: 0, centerT: 0 },
+    { type: 'rotation', order: 4 },
   ])
   const [maxWords, setMaxWords] = useState(6)
   const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
+  const [fOffsetX, setFOffsetX] = useState(0)
+  const [fOffsetY, setFOffsetY] = useState(0)
 
   const allowedIso = useMemo(() => getAllowedIsometries(lattice), [lattice])
   const prevLatticeType = useRef(allowedIso.latticeType)
@@ -127,17 +127,6 @@ export default function App() {
       })
     }
   }, [])
-
-  const currentWpType = useMemo(
-    () => availableWallpaperTypes.find(t => t.name === wallpaperType),
-    [availableWallpaperTypes, wallpaperType]
-  )
-
-  const updateGenerator = (index, gen) => {
-    const newGens = [...generators]
-    newGens[index] = gen
-    setGenerators(newGens)
-  }
 
   // Auto-generate the group whenever inputs change
   const groupResult = useMemo(() => {
@@ -177,13 +166,13 @@ export default function App() {
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
       <p className="subtitle">
-        Choose a lattice, pick a wallpaper group, then adjust the continuous parameters. Updates live.
+        Choose a lattice and pick a wallpaper group. Updates live.
       </p>
 
       {/* Lattice selector */}
       <LatticeSelector lattice={lattice} onChange={handleLatticeChange} />
 
-      {/* Wallpaper type selector + continuous parameter sliders */}
+      {/* Wallpaper type selector */}
       <div className="generators-section">
         <h3>Wallpaper Group <span className="lattice-type-badge">{allowedIso.latticeType} lattice</span></h3>
 
@@ -201,68 +190,6 @@ export default function App() {
             </select>
           </label>
         </div>
-
-        {generators.length === 0 && (
-          <p className="no-generators">Pure translation group — no parameters to adjust.</p>
-        )}
-
-        {generators.length > 0 && currentWpType?.noFreeParams && (
-          <p className="no-generators">All parameters are determined by symmetry — no adjustments needed.</p>
-        )}
-
-        {generators.length > 0 && !currentWpType?.noFreeParams && generators.map((gen, i) => (
-          <div key={i} className="generator-params">
-            <div className="generator-title">
-              {gen.type === 'rotation' && `${360 / gen.order}° rotation`}
-              {gen.type === 'reflection' && `Reflection ${allowedIso.reflections[gen.dirIndex]?.label || ''}`}
-              {gen.type === 'glide-reflection' && `Glide ${allowedIso.glides[gen.dirIndex]?.label || ''}`}
-            </div>
-
-            {gen.type === 'rotation' && (
-              <>
-                <label>center along a:
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={gen.centerS ?? 0}
-                    onChange={(e) => updateGenerator(i, { ...gen, centerS: parseFloat(e.target.value) })}
-                    className="gen-slider"
-                  />
-                  <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
-                </label>
-                <label>center along b:
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={gen.centerT ?? 0}
-                    onChange={(e) => updateGenerator(i, { ...gen, centerT: parseFloat(e.target.value) })}
-                    className="gen-slider"
-                  />
-                  <span className="slider-value">{(gen.centerT ?? 0).toFixed(2)}</span>
-                </label>
-              </>
-            )}
-
-            {(gen.type === 'reflection' || gen.type === 'glide-reflection') && (
-              <label>axis offset:
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={gen.axisOffset ?? 0}
-                  onChange={(e) => updateGenerator(i, { ...gen, axisOffset: parseFloat(e.target.value) })}
-                  className="gen-slider"
-                />
-                <span className="slider-value">{(gen.axisOffset ?? 0).toFixed(2)}</span>
-              </label>
-            )}
-          </div>
-        ))}
       </div>
 
       {/* Controls */}
@@ -301,6 +228,36 @@ export default function App() {
         {copySuccess && <span className="copy-success">✓ Copied!</span>}
       </div>
 
+      {/* F-shape translation offset */}
+      {showF && (
+        <div className="controls">
+          <label>
+            F offset x: {fOffsetX.toFixed(2)}
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={fOffsetX}
+              onChange={(e) => setFOffsetX(parseFloat(e.target.value))}
+              className="gen-slider"
+            />
+          </label>
+          <label>
+            F offset y: {fOffsetY.toFixed(2)}
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={fOffsetY}
+              onChange={(e) => setFOffsetY(parseFloat(e.target.value))}
+              className="gen-slider"
+            />
+          </label>
+        </div>
+      )}
+
       {/* Timing info */}
       {timeMs !== null && (
         <div className="timing-info">
@@ -324,6 +281,7 @@ export default function App() {
           elements={result.elements}
           latticeVectors={result.latticeVectors}
           showF={showF}
+          fOffset={{ x: fOffsetX, y: fOffsetY }}
         />
       )}
     </div>
