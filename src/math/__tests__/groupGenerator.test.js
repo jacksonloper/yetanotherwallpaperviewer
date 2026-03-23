@@ -460,12 +460,9 @@ describe('p4m vs p4g — wallpaper type verification', () => {
     // The reflection(-π/4, 1/4, 1/4) has axis through (1/4, 1/4) at angle -45°.
     // The 4-fold center is at (0, 0). Check that (0,0) is NOT on the mirror axis.
     const sigma = reflection(-PI / 4, 1 / 4, 1 / 4);
-    const info = reflectionInfo(sigma);
-    // The perpendicular distance from origin to the axis should be nonzero
-    const perpDist = Math.abs(0 * (-Math.sin(info.angle)) + 0 * Math.cos(info.angle));
-    // The axis passes through (1/4, 1/4), NOT through origin
-    // Check: the origin is NOT a fixed point of the reflection
-    const mapped = { x: sigma.a * 0 + sigma.b * 0 + sigma.tx, y: sigma.c * 0 + sigma.d * 0 + sigma.ty };
+    // If (0,0) were on the mirror axis, σ(0,0) would equal (0,0).
+    // σ(0,0) = (tx, ty) = (0.5, 0.5), which is far from origin.
+    const mapped = { x: sigma.tx, y: sigma.ty };
     const dist = Math.sqrt(mapped.x * mapped.x + mapped.y * mapped.y);
     expect(dist).toBeGreaterThan(0.1); // origin maps to (0.5, 0.5), far from origin
   });
