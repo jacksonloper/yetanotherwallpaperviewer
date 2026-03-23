@@ -286,18 +286,18 @@ const SQRT3H = Math.sqrt(3) / 2
  * Convert the cm-slider value (t ∈ [0,1]) to a lattice vector (x, y).
  *
  * Uses the angle between the two lattice vectors as the parameter:
- *   θ = π/6 + t·π/3   (30° at t=0, 60° at t=0.5, 90° at t=1)
+ *   θ = π/18 + t·4π/9   (10° at t=0, 90° at t=1)
  *   b = (sin θ, cos θ)
  *
  * The lattice is always well-rounded (|a| = |b| = 1), so the cm mirror
  * directions a+b and b−a are always valid lattice symmetries.
  *
- *   t = 0   → 30° angle, oblique rhombus  (x ≈ 0.5, y ≈ 0.866)
- *   t = 0.5 → 60° angle, hexagonal        (x = √3/2, y = 0.5)
- *   t = 1   → 90° angle, square           (x = 1, y = 0)
+ *   t = 0     → 10° angle, acute rhombus
+ *   t = 0.625 → 60° angle, hexagonal        (x = √3/2, y = 0.5)
+ *   t = 1     → 90° angle, square           (x = 1, y = 0)
  */
 export function cmSliderToVector(t) {
-  const angle = PI / 6 + t * PI / 3
+  const angle = PI / 18 + t * 4 * PI / 9
   const x = Math.sin(angle)
   const y = Math.cos(angle)
   return { x, y }

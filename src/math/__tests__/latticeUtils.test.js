@@ -135,15 +135,16 @@ describe('not-well-rounded centered-rectangular → hex continuity', () => {
  * cmSliderToVector: angle-based parameterization tests.
  *
  * The cm-slider maps t ∈ [0,1] to a lattice vector using the angle
- * between basis vectors: θ = 30° + t·60°.
- *   t = 0   → 30° (oblique rhombus)
- *   t = 0.5 → 60° (hexagonal)
- *   t = 1   → 90° (square)
+ * between basis vectors: θ = 10° + t·80°.
+ *   t = 0     → 10° (acute rhombus)
+ *   t = 0.625 → 60° (hexagonal)
+ *   t = 1     → 90° (square)
  *
  * The lattice is always well-rounded (|a| = |b| = 1).
  */
 const PI = Math.PI;
 const SQRT3H = Math.sqrt(3) / 2;
+const HEX_T = 0.625;  // t value where angle = 60°
 
 describe('cmSliderToVector: boundary values', () => {
   it('t = 1 gives square (x = 1, y = 0)', () => {
@@ -152,21 +153,21 @@ describe('cmSliderToVector: boundary values', () => {
     expect(v.y).toBeCloseTo(0, 10);
   });
 
-  it('t = 0.5 gives hexagonal (x = √3/2, y = 0.5)', () => {
-    const v = cmSliderToVector(0.5);
+  it('t = 0.625 gives hexagonal (x = √3/2, y = 0.5)', () => {
+    const v = cmSliderToVector(HEX_T);
     expect(v.x).toBeCloseTo(SQRT3H, 10);
     expect(v.y).toBeCloseTo(0.5, 10);
   });
 
-  it('t = 0 gives 30° oblique (x = 0.5, y = √3/2)', () => {
+  it('t = 0 gives 10° acute (x = sin10°, y = cos10°)', () => {
     const v = cmSliderToVector(0);
-    expect(v.x).toBeCloseTo(0.5, 10);
-    expect(v.y).toBeCloseTo(SQRT3H, 10);
+    expect(v.x).toBeCloseTo(Math.sin(PI / 18), 10);
+    expect(v.y).toBeCloseTo(Math.cos(PI / 18), 10);
   });
 });
 
 describe('cmSliderToVector: always well-rounded (|b| = 1)', () => {
-  const testValues = [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1];
+  const testValues = [0, 0.1, 0.25, 0.4, 0.5, 0.625, 0.75, 0.9, 1];
 
   for (const t of testValues) {
     it(`|b| = 1 at t = ${t}`, () => {
@@ -178,12 +179,12 @@ describe('cmSliderToVector: always well-rounded (|b| = 1)', () => {
 });
 
 describe('cmSliderToVector: angle between vectors matches t', () => {
-  it('angle is 30° + t·60° for several t values', () => {
-    for (const t of [0, 0.2, 0.4, 0.5, 0.7, 1]) {
+  it('angle is 10° + t·80° for several t values', () => {
+    for (const t of [0, 0.2, 0.4, 0.625, 0.8, 1]) {
       const v = cmSliderToVector(t);
       // angle between a=(0,1) and b=(x,y) = arccos(a·b) = arccos(y)
       const angleDeg = Math.acos(v.y) * 180 / PI;
-      const expectedDeg = 30 + t * 60;
+      const expectedDeg = 10 + t * 80;
       expect(angleDeg).toBeCloseTo(expectedDeg, 8);
     }
   });
@@ -191,16 +192,16 @@ describe('cmSliderToVector: angle between vectors matches t', () => {
 
 describe('cm direction continuity through hex on cm-slider', () => {
   it('cmDir 0 (a+b) angle varies continuously near hex', () => {
-    const nearHex = cmSliderToVector(0.49);
-    const atHex = cmSliderToVector(0.5);
+    const nearHex = cmSliderToVector(HEX_T - 0.01);
+    const atHex = cmSliderToVector(HEX_T);
     const nearHexDir = resolveCmDirection(0, nearHex);
     const atHexDir = resolveCmDirection(0, atHex);
     expect(Math.abs(nearHexDir.angle - atHexDir.angle)).toBeLessThan(0.02);
   });
 
   it('cmDir 1 (b−a) angle varies continuously near hex', () => {
-    const nearHex = cmSliderToVector(0.49);
-    const atHex = cmSliderToVector(0.5);
+    const nearHex = cmSliderToVector(HEX_T - 0.01);
+    const atHex = cmSliderToVector(HEX_T);
     const nearHexDir = resolveCmDirection(1, nearHex);
     const atHexDir = resolveCmDirection(1, atHex);
     expect(Math.abs(nearHexDir.angle - atHexDir.angle)).toBeLessThan(0.02);

@@ -37,7 +37,7 @@ function getLatticeVector(wpType, latticeState) {
     case 'rect-to-square':
       return rectSliderToVector(latticeState.rectSlider ?? 0.5)
     case 'cm-slider':
-      return cmSliderToVector(latticeState.cmSlider ?? 0.75)
+      return cmSliderToVector(latticeState.cmSlider ?? 0.8125)
     case 'full':
     default:
       return latticeToVector(latticeState.fullLattice ?? { mode: 'well-rounded', sliderValue: 0 })
@@ -128,7 +128,7 @@ export default function App() {
   const [variantIndex, setVariantIndex] = useState(0)
   const [latticeState, setLatticeState] = useState({
     rectSlider: 0.5,
-    cmSlider: 0.75,
+    cmSlider: 0.8125,
     fullLattice: { mode: 'well-rounded', sliderValue: 0 },
   })
   const [maxWords, setMaxWords] = useState(6)

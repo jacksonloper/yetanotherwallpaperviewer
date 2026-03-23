@@ -9,7 +9,7 @@
  *       'none'           fixed lattice (no slider)
  *       'full'           full 2D lattice freedom (p1, p2 only)
  *       'rect-to-square' 1D slider: rectangular (x>1, y=0) → square (x=1, y=0)
- *       'cm-slider'      1D slider: angle between lattice vectors (30°→60°→90°)
+ *       'cm-slider'      1D slider: angle between lattice vectors (10°→60°→90°)
  *   fixedLattice   – for 'none': 'square' or 'hexagonal'
  *   generators / variants – generator templates using direction keys (dir)
  *       or cm-specific keys (cmDir) instead of dirIndex.
