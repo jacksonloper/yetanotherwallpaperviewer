@@ -219,7 +219,7 @@ export default function App() {
 
             {gen.type === 'rotation' && (
               <>
-                <label>center along a{currentWpType?.applyConstraints ? ' 🔗' : ''}:
+                <label>center along a{currentWpType?.linkedRotationParams?.includes('centerS') ? ' 🔗' : ''}:
                   <input
                     type="range"
                     min="0"
@@ -231,7 +231,7 @@ export default function App() {
                   />
                   <span className="slider-value">{(gen.centerS ?? 0).toFixed(2)}</span>
                 </label>
-                <label>center along b{currentWpType?.applyConstraints && wallpaperType === 'p4g' ? ' 🔗' : ''}:
+                <label>center along b{currentWpType?.linkedRotationParams?.includes('centerT') ? ' 🔗' : ''}:
                   <input
                     type="range"
                     min="0"
