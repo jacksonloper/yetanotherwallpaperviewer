@@ -519,3 +519,120 @@ describe('wallpaper group templates have no continuous params', () => {
     expect(p4gens).toBe(p4.generators);
   });
 });
+
+// --- group uniqueness tests ---
+
+import { getAllowedIsometries, latticeToVector, axisOffsetToPoint } from '../latticeUtils.js';
+
+/**
+ * Parse a generator template into an isometry, replicating App.jsx logic.
+ */
+function parseGenerator(gen, allowedIso, latticeVec) {
+  switch (gen.type) {
+    case 'rotation': {
+      const order = gen.order || 2;
+      const angle = (2 * PI) / order;
+      return rotation(angle, 0, 0);
+    }
+    case 'reflection': {
+      const dir = allowedIso.reflections[gen.dirIndex] || allowedIso.reflections[0];
+      if (!dir) return null;
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec);
+      return reflection(dir.angle, px, py);
+    }
+    case 'glide-reflection': {
+      const dir = allowedIso.glides[gen.dirIndex] || allowedIso.glides[0];
+      if (!dir) return null;
+      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, dir.angle, latticeVec);
+      return glideReflection(dir.angle, dir.dist, px, py);
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Build a wallpaper group from a lattice + type entry + variant index.
+ */
+function buildGroupFromType(lattice, wpType, variantIdx, maxWords) {
+  const allowedIso = getAllowedIsometries(lattice);
+  const vec = latticeToVector(lattice);
+  const t1 = translation(0, 1);
+  const t2 = translation(vec.x, vec.y);
+  const gens = getGeneratorsForVariant(wpType, variantIdx);
+  const nonTrans = gens.map(g => parseGenerator(g, allowedIso, vec)).filter(Boolean);
+  return generateGroup([t1, t2, ...nonTrans], maxWords, 5000);
+}
+
+/**
+ * Check if two group configs produce the same group:
+ * every element at depth 4 of A appears in depth 7 of B, and vice versa.
+ */
+function groupsAgree(lattice, typeA, viA, typeB, viB) {
+  const a4 = buildGroupFromType(lattice, typeA, viA, 4);
+  const b4 = buildGroupFromType(lattice, typeB, viB, 4);
+  const a7 = buildGroupFromType(lattice, typeA, viA, 7);
+  const b7 = buildGroupFromType(lattice, typeB, viB, 7);
+
+  if (a4.error || b4.error || a7.error || b7.error) return false;
+
+  const aInB = a4.elements.every(elA =>
+    b7.elements.some(elB => isometryEqual(elA, elB, 1e-6))
+  );
+  const bInA = b4.elements.every(elB =>
+    a7.elements.some(elA => isometryEqual(elB, elA, 1e-6))
+  );
+  return aInB && bInA;
+}
+
+describe('square lattice groups are all distinct', () => {
+  const lattice = { mode: 'well-rounded', sliderValue: 0 };  // square
+  const squareTypes = getWallpaperTypesForLattice('square');
+
+  // Collect all (type, variant) configs
+  const configs = [];
+  for (const wpType of squareTypes) {
+    if (wpType.variants) {
+      for (let i = 0; i < wpType.variants.length; i++) {
+        configs.push({ wpType, vi: i, label: `${wpType.name} v${i}` });
+      }
+    } else {
+      configs.push({ wpType, vi: 0, label: wpType.name });
+    }
+  }
+
+  // For each pair, verify they produce distinct groups
+  for (let i = 0; i < configs.length; i++) {
+    for (let j = i + 1; j < configs.length; j++) {
+      // Skip pairs that are variants of the same type (e.g. pm v0 vs pm v1) —
+      // those ARE distinct groups (conjugate but not equal)
+      it(`"${configs[i].label}" ≠ "${configs[j].label}"`, () => {
+        expect(groupsAgree(lattice, configs[i].wpType, configs[i].vi, configs[j].wpType, configs[j].vi)).toBe(false);
+      });
+    }
+  }
+});
+
+describe('hexagonal lattice groups are all distinct', () => {
+  const lattice = { mode: 'well-rounded', sliderValue: 1 };  // hexagonal
+  const hexTypes = getWallpaperTypesForLattice('hexagonal');
+
+  const configs = [];
+  for (const wpType of hexTypes) {
+    if (wpType.variants) {
+      for (let i = 0; i < wpType.variants.length; i++) {
+        configs.push({ wpType, vi: i, label: `${wpType.name} v${i}` });
+      }
+    } else {
+      configs.push({ wpType, vi: 0, label: wpType.name });
+    }
+  }
+
+  for (let i = 0; i < configs.length; i++) {
+    for (let j = i + 1; j < configs.length; j++) {
+      it(`"${configs[i].label}" ≠ "${configs[j].label}"`, () => {
+        expect(groupsAgree(lattice, configs[i].wpType, configs[i].vi, configs[j].wpType, configs[j].vi)).toBe(false);
+      });
+    }
+  }
+});

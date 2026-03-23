@@ -152,10 +152,10 @@ parameters are fixed by the type template (see §3).  Types marked with
 | pm **(V)** | reflection dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
 | pg **(V)** | glide dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
 | cm **(V)** | reflection dir 0 *or* dir 1 | ∥ a+b (↗) / ∥ b−a (↘) |
-| pmm **(V)** | refl dir 2 + dir 3, *or* dir 0 + dir 1 | Axial pair / Diagonal pair |
+| pmm | refl dir 2 + dir 3 | — |
 | pmg **(V)** | refl dir 3 + glide dir 2, *or* dir 2 + dir 3 | Mirror ∥ b + glide ∥ a / Mirror ∥ a + glide ∥ b |
-| pgg **(V)** | glide dir 3 + dir 2, *or* dir 1 + dir 0 (offset 0.25) | Axial glides / Diagonal glides |
-| cmm **(V)** | refl dir 0 + dir 1, *or* dir 2 + dir 3 | Diagonal pair / Axial pair |
+| pgg | glide dir 3 + dir 2 (offset 0.25) | — |
+| cmm | refl dir 0 + dir 1 | — |
 | p4 | rotation order 4, center (0, 0) | — |
 | p4m | rotation order 4, center (0, 0) + reflection dir 3 | — |
 | p4g | rotation order 4, center (0, 0) + reflection dir 1 (axisOffset 0.5) | — |
@@ -338,23 +338,21 @@ The UI presents these as radio buttons.  The following table summarizes:
 | pg | Rectangular | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
 | pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
 | cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) |
-| pmm | Square | 2 | Axial pair (∥ a + ∥ b) or diagonal pair (∥ a+b + ∥ b−a) |
 | pmg | Rectangular | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
 | pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
-| pgg | Square | 2 | Axial glides (∥ a + ∥ b) or diagonal glides (∥ a+b + ∥ b−a) |
-| cmm | Square | 2 | Diagonal pair (∥ a+b + ∥ b−a) or axial pair (∥ a + ∥ b) |
 
 All other types × lattice combinations have exactly 1 option (no radio).
 
-On the **square lattice**, many types have 2 variants because it has two
-families of reflection directions: axial {∥ a, ∥ b} and diagonal
-{∥ a+b, ∥ b−a}.  These families are exchanged by a 45° rotation but are
-inequivalent with respect to the square lattice.
-
-Note: the pmm "diagonal pair" variant on the square lattice produces the
-same group as the cmm "diagonal pair" default variant (and vice versa for
-the "axial pair" variants).  This overlap is intentional — it lets the
-user reach both groups from either dropdown entry.
+**Why pmm, pgg, and cmm have no direction variants on the square lattice:**
+On the square lattice, pmm with axial reflections (dirs 2, 3) and cmm with
+axial reflections (dirs 2, 3) produce the *same* group, and similarly pmm
+with diagonal reflections (dirs 0, 1) = cmm with diagonal reflections.
+Likewise, pgg with diagonal glides (dirs 0, 1) produces a group containing
+reflections, so it is actually cmm, not pgg.  Therefore, each of pmm, pgg,
+and cmm on the square lattice has exactly one correct generator configuration:
+- **pmm**: axial reflections (dirs 2, 3)
+- **pgg**: axial glides (dirs 3, 2 with offset 0.25)
+- **cmm**: diagonal reflections (dirs 0, 1)
 
 ### 3f. The F offset is purely cosmetic
 
@@ -785,10 +783,10 @@ origin. ✔
 | pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 dirs on Sq |
 | pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 dirs on Sq |
 | cm | CRect/Sq/Hex | refl at origin | 1 on CRect/Hex; 2 dirs on Sq |
-| pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 2 pairs on Sq |
+| pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 1 on Sq |
 | pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq |
-| pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 2 pairs on Sq |
-| cmm | CRect/Sq/Hex | refl + refl at origin | 1 on CRect/Hex; 2 pairs on Sq |
+| pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 1 on Sq |
+| cmm | CRect/Sq/Hex | refl + refl at origin | 1 on CRect/Hex; 1 on Sq |
 | p4 | Square | rot(π/2) at origin | — |
 | p4m | Square | rot(π/2) + refl at origin | — |
 | p4g | Square | rot(π/2) + refl offset ½ | — |

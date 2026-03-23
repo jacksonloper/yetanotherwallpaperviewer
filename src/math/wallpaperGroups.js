@@ -132,15 +132,9 @@ const wallpaperTypesByLattice = {
         { type: 'reflection', dirIndex: 1 },
       ]},
     ]},
-    { name: 'pmm', description: 'Two reflections', variants: [
-      { label: 'Axial pair (∥ a + ∥ b)', generators: [
-        { type: 'reflection', dirIndex: 2 },
-        { type: 'reflection', dirIndex: 3 },
-      ]},
-      { label: 'Diagonal pair (∥ a+b + ∥ b−a)', generators: [
-        { type: 'reflection', dirIndex: 0 },
-        { type: 'reflection', dirIndex: 1 },
-      ]},
+    { name: 'pmm', description: 'Two reflections', generators: [
+      { type: 'reflection', dirIndex: 2 },
+      { type: 'reflection', dirIndex: 3 },
     ]},
     { name: 'pmg', description: 'Reflection + glide', variants: [
       { label: 'Mirror ∥ b, glide ∥ a', generators: [
@@ -152,25 +146,13 @@ const wallpaperTypesByLattice = {
         { type: 'glide-reflection', dirIndex: 3 },
       ]},
     ]},
-    { name: 'pgg', description: 'Two glide reflections', variants: [
-      { label: 'Axial glides (∥ a + ∥ b)', generators: [
-        { type: 'glide-reflection', dirIndex: 3, axisOffset: 0.25 },
-        { type: 'glide-reflection', dirIndex: 2, axisOffset: 0.25 },
-      ]},
-      { label: 'Diagonal glides (∥ a+b + ∥ b−a)', generators: [
-        { type: 'glide-reflection', dirIndex: 1, axisOffset: 0.25 },
-        { type: 'glide-reflection', dirIndex: 0, axisOffset: 0.25 },
-      ]},
+    { name: 'pgg', description: 'Two glide reflections', generators: [
+      { type: 'glide-reflection', dirIndex: 3, axisOffset: 0.25 },
+      { type: 'glide-reflection', dirIndex: 2, axisOffset: 0.25 },
     ]},
-    { name: 'cmm', description: 'Two reflections (diagonal)', variants: [
-      { label: 'Diagonal pair (∥ a+b + ∥ b−a)', generators: [
-        { type: 'reflection', dirIndex: 0 },
-        { type: 'reflection', dirIndex: 1 },
-      ]},
-      { label: 'Axial pair (∥ a + ∥ b)', generators: [
-        { type: 'reflection', dirIndex: 2 },
-        { type: 'reflection', dirIndex: 3 },
-      ]},
+    { name: 'cmm', description: 'Two diagonal reflections', generators: [
+      { type: 'reflection', dirIndex: 0 },
+      { type: 'reflection', dirIndex: 1 },
     ]},
     { name: 'p4', description: '90° rotation', generators: [
       { type: 'rotation', order: 4 },
