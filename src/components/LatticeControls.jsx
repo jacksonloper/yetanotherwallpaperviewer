@@ -1,5 +1,3 @@
-import { latticeToVector } from '../math/latticeUtils.js'
-
 /**
  * LatticeControls – renders the appropriate lattice UI for the selected wallpaper type.
  *
@@ -90,7 +88,7 @@ function RectToSquareSlider({ value, onChange, latticeVec }) {
 const HEX_T = 0.625  // t value where angle = 60° (hexagonal)
 const HEX_SNAP = 0.02
 
-function CmSlider({ value, onChange, latticeVec }) {
+function CmSlider({ value, onChange }) {
   const handleChange = (e) => {
     let v = parseFloat(e.target.value)
     // Sticky at hex (t = 0.625)
@@ -133,7 +131,6 @@ function CmSlider({ value, onChange, latticeVec }) {
 
 function FullLatticeControls({ lattice, onChange }) {
   const { mode } = lattice
-  const vec = latticeToVector(lattice)
 
   const setMode = (newMode) => {
     if (newMode === 'well-rounded') {
