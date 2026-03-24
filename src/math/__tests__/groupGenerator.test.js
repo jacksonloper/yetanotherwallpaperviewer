@@ -8,6 +8,7 @@ import {
   reflectionInfo,
   compose,
   isometryEqual,
+  applyToPoint,
 } from '../isometry.js';
 import { generateGroup, generateLatticePoints } from '../groupGenerator.js';
 
@@ -649,4 +650,68 @@ describe('hexagonal lattice groups are all distinct', () => {
       });
     }
   }
+});
+
+// --- p3m1 vs p31m mirror placement ---
+//
+// The defining crystallographic distinction (ITA):
+//   p3m1 (*333): ALL three inequivalent 3-fold rotation centers lie on pure mirror lines.
+//   p31m (3*3):  Only ONE of the three inequivalent 3-fold rotation centers lies on a
+//               pure mirror line; the other two are free (not on any mirror).
+//
+// Hexagonal lattice: a = (0,1), b = (√3/2, 1/2).
+// The three inequivalent 3-fold centers are:
+//   (0,0), (1/3·a + 2/3·b) = (√3/3, 2/3), (2/3·a + 1/3·b) = (√3/6, 5/6).
+
+describe('p3m1 vs p31m: mirror placement distinguishes the two groups', () => {
+  const s3 = Math.sqrt(3);
+
+  // Three inequivalent 3-fold rotation centers of the hexagonal lattice (Cartesian).
+  const threeFoldCenters = [
+    { name: 'origin',    x: 0,       y: 0     },
+    { name: '(1/3,2/3)', x: s3 / 3,  y: 2 / 3 },
+    { name: '(2/3,1/3)', x: s3 / 6,  y: 5 / 6 },
+  ];
+
+  /**
+   * Check if (cx,cy) is fixed by the isometry M (i.e. lies on its reflection axis).
+   * Only makes sense when M is a pure reflection.
+   */
+  function isFixedBy(M, cx, cy, tol = 1e-6) {
+    const p = applyToPoint(M, cx, cy);
+    return Math.abs(p.x - cx) < tol && Math.abs(p.y - cy) < tol;
+  }
+
+  /** Return true iff (cx,cy) lies on the axis of some pure reflection in the group. */
+  function isOnAnyMirror(groupElements, cx, cy) {
+    return groupElements.some(
+      el => classify(el, 1e-7) === 'reflection' && isFixedBy(el, cx, cy)
+    );
+  }
+
+  it('p3m1: all three inequivalent 3-fold centers lie on pure mirror lines', () => {
+    // p3m1 generator: 120° rotation + vertical mirror (dir = a, angle = π/2)
+    const result = generateGroup(
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
+      6
+    );
+    expect(result.error).toBeNull();
+    for (const c of threeFoldCenters) {
+      expect(isOnAnyMirror(result.elements, c.x, c.y)).toBe(true);
+    }
+  });
+
+  it('p31m: only the origin 3-fold center lies on a pure mirror; the other two do not', () => {
+    // p31m generator: 120° rotation + horizontal mirror (dir = 2b-a, angle = 0)
+    const result = generateGroup(
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
+      6
+    );
+    expect(result.error).toBeNull();
+    // The origin IS on the mirror (it is the axis of the generator itself).
+    expect(isOnAnyMirror(result.elements, threeFoldCenters[0].x, threeFoldCenters[0].y)).toBe(true);
+    // The other two centers are NOT on any pure mirror line.
+    expect(isOnAnyMirror(result.elements, threeFoldCenters[1].x, threeFoldCenters[1].y)).toBe(false);
+    expect(isOnAnyMirror(result.elements, threeFoldCenters[2].x, threeFoldCenters[2].y)).toBe(false);
+  });
 });
