@@ -15,8 +15,10 @@
  *      rational arithmetic.  Two elements are in the same coset iff
  *      they have the same linear part and their translations differ by
  *      integers, so we reduce translations mod Z² and compare exactly.
- *   2. If |G/T| exceeds a bound (default 24), the group is declared
- *      degenerate (e.g. dense translations from an irrational rotation).
+ *   2. If |G/T| exceeds a bound (default 24, set to twice the maximum
+ *      valid wallpaper-group quotient order of 12 so that slightly
+ *      oversized but still finite groups are reported rather than
+ *      silently truncated), the group is declared degenerate.
  *   3. Convert coset representatives to floating-point isometries via
  *      the physical-coordinate change  M = C · A · C⁻¹.
  *
@@ -306,6 +308,9 @@ export function generateElements(cosets, latticeVec, bounds) {
   const physReps = quotientToPhysical(cosets, latticeVec)
 
   const elements = []
+  // Range of lattice-coordinate integers to try.  Must be large enough
+  // that every visible translate is generated; 20 covers viewports up
+  // to ~40 lattice periods wide/tall, matching generateLatticePoints().
   const range = 20
 
   for (const rep of physReps) {
