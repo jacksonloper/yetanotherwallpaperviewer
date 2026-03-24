@@ -216,10 +216,16 @@ export function heatmapToDataURL(heatmap) {
   const { data, minVal, maxVal, resolution } = heatmap;
   const range = maxVal - minVal || 1;
 
-  const canvas =
-    typeof OffscreenCanvas !== 'undefined'
-      ? new OffscreenCanvas(resolution, resolution)
-      : document.createElement('canvas');
+  // Prefer a regular <canvas> element (has synchronous toDataURL).
+  // Fall back to OffscreenCanvas only when document is unavailable.
+  let canvas;
+  if (typeof document !== 'undefined') {
+    canvas = document.createElement('canvas');
+  } else if (typeof OffscreenCanvas !== 'undefined') {
+    canvas = new OffscreenCanvas(resolution, resolution);
+  } else {
+    return null; // no canvas support (e.g. jsdom in tests)
+  }
   canvas.width = resolution;
   canvas.height = resolution;
   const ctx = canvas.getContext('2d');
@@ -251,13 +257,8 @@ export function heatmapToDataURL(heatmap) {
 
   ctx.putImageData(imgData, 0, 0);
 
-  // OffscreenCanvas has no toDataURL, so fall back to a regular canvas when
-  // running in tests (Node / jsdom) that provide neither.
   if (typeof canvas.toDataURL === 'function') {
     return canvas.toDataURL();
   }
-  // OffscreenCanvas path – convertToBlob is async, but we need sync.
-  // Prefer the regular-canvas path above.  In environments that lack
-  // both (e.g. jsdom in tests), return null and let callers handle it.
   return null;
 }
