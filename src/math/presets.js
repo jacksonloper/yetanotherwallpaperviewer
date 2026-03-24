@@ -108,13 +108,13 @@ export const presets = [
     name: 'p3m1',
     description: '120° rotation + reflection (hexagonal)',
     lattice: { mode: 'well-rounded', sliderValue: 1 },
-    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
+    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
   },
   {
     name: 'p31m',
     description: '120° rotation + reflection (hexagonal, alt)',
     lattice: { mode: 'well-rounded', sliderValue: 1 },
-    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
+    generators: () => [rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
   },
   {
     name: 'p6',

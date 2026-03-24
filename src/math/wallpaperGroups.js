@@ -128,13 +128,13 @@ export const ALL_WALLPAPER_TYPES = [
     fixedLattice: 'hexagonal',
     generators: [
       { type: 'rotation', order: 3 },
-      { type: 'reflection', dir: 'a' },
+      { type: 'reflection', dir: '2bma' },
     ]},
   { name: 'p31m', description: '120° rotation + reflection (alt)', latticeControl: 'none',
     fixedLattice: 'hexagonal',
     generators: [
       { type: 'rotation', order: 3 },
-      { type: 'reflection', dir: '2bma' },
+      { type: 'reflection', dir: 'a' },
     ]},
   { name: 'p6', description: '60° rotation', latticeControl: 'none',
     fixedLattice: 'hexagonal',
@@ -318,11 +318,11 @@ const _wallpaperTypesByLattice = {
     ]},
     { name: 'p3m1', description: '120° rotation + reflection', generators: [
       { type: 'rotation', order: 3 },
-      { type: 'reflection', dirIndex: 2 },
+      { type: 'reflection', dirIndex: 4 },
     ]},
     { name: 'p31m', description: '120° rotation + reflection (alt)', generators: [
       { type: 'rotation', order: 3 },
-      { type: 'reflection', dirIndex: 4 },
+      { type: 'reflection', dirIndex: 2 },
     ]},
     { name: 'p6', description: '60° rotation', generators: [
       { type: 'rotation', order: 6 },
