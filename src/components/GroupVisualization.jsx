@@ -7,6 +7,12 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
+import {
+  drawGPCoefficients,
+  extractPointGroup,
+  generateGPHeatmap,
+  heatmapToDataURL,
+} from '../math/gaussianProcess.js';
 
 const SCALE = 80; // pixels per unit
 
@@ -178,7 +184,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, showF, fOffset }) {
+export default function GroupVisualization({ elements, latticeVectors, showF, fOffset, showGP, gpSeed, gpEll, gpN }) {
   const width = 700;
   const height = 500;
   const svgCx = width / 2;
@@ -194,6 +200,26 @@ export default function GroupVisualization({ elements, latticeVectors, showF, fO
     }),
     [viewWidth, height]
   );
+
+  // Visible bounds for GP rendering (exact viewport, no margin)
+  const gpBounds = useMemo(
+    () => ({
+      minX: -viewWidth / 2,
+      maxX: viewWidth / 2,
+      minY: -height / (2 * SCALE),
+      maxY: height / (2 * SCALE),
+    }),
+    [viewWidth, height]
+  );
+
+  // GP heatmap data URL
+  const gpImageUrl = useMemo(() => {
+    if (!showGP || !latticeVectors || !elements) return null;
+    const coeffs = drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+    const pointGroup = extractPointGroup(elements);
+    const heatmap = generateGPHeatmap(coeffs, pointGroup, gpBounds, 150);
+    return heatmapToDataURL(heatmap);
+  }, [showGP, latticeVectors, elements, gpSeed, gpEll, gpN, gpBounds]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];
@@ -281,6 +307,19 @@ export default function GroupVisualization({ elements, latticeVectors, showF, fO
         height={height}
         style={{ border: '1px solid #ccc', background: '#fafafa', borderRadius: '4px' }}
       >
+        {/* GP heatmap background */}
+        {gpImageUrl && (
+          <image
+            href={gpImageUrl}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            preserveAspectRatio="none"
+            opacity="0.85"
+          />
+        )}
+
         {/* Lattice dots */}
         {latticePoints.map((p, i) => {
           const sp = toSvg(p.x, p.y, svgCx, svgCy);

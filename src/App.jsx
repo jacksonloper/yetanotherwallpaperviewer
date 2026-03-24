@@ -137,6 +137,10 @@ export default function App() {
   const [showF, setShowF] = useState(true)
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
+  const [showGP, setShowGP] = useState(false)
+  const [gpSeed, setGpSeed] = useState(1)
+  const [gpEll, setGpEll] = useState(0.1)
+  const [gpN, setGpN] = useState(5)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -301,11 +305,50 @@ export default function App() {
           <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
           Show F
         </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
+          Show GP
+        </label>
+        {showGP && (
+          <button className="btn-copy" onClick={() => setGpSeed(s => s + 1)}>
+            🎲 New Draw
+          </button>
+        )}
         <button className="btn-copy" onClick={copyToClipboard}>
           📋 Copy JSON
         </button>
         {copySuccess && <span className="copy-success">✓ Copied!</span>}
       </div>
+
+      {/* GP parameter controls */}
+      {showGP && (
+        <div className="controls">
+          <label>
+            ℓ (length scale): {gpEll.toFixed(2)}
+            <input
+              type="range"
+              min="0.02"
+              max="0.2"
+              step="0.01"
+              value={gpEll}
+              onChange={(e) => setGpEll(parseFloat(e.target.value))}
+              className="gen-slider"
+            />
+          </label>
+          <label>
+            n (truncation): {gpN}
+            <input
+              type="range"
+              min="1"
+              max="15"
+              step="1"
+              value={gpN}
+              onChange={(e) => setGpN(parseInt(e.target.value, 10))}
+              className="gen-slider"
+            />
+          </label>
+        </div>
+      )}
 
       {/* F-shape translation offset */}
       {showF && (
@@ -361,6 +404,10 @@ export default function App() {
           latticeVectors={result.latticeVectors}
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
+          showGP={showGP}
+          gpSeed={gpSeed}
+          gpEll={gpEll}
+          gpN={gpN}
         />
       )}
     </div>
