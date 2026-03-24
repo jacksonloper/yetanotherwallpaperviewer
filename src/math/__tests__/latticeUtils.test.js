@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAllowedIsometries, cmSliderToVector, resolveCmDirection } from '../latticeUtils.js';
+import { getAllowedIsometries, cmSliderToVector, resolveCmDirection, classifyLatticeVector } from '../latticeUtils.js';
 
 /**
  * Continuity tests for the well-rounded slider transitions.
@@ -225,5 +225,33 @@ describe('cm direction continuity through hex on cm-slider', () => {
       const d2 = resolveCmDirection(1, v2);
       expect(Math.abs(d1.angle - d2.angle)).toBeLessThan(0.1);
     }
+  });
+});
+
+describe('classifyLatticeVector', () => {
+  it('identifies square lattice', () => {
+    expect(classifyLatticeVector(1, 0)).toBe('square');
+  });
+
+  it('identifies hexagonal lattice', () => {
+    expect(classifyLatticeVector(Math.sqrt(3) / 2, 0.5)).toBe('hexagonal');
+  });
+
+  it('identifies rectangular lattice', () => {
+    expect(classifyLatticeVector(1.5, 0)).toBe('rectangular');
+  });
+
+  it('identifies centered-rectangular on unit circle', () => {
+    const y = 0.3;
+    const x = Math.sqrt(1 - y * y);
+    expect(classifyLatticeVector(x, y)).toBe('centered-rectangular');
+  });
+
+  it('identifies centered-rectangular at y = 0.5', () => {
+    expect(classifyLatticeVector(1.2, 0.5)).toBe('centered-rectangular');
+  });
+
+  it('identifies oblique lattice', () => {
+    expect(classifyLatticeVector(1.1, 0.3)).toBe('oblique');
   });
 });

@@ -3,7 +3,7 @@
  *
  * Each preset specifies:
  *   - name, description
- *   - lattice: configuration for the LatticeSelector
+ *   - lattice: configuration for the lattice controls
  *     (first translation is always (0,1); lattice describes the second)
  *   - generators: a function returning the non-translation generators
  *

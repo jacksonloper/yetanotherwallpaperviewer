@@ -16,6 +16,7 @@ import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
 import {
   latticeToVector,
   getLatticeType,
+  classifyLatticeVector,
   axisOffsetToPoint,
   resolveDirection,
   resolveCmDirection,
@@ -157,17 +158,10 @@ export default function App() {
   const latticeType = useMemo(() => {
     if (wpType.latticeControl === 'none') return wpType.fixedLattice
     if (wpType.latticeControl === 'rect-to-square') {
-      const { x } = latticeVec
-      return Math.abs(x - 1) < 1e-4 ? 'square' : 'rectangular'
+      return classifyLatticeVector(latticeVec.x, latticeVec.y)
     }
     if (wpType.latticeControl === 'cm-slider') {
-      const { x, y } = latticeVec
-      const r2 = x * x + y * y
-      if (Math.abs(y) < 1e-4 && Math.abs(x - 1) < 1e-4) return 'square'
-      if (Math.abs(y - 0.5) < 1e-4 && Math.abs(x - Math.sqrt(3) / 2) < 1e-4) return 'hexagonal'
-      if (Math.abs(r2 - 1) < 1e-4) return 'centered-rectangular'
-      if (Math.abs(y - 0.5) < 1e-4) return 'centered-rectangular'
-      return 'oblique'
+      return classifyLatticeVector(latticeVec.x, latticeVec.y)
     }
     if (wpType.latticeControl === 'full') {
       return getLatticeType(latticeState.fullLattice ?? { mode: 'well-rounded', sliderValue: 0 })
@@ -219,6 +213,8 @@ export default function App() {
     navigator.clipboard.writeText(json).then(() => {
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 1500)
+    }).catch(() => {
+      // Clipboard API may be unavailable (e.g. insecure context)
     })
   }, [wpType, generators, latticeVec])
 

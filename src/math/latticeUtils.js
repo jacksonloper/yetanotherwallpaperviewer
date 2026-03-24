@@ -48,14 +48,12 @@ export function vectorToLattice(x, y) {
 }
 
 /**
- * Determine the Bravais lattice type from the current lattice state.
+ * Classify a lattice vector (x, y) into its Bravais lattice type.
  *
  * Returns one of: 'square', 'hexagonal', 'rectangular',
  *                 'centered-rectangular', 'oblique'
  */
-export function getLatticeType(lattice) {
-  const vec = latticeToVector(lattice)
-  const { x, y } = vec
+export function classifyLatticeVector(x, y) {
   const r2 = x * x + y * y
 
   if (Math.abs(y) < TYPE_EPS && Math.abs(x - 1) < TYPE_EPS) return 'square'
@@ -64,6 +62,17 @@ export function getLatticeType(lattice) {
   if (Math.abs(r2 - 1) < TYPE_EPS) return 'centered-rectangular'
   if (Math.abs(y - 0.5) < TYPE_EPS) return 'centered-rectangular'
   return 'oblique'
+}
+
+/**
+ * Determine the Bravais lattice type from the current lattice state.
+ *
+ * Returns one of: 'square', 'hexagonal', 'rectangular',
+ *                 'centered-rectangular', 'oblique'
+ */
+export function getLatticeType(lattice) {
+  const { x, y } = latticeToVector(lattice)
+  return classifyLatticeVector(x, y)
 }
 
 /**
@@ -87,7 +96,6 @@ export function getLatticeType(lattice) {
 export function getAllowedIsometries(lattice) {
   const vec = latticeToVector(lattice)
   const { x, y } = vec
-  const r2 = x * x + y * y
   const latticeType = getLatticeType(lattice)
 
   const result = {
