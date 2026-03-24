@@ -9,12 +9,15 @@ import { latticeToVector } from '../math/latticeUtils.js'
  *   latticeVec  – pre-computed { x, y } second lattice vector
  *   onChange     – callback receiving partial latticeState updates
  */
-export default function LatticeControls({ wpType, latticeState, latticeVec, onChange }) {
+export default function LatticeControls({ wpType, latticeState, latticeVec, latticeType, onChange }) {
   const control = wpType.latticeControl
 
   return (
-    <div className="lattice-selector">
-      <h3>Lattice</h3>
+    <div className="panel">
+      <h3 className="panel-heading">
+        Lattice
+        {latticeType && <span className="lattice-type-badge">{latticeType}</span>}
+      </h3>
       <p className="lattice-info">
         First translation: <strong>(0, 1)</strong>.
         Second translation: <strong>({latticeVec.x.toFixed(4)}, {latticeVec.y.toFixed(4)})</strong>
