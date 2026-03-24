@@ -60,13 +60,15 @@ export function computeDualLattice(v1, v2) {
  * @param {number} seed          Integer seed for the PRNG.
  * @param {number} [maxFreq=5]   Max absolute frequency index in each direction.
  * @param {number} [lengthScale=0.6]  Length scale for the spectral envelope.
+ * @param {number} [sigma=1]    Overall amplitude scale.
  * @returns {{ modes: Array<{kx,ky,a,b}>, dc: number }}
  */
 export function drawGPCoefficients(
   latticeVectors,
   seed,
   maxFreq = 5,
-  lengthScale = 0.6
+  lengthScale = 0.6,
+  sigma = 1
 ) {
   const rng = mulberry32(seed);
   const { k1, k2 } = computeDualLattice(
@@ -85,10 +87,10 @@ export function drawGPCoefficients(
       const ky = n1 * k1.y + n2 * k2.y;
       const k2mag = kx * kx + ky * ky;
       // Squared-exponential spectral envelope
-      const sigma = Math.exp((-k2mag * lengthScale * lengthScale) / 4);
+      const envelope = Math.exp((-k2mag * lengthScale * lengthScale) / 4);
 
-      const a = randn(rng) * sigma;
-      const b = randn(rng) * sigma;
+      const a = randn(rng) * envelope * sigma;
+      const b = randn(rng) * envelope * sigma;
 
       modes.push({ kx, ky, a, b });
     }
