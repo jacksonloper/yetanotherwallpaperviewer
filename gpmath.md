@@ -233,16 +233,31 @@ and translation **t**, the corresponding physical isometry is:
 >
 > M_translation = C · **t**
 
-where C⁻¹ = (1/det C) · [[y, −x], [−1, 0]] and det C = −x.
+Since det C = 0·y − x·1 = −x, the inverse is:
 
-Concretely, writing A's entries as floats a, b, c, d, tx, ty:
+> C⁻¹ = [[-y/x, 1], [1/x, 0]]
+
+Concretely, writing A's entries as floats a, b, c, d, tx, ty, we first
+compute P = C · L (where L = [[a,b],[c,d]] is the linear part of A):
 
 ```
-P = C · L = [[xc, xd], [a+yc, b+yd]]
+P = C · L = [[xc,  xd],
+             [a+yc,  b+yd]]
+```
 
-M_linear = P · C⁻¹   →   M = [[d−cy,  xc],
-                               [(b+yd−(a+yc)y)/x,  a+yc]]
+Then M_linear = P · C⁻¹:
 
+```
+M_linear = [[ (−xc·y + xd)/x,        xc       ],
+            [ (−(a+yc)y + b+yd)/x,    a+yc     ]]
+
+         = [[ d − cy,                  xc       ],
+            [ (b + yd − ay − y²c)/x,   a + yc   ]]
+```
+
+And the physical translation is:
+
+```
 M_trans = C · (tx, ty)ᵀ = (x·ty,  tx + y·ty)
 ```
 
