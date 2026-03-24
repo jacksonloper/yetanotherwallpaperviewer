@@ -7,12 +7,12 @@ import {
 } from './math/isometry.js'
 import { generateGroup } from './math/groupGenerator.js'
 import {
-  ALL_WALLPAPER_TYPES,
   getWallpaperTypeByName,
   getGeneratorsForVariant,
 } from './math/wallpaperGroups.js'
 import GroupVisualization from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
+import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
 import {
   latticeToVector,
   getLatticeType,
@@ -233,20 +233,10 @@ export default function App() {
       <div className="generators-section">
         <h3>Wallpaper Group <span className="lattice-type-badge">{latticeType} lattice</span></h3>
 
-        <div className="wallpaper-type-selector">
-          <label><strong>Type:</strong>
-            <select
-              value={wallpaperType}
-              onChange={(e) => handleWallpaperTypeChange(e.target.value)}
-            >
-              {ALL_WALLPAPER_TYPES.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name} – {t.description}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <WallpaperGroupSelector
+          value={wallpaperType}
+          onChange={handleWallpaperTypeChange}
+        />
 
         {/* Direction variant radios */}
         {wpType.variants && wpType.variants.length > 1 && (
