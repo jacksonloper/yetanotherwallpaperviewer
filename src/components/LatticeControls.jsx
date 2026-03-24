@@ -36,7 +36,7 @@ export default function LatticeControls({ wpType, latticeState, latticeVec, onCh
 
       {control === 'cm-slider' && (
         <CmSlider
-          value={latticeState.cmSlider ?? 0.75}
+          value={latticeState.cmSlider ?? 0.8125}
           onChange={(v) => onChange({ cmSlider: v })}
           latticeVec={latticeVec}
         />
@@ -82,29 +82,31 @@ function RectToSquareSlider({ value, onChange, latticeVec }) {
   )
 }
 
-// ─── CM slider (centered-rect → hex → well-rounded → square) ───
+// ─── CM slider (angle between lattice vectors: 10° → 60° → 90°) ───
 
+const HEX_T = 0.625  // t value where angle = 60° (hexagonal)
 const HEX_SNAP = 0.02
 
 function CmSlider({ value, onChange, latticeVec }) {
   const handleChange = (e) => {
     let v = parseFloat(e.target.value)
-    // Sticky at hex (t = 0.5)
-    if (Math.abs(v - 0.5) < HEX_SNAP) v = 0.5
+    // Sticky at hex (t = 0.625)
+    if (Math.abs(v - HEX_T) < HEX_SNAP) v = HEX_T
     onChange(v)
   }
 
+  const angle = 10 + value * 80
+
   const labelForValue = (v) => {
-    if (Math.abs(v - 0.5) < 0.001) return 'Hexagonal'
+    if (Math.abs(v - HEX_T) < 0.001) return 'Hexagonal'
     if (v > 0.99) return 'Square'
-    if (v > 0.5) return 'Centered Rect (well-rounded)'
-    return 'Centered Rect (not well-rounded)'
+    return 'Centered Rectangular'
   }
 
   return (
     <div className="well-rounded-controls">
       <div className="slider-row">
-        <span className="slider-label">Cent. Rect</span>
+        <span className="slider-label">Acute</span>
         <input
           type="range"
           min="0"
@@ -117,8 +119,8 @@ function CmSlider({ value, onChange, latticeVec }) {
         <span className="slider-label">Square</span>
       </div>
       <div className="slider-info">
-        {labelForValue(value)} — x = {latticeVec.x.toFixed(4)}, y = {latticeVec.y.toFixed(4)}
-        {Math.abs(value - 0.5) < 0.001 && ' ⬡'}
+        {labelForValue(value)} — angle = {angle.toFixed(1)}°
+        {Math.abs(value - HEX_T) < 0.001 && ' ⬡'}
       </div>
     </div>
   )

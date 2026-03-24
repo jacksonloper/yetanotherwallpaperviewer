@@ -9,7 +9,7 @@
  *       'none'           fixed lattice (no slider)
  *       'full'           full 2D lattice freedom (p1, p2 only)
  *       'rect-to-square' 1D slider: rectangular (x>1, y=0) → square (x=1, y=0)
- *       'cm-slider'      1D slider: not-well-rounded cent-rect → hex → well-rounded → square
+ *       'cm-slider'      1D slider: angle between lattice vectors (10°→60°→90°)
  *   fixedLattice   – for 'none': 'square' or 'hexagonal'
  *   generators / variants – generator templates using direction keys (dir)
  *       or cm-specific keys (cmDir) instead of dirIndex.
@@ -21,10 +21,9 @@
  *   'bma'  → b−a = (x, y−1)       angle = atan2(y−1,x)
  *   '2bma' → 2b−a = (2x, 2y−1)    angle = atan2(2y−1,2x)
  *
- * cmDir is used for cm/cmm on the cm-slider where the mirror direction
- * depends on which segment of the slider the user is on:
- *   not-well-rounded: cmDir 0 = along a (90°), cmDir 1 = along 2b−a (0°)
- *   well-rounded:     cmDir 0 = along a+b,     cmDir 1 = along b−a
+ * cmDir is used for cm/cmm on the cm-slider. The lattice is always
+ * well-rounded (|a|=|b|=1), so:
+ *   cmDir 0 = along a+b,     cmDir 1 = along b−a
  */
 
 /**
