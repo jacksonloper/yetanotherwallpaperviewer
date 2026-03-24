@@ -75,14 +75,14 @@ practice we weight each half-plane mode by
 
 > envelope(**k**) = exp(−‖**k**‖² ℓ² / 4)
 
-and draw
+(The exponent uses ℓ²/4 rather than the kernel's ℓ²/2 because the
+cosine/sine expansion splits each complex mode into two real coefficients,
+each contributing variance ½.)  We then draw
 
 > aₖ = envelope(**k**) · ξₐ,  bₖ = envelope(**k**) · ξ_b
 
 where ξₐ, ξ_b ~ N(0, 1) are independent standard normals (produced via
-Box-Muller from a seedable PRNG).  The ℓ²/4 exponent (rather than ℓ²/2)
-arises because the cosine/sine expansion uses real coefficients that each
-contribute variance ½ to the original complex mode.
+Box-Muller from a seedable PRNG).
 
 The DC component dc is drawn from N(0, 0.1²) to allow a small random
 offset without dominating the pattern.
