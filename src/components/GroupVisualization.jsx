@@ -184,7 +184,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, showF, fOffset, showGP, gpSeed, gpSigma, gpEll, gpN }) {
+export default function GroupVisualization({ elements, latticeVectors, showF, fOffset, showGP, gpSeed, gpEll, gpN }) {
   const width = 700;
   const height = 500;
   const svgCx = width / 2;
@@ -215,11 +215,11 @@ export default function GroupVisualization({ elements, latticeVectors, showF, fO
   // GP heatmap data URL
   const gpImageUrl = useMemo(() => {
     if (!showGP || !latticeVectors || !elements) return null;
-    const coeffs = drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.6, gpSigma ?? 1);
+    const coeffs = drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
     const pointGroup = extractPointGroup(elements);
     const heatmap = generateGPHeatmap(coeffs, pointGroup, gpBounds, 150);
     return heatmapToDataURL(heatmap);
-  }, [showGP, latticeVectors, elements, gpSeed, gpSigma, gpEll, gpN, gpBounds]);
+  }, [showGP, latticeVectors, elements, gpSeed, gpEll, gpN, gpBounds]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];

@@ -139,8 +139,7 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [gpSeed, setGpSeed] = useState(1)
-  const [gpSigma, setGpSigma] = useState(1.0)
-  const [gpEll, setGpEll] = useState(0.6)
+  const [gpEll, setGpEll] = useState(0.1)
   const [gpN, setGpN] = useState(5)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
@@ -325,24 +324,12 @@ export default function App() {
       {showGP && (
         <div className="controls">
           <label>
-            σ (amplitude): {gpSigma.toFixed(2)}
-            <input
-              type="range"
-              min="0.1"
-              max="3.0"
-              step="0.05"
-              value={gpSigma}
-              onChange={(e) => setGpSigma(parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-          </label>
-          <label>
             ℓ (length scale): {gpEll.toFixed(2)}
             <input
               type="range"
-              min="0.1"
-              max="2.0"
-              step="0.05"
+              min="0.02"
+              max="0.2"
+              step="0.01"
               value={gpEll}
               onChange={(e) => setGpEll(parseFloat(e.target.value))}
               className="gen-slider"
@@ -419,7 +406,6 @@ export default function App() {
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
           gpSeed={gpSeed}
-          gpSigma={gpSigma}
           gpEll={gpEll}
           gpN={gpN}
         />
