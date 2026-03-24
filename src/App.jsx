@@ -1,16 +1,15 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
-  translation,
-  rotation,
-  reflection,
-  glideReflection,
-} from './math/isometry.js'
-import { generateGroup } from './math/groupGenerator.js'
-import {
   getWallpaperTypeByName,
   getGeneratorsForVariant,
 } from './math/wallpaperGroups.js'
-import GroupVisualization from './components/GroupVisualization.jsx'
+import {
+  standardGenerators,
+  processGroup,
+  generateElements,
+  quotientToPhysical,
+} from './math/rationalGroup.js'
+import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
 import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
 import {
@@ -42,39 +41,6 @@ function getLatticeVector(wpType, latticeState) {
     case 'full':
     default:
       return latticeToVector(latticeState.fullLattice ?? { mode: 'well-rounded', sliderValue: 0 })
-  }
-}
-
-/**
- * Convert a new-format generator template to a concrete isometry.
- */
-function parseGenerator(gen, latticeVec) {
-  switch (gen.type) {
-    case 'rotation': {
-      const angle = (2 * PI) / (gen.order || 2)
-      return rotation(angle, 0, 0)
-    }
-    case 'reflection': {
-      let angle
-      if ('dir' in gen) {
-        angle = resolveDirection(gen.dir, latticeVec).angle
-      } else if ('cmDir' in gen) {
-        angle = resolveCmDirection(gen.cmDir, latticeVec).angle
-      } else {
-        return null
-      }
-      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, angle, latticeVec)
-      return reflection(angle, px, py)
-    }
-    case 'glide': {
-      if (!('dir' in gen)) return null
-      const d = resolveDirection(gen.dir, latticeVec)
-      const dist = d.length / 2
-      const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, d.angle, latticeVec)
-      return glideReflection(d.angle, dist, px, py)
-    }
-    default:
-      return null
   }
 }
 
@@ -132,8 +98,6 @@ export default function App() {
     cmSlider: 0.8125,
     fullLattice: { mode: 'well-rounded', sliderValue: 0 },
   })
-  const [maxWords, setMaxWords] = useState(6)
-  const [maxElements, setMaxElements] = useState(1000)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showF, setShowF] = useState(true)
   const [fOffsetX, setFOffsetX] = useState(0)
@@ -186,27 +150,39 @@ export default function App() {
   const groupResult = useMemo(() => {
     try {
       const vec = latticeVec
-      const t1 = translation(0, 1)
-      const t2 = translation(vec.x, vec.y)
 
-      const nonTransIsos = generators.map((g) => parseGenerator(g, vec)).filter(Boolean)
+      // Use rational group pipeline: enumerate G/T exactly
+      const stdGen = standardGenerators(wallpaperType, variantIndex)
+      if (!stdGen) {
+        return { result: null, error: `Unknown wallpaper type: ${wallpaperType}`, warning: null }
+      }
+      const { cosets, isDegenerate, error: groupError } = processGroup(stdGen.generators)
+      if (groupError) {
+        return { result: null, error: groupError, warning: null }
+      }
 
-      const allIsos = [t1, t2, ...nonTransIsos]
-      const res = generateGroup(allIsos, maxWords, maxElements)
-      if (res.error) {
-        return { result: null, error: res.error, warning: null, timeMs: res.timeMs }
+      // Convert coset representatives to physical isometries (for GP point group)
+      const cosetReps = quotientToPhysical(cosets, vec)
+
+      // Generate all visible elements from cosets + lattice translations
+      const latticeVectors = { v1: { x: 0, y: 1 }, v2: vec }
+      const bounds = {
+        minX: -SVG_WIDTH / (2 * SCALE) - 1,
+        maxX: SVG_WIDTH / (2 * SCALE) + 1,
+        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
+        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
       }
-      const latticeVectors = {
-        v1: { x: 0, y: 1 },
-        v2: vec,
-      }
-      return { result: { elements: res.elements, latticeVectors }, error: null, warning: res.warning, timeMs: res.timeMs }
+      const elements = generateElements(cosets, vec, bounds)
+
+      const warning = isDegenerate ? 'Group appears degenerate.' : null
+
+      return { result: { elements, latticeVectors, cosetReps }, error: null, warning }
     } catch (err) {
-      return { result: null, error: `Error: ${err.message}`, warning: null, timeMs: 0 }
+      return { result: null, error: `Error: ${err.message}`, warning: null }
     }
-  }, [generators, latticeVec, maxWords, maxElements])
+  }, [wallpaperType, variantIndex, latticeVec])
 
-  const { result, error, warning, timeMs } = groupResult
+  const { result, error, warning } = groupResult
 
   const copyToClipboard = useCallback(() => {
     const json = buildJsonSpec(wpType, generators, latticeVec)
@@ -340,33 +316,6 @@ export default function App() {
           </div>
         )}
 
-        <div className="display-generation">
-          <label className="slider-inline">
-            Max word length: {maxWords}
-            <input
-              type="range"
-              min="1"
-              max="20"
-              step="1"
-              value={maxWords}
-              onChange={(e) => setMaxWords(parseInt(e.target.value, 10))}
-              className="gen-slider"
-            />
-          </label>
-          <label className="slider-inline">
-            Max elements: {maxElements}
-            <input
-              type="range"
-              min="100"
-              max="5000"
-              step="100"
-              value={maxElements}
-              onChange={(e) => setMaxElements(parseInt(e.target.value, 10))}
-              className="gen-slider"
-            />
-          </label>
-        </div>
-
         <div className="display-actions">
           <button className="btn-copy" onClick={copyToClipboard}>
             📋 Copy JSON
@@ -374,13 +323,6 @@ export default function App() {
           {copySuccess && <span className="copy-success">✓ Copied!</span>}
         </div>
       </div>
-
-      {/* Timing info */}
-      {timeMs !== null && (
-        <div className="timing-info">
-          Generation time: {timeMs.toFixed(1)} ms
-        </div>
-      )}
 
       {/* Error display */}
       {error && (
@@ -397,6 +339,7 @@ export default function App() {
         <GroupVisualization
           elements={result.elements}
           latticeVectors={result.latticeVectors}
+          cosetReps={result.cosetReps}
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}

@@ -9,12 +9,13 @@ import {
 import { generateLatticePoints } from '../math/groupGenerator.js';
 import {
   drawGPCoefficients,
-  extractPointGroup,
   generateGPHeatmap,
   heatmapToDataURL,
 } from '../math/gaussianProcess.js';
 
-const SCALE = 80; // pixels per unit
+export const SCALE = 80; // pixels per unit
+export const SVG_WIDTH = 700;
+export const SVG_HEIGHT = 500;
 
 /**
  * Convert math coordinates to SVG coordinates.
@@ -184,9 +185,9 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, showF, fOffset, showGP, gpSeed, gpEll, gpN }) {
-  const width = 700;
-  const height = 500;
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN }) {
+  const width = SVG_WIDTH;
+  const height = SVG_HEIGHT;
   const svgCx = width / 2;
   const svgCy = height / 2;
   const viewWidth = width / SCALE;
@@ -214,12 +215,12 @@ export default function GroupVisualization({ elements, latticeVectors, showF, fO
 
   // GP heatmap data URL
   const gpImageUrl = useMemo(() => {
-    if (!showGP || !latticeVectors || !elements) return null;
+    if (!showGP || !latticeVectors || !cosetReps) return null;
     const coeffs = drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-    const pointGroup = extractPointGroup(elements);
-    const heatmap = generateGPHeatmap(coeffs, pointGroup, gpBounds, 150);
+    // Use G/T coset representatives directly as point-group elements
+    const heatmap = generateGPHeatmap(coeffs, cosetReps, gpBounds, 150);
     return heatmapToDataURL(heatmap);
-  }, [showGP, latticeVectors, elements, gpSeed, gpEll, gpN, gpBounds]);
+  }, [showGP, latticeVectors, cosetReps, gpSeed, gpEll, gpN, gpBounds]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];
