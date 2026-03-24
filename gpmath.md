@@ -3,7 +3,8 @@
 This document describes the full mathematical pipeline used to construct a
 smooth, random function on ℝ² that is exactly invariant under a given
 wallpaper group.  The implementation lives in `src/math/gaussianProcess.js`
-and relies on the rational group enumeration in `src/math/rationalGroup.js`.
+and relies on the rational group enumeration in `src/math/rationalGroup.js`
+and the exact rational arithmetic in `src/math/rational.js`.
 
 ---
 
@@ -19,12 +20,258 @@ is specified by a finite list of **generators** — rotations, reflections,
 and glide reflections — given as rational 3×3 affine matrices in lattice
 coordinates (see `rationalGroup.js`).
 
-The quotient P = G / T is a finite group (order ≤ 12).  Its elements are
-the **coset representatives** {g₁, …, g_N}, one per coset of T.  We
-enumerate them exactly using BFS with rational arithmetic
-(`processGroup()`), then convert each to a physical-coordinate isometry
-gₖ(r) = Rₖ r + tₖ via the change of basis M = C · A · C⁻¹
-(`quotientToPhysical()`).
+### 1a. Rational number representation
+
+To enumerate G/T exactly (no floating-point rounding), all arithmetic is
+done with **exact rational numbers**.  A rational number is stored as a
+pair [n, d] where n is the integer numerator and d is the integer
+denominator (always > 0, always in lowest terms with gcd(|n|, d) = 1;
+zero is [0, 1]).  Standard operations — add, subtract, multiply, divide,
+negate, equality test — are implemented exactly.
+
+(`rat()`, `radd()`, `rsub()`, `rmul()`, `rdiv()`, `rneg()`, `req()` in
+rational.js.)
+
+### 1b. Rational affine matrices
+
+An isometry of the lattice-coordinate plane is represented as a 3×3
+rational affine matrix:
+
+```
+[ a   b   tx ]
+[ c   d   ty ]
+[ 0   0    1 ]
+```
+
+where a, b, c, d, tx, ty are each rational numbers [n, d].  The top-left
+2×2 block [[a, b], [c, d]] is the **linear part** (rotation or
+reflection in lattice coordinates) and (tx, ty) is the **translation
+part**.
+
+The key operations are:
+
+- **Composition** `rcompose(A, B)`: returns A ∘ B (apply B first, then A).
+  The linear part is the matrix product of the two 2×2 blocks; the
+  translation combines as A_linear · B_trans + A_trans.
+- **Inverse** `rinverse(A)`: inverts the 2×2 block via det and applies
+  the corresponding translation correction.
+- **Equality** `rmatEqual(A, B)`: exact componentwise rational comparison.
+- **Reduce mod T** `rmodT(A)`: keeps the linear part unchanged, reduces
+  tx and ty modulo 1 to [0, 1).  This is the projection to G/T.
+
+### 1c. How generators are specified
+
+For each of the 17 wallpaper types, the non-translation generators are
+listed in `STANDARD_GENERATORS` (in rationalGroup.js) as rational affine
+matrices constructed by `rimat(a, b, c, d, txn, txd, tyn, tyd)`.  The
+linear parts (a, b, c, d) are always integers in GL(2, ℤ) — they
+preserve the lattice.  The translation parts are rational with
+denominators at most 2 (i.e. 0 or ½).
+
+The key linear parts in lattice coordinates:
+
+| Symbol | Matrix | Geometric meaning |
+|--------|--------|-------------------|
+| R₂ | [[-1,0],[0,-1]] | 180° rotation |
+| R₄ | [[0,1],[-1,0]] | 90° rotation (square lattice) |
+| R₃ | [[0,1],[-1,-1]] | 120° rotation (hex lattice) |
+| R₆ | [[1,1],[-1,0]] | 60° rotation (hex lattice) |
+| σ_a | [[1,0],[0,-1]] | reflection fixing the e₁ axis |
+| σ_b | [[-1,0],[0,1]] | reflection fixing the e₂ axis |
+| σ+ | [[0,1],[1,0]] | reflection swapping e₁ ↔ e₂ |
+| σ− | [[0,-1],[-1,0]] | reflection along b−a |
+| σ_h | [[-1,-1],[0,1]] | hex reflection (horizontal) |
+| σ_v | [[1,1],[0,-1]] | hex reflection (vertical) |
+
+For example, the wallpaper type **pg** ("glide ∥ a" variant) has a
+single generator `rimat(1, 0, 0, -1, 1, 2)`, which represents the
+matrix:
+
+```
+[  1   0   1/2 ]
+[  0  -1    0  ]
+[  0   0    1  ]
+```
+
+This is a reflection σ_a (across e₁) composed with a half-lattice
+translation (½, 0) along e₁ — a glide reflection.
+
+### 1d. The G/T enumeration algorithm (BFS with exact arithmetic)
+
+The quotient group G/T has the following structure: two elements g, h ∈ G
+belong to the **same coset** of T if and only if:
+
+1. They have the **same linear part**: the 2×2 blocks are identical.
+2. Their translations **differ by integers**: tx(g) − tx(h) ∈ ℤ and
+   ty(g) − ty(h) ∈ ℤ.
+
+Equivalently, g and h represent the same coset iff `rmodT(g)` equals
+`rmodT(h)` — same linear part, same translation reduced to [0, 1).
+
+The algorithm to enumerate all cosets is a **breadth-first search** (BFS)
+on the Cayley graph of G/T:
+
+**Input:** A list of generators [g₁, …, gₘ] (rational affine matrices).
+
+**Output:** A list of **coset representatives** — one reduced rational
+matrix per coset of T.
+
+```
+function processGroup(generators):
+    // Step 1: Close generators under inverse
+    allGens ← []
+    for each g in generators:
+        allGens.append(g)
+        g⁻¹ ← rinverse(g)
+        if rmodT(g⁻¹) is not already in allGens:
+            allGens.append(g⁻¹)
+
+    // Step 2: BFS from the identity
+    id ← ridentity()          // [[1,0,0],[0,1,0],[0,0,1]]
+    cosets ← [id]              // reduced coset representatives found so far
+    frontier ← [id]            // elements to expand next
+
+    while frontier is not empty:
+        nextFrontier ← []
+        for each rep in frontier:
+            for each gen in allGens:
+                product ← rcompose(gen, rep)       // gen ∘ rep
+                reduced ← rmodT(product)            // reduce tx, ty mod 1
+
+                if reduced is not in cosets:         // exact rational comparison
+                    cosets.append(reduced)
+                    nextFrontier.append(reduced)
+
+                    if |cosets| > maxOrder:           // default maxOrder = 24
+                        return DEGENERATE
+
+        frontier ← nextFrontier
+
+    return cosets
+```
+
+**Key properties of this algorithm:**
+
+- **Exact:** All comparisons use exact rational arithmetic, so there are
+  no floating-point tolerance issues.  Two cosets are equal iff their
+  reduced representatives are identical as rational matrices.
+
+- **Complete:** Because we multiply on the left by every generator and
+  its inverse, and because G/T is a finite group, the BFS is guaranteed
+  to reach every coset.
+
+- **Termination:** For any valid wallpaper group, |G/T| ≤ 12 (the
+  maximum is attained by p6m).  The maxOrder bound (default 24, set to
+  2× the maximum valid order) catches degenerate inputs — e.g.
+  generators that don't actually preserve any lattice.
+
+- **Canonical representatives:** Each coset is stored as a rational
+  matrix with tx, ty ∈ [0, 1).  The identity coset is always the first
+  element.
+
+### 1e. Worked example: pg (glide ∥ a)
+
+**Generator:** g = σ_a with glide = rimat(1, 0, 0, -1, 1, 2), i.e.:
+
+```
+[  1   0   1/2 ]
+[  0  -1    0  ]
+[  0   0    1  ]
+```
+
+**Step 1 — close under inverses.**  Compute g⁻¹:
+
+The linear part inverse of [[1,0],[0,-1]] is [[1,0],[0,-1]] (it's an
+involution).  The translation of g⁻¹ is −R⁻¹ t = −[[1,0],[0,-1]]·(1/2, 0)
+= (−1/2, 0).  After rmodT: tx = −1/2 mod 1 = 1/2, ty = 0.  So
+rmodT(g⁻¹) = g itself — the generator is its own inverse (mod T).
+allGens = [g].
+
+**Step 2 — BFS.**
+
+- Start: cosets = [id], frontier = [id].
+
+- **Iteration 1:** Multiply frontier {id} by allGens {g}:
+  - g ∘ id = g.  Reduced: [[1,0],[0,-1]] with tx=1/2, ty=0.
+  - Not in cosets → add it.  cosets = [id, g], nextFrontier = [g].
+
+- **Iteration 2:** Multiply frontier {g} by allGens {g}:
+  - g ∘ g = rcompose(g, g).  Linear part: [[1,0],[0,-1]]·[[1,0],[0,-1]]
+    = [[1,0],[0,1]] = identity.  Translation: [[1,0],[0,-1]]·(1/2,0) +
+    (1/2,0) = (1/2,0) + (1/2,0) = (1, 0).  After rmodT: tx = 1 mod 1 = 0,
+    ty = 0.  So reduced = id.
+  - Already in cosets → skip.  nextFrontier = [].
+
+- Frontier empty → done.  **|G/T| = 2.**
+
+The two coset representatives are:
+
+| Coset | Linear part | Translation |
+|-------|------------|-------------|
+| T (identity coset) | [[1,0],[0,1]] | (0, 0) |
+| gT (glide coset) | [[1,0],[0,-1]] | (1/2, 0) |
+
+### 1f. Conversion to physical coordinates
+
+The generators and coset representatives are in **lattice coordinates**
+(where the lattice basis vectors are the standard basis e₁, e₂).  To
+evaluate the GP in physical ℝ² coordinates, we need the corresponding
+**physical isometries**.
+
+The change-of-basis matrix is:
+
+> C = [**v₁** | **v₂**] = [[0, x], [1, y]]
+
+where **v₁** = (0, 1) and **v₂** = (x, y) are the lattice basis vectors
+written as columns.  C maps lattice coordinates to physical coordinates:
+**r**_phys = C · **r**_lattice.
+
+Given a rational affine matrix A (in lattice coords) with linear part L
+and translation **t**, the corresponding physical isometry is:
+
+> M_linear = C · L · C⁻¹
+>
+> M_translation = C · **t**
+
+where C⁻¹ = (1/det C) · [[y, −x], [−1, 0]] and det C = −x.
+
+Concretely, writing A's entries as floats a, b, c, d, tx, ty:
+
+```
+P = C · L = [[xc, xd], [a+yc, b+yd]]
+
+M_linear = P · C⁻¹   →   M = [[d−cy,  xc],
+                               [(b+yd−(a+yc)y)/x,  a+yc]]
+
+M_trans = C · (tx, ty)ᵀ = (x·ty,  tx + y·ty)
+```
+
+The result is a floating-point isometry {a, b, c, d, tx, ty} in physical
+coordinates, where the isometry maps **r** → M_linear · **r** + M_trans.
+
+(`toPhysical()` and `quotientToPhysical()` in rationalGroup.js.)
+
+### 1g. Generating visible elements
+
+For rendering, we need every group element whose image of the origin falls
+within the viewport.  Rather than running BFS to an arbitrary depth, we
+use the exact G/T decomposition:
+
+> G = ⊔ᵢ (T + gᵢ)
+
+Every element of G can be written uniquely as τ · gᵢ for some lattice
+translation τ ∈ T and some coset representative gᵢ.  So we iterate:
+
+1. For each coset representative gᵢ (converted to physical coordinates):
+2. For each integer pair (m, n) with −20 ≤ m, n ≤ 20:
+3. Form the element τ_{m,n} ∘ gᵢ where τ_{m,n} is translation by
+   m **v₁** + n **v₂**.
+4. Keep the element if its image of the origin falls within the viewport
+   bounds (plus a 1-unit margin).
+
+This generates exactly the visible elements with no depth ambiguity.
+
+(`generateElements()` in rationalGroup.js.)
 
 ---
 
