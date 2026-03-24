@@ -137,6 +137,8 @@ export default function App() {
   const [showF, setShowF] = useState(true)
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
+  const [showGP, setShowGP] = useState(false)
+  const [gpSeed, setGpSeed] = useState(1)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -301,6 +303,15 @@ export default function App() {
           <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
           Show F
         </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
+          Show GP
+        </label>
+        {showGP && (
+          <button className="btn-copy" onClick={() => setGpSeed(s => s + 1)}>
+            🎲 New Draw
+          </button>
+        )}
         <button className="btn-copy" onClick={copyToClipboard}>
           📋 Copy JSON
         </button>
@@ -361,6 +372,8 @@ export default function App() {
           latticeVectors={result.latticeVectors}
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
+          showGP={showGP}
+          gpSeed={gpSeed}
         />
       )}
     </div>
