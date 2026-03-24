@@ -229,19 +229,19 @@ export default function App() {
         Pick a wallpaper group, then adjust the lattice. Updates live.
       </p>
 
-      {/* Wallpaper type selector — FIRST */}
-      <div className="generators-section">
-        <h3>Wallpaper Group <span className="lattice-type-badge">{latticeType} lattice</span></h3>
+      {/* ── Section 1: Symmetry Group ── */}
+      <div className="panel">
+        <h3 className="panel-heading">Symmetry Group</h3>
 
         <WallpaperGroupSelector
           value={wallpaperType}
           onChange={handleWallpaperTypeChange}
         />
 
-        {/* Direction variant radios */}
+        {/* Direction variant radios — part of the group choice */}
         {wpType.variants && wpType.variants.length > 1 && (
           <div className="variant-radios">
-            <strong>Direction:</strong>
+            <span className="variant-label">Orientation:</span>
             {wpType.variants.map((v, i) => (
               <label key={i} className="variant-radio-label">
                 <input
@@ -257,118 +257,127 @@ export default function App() {
         )}
       </div>
 
-      {/* Lattice controls — SECOND, determined by wallpaper type */}
+      {/* ── Section 2: Lattice ── */}
       <LatticeControls
         wpType={wpType}
         latticeState={latticeState}
         latticeVec={latticeVec}
+        latticeType={latticeType}
         onChange={handleLatticeStateChange}
       />
 
-      {/* Controls */}
-      <div className="controls">
-        <label>
-          Max word length: {maxWords}
-          <input
-            type="range"
-            min="1"
-            max="20"
-            step="1"
-            value={maxWords}
-            onChange={(e) => setMaxWords(parseInt(e.target.value, 10))}
-            className="gen-slider"
-          />
-        </label>
-        <label>
-          Max elements: {maxElements}
-          <input
-            type="range"
-            min="100"
-            max="5000"
-            step="100"
-            value={maxElements}
-            onChange={(e) => setMaxElements(parseInt(e.target.value, 10))}
-            className="gen-slider"
-          />
-        </label>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
-          Show F
-        </label>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
-          Show GP
-        </label>
-        {showGP && (
-          <button className="btn-copy" onClick={() => setGpSeed(s => s + 1)}>
-            🎲 New Draw
-          </button>
-        )}
-        <button className="btn-copy" onClick={copyToClipboard}>
-          📋 Copy JSON
-        </button>
-        {copySuccess && <span className="copy-success">✓ Copied!</span>}
-      </div>
+      {/* ── Section 3: Display Settings ── */}
+      <div className="panel">
+        <h3 className="panel-heading">Display Settings</h3>
 
-      {/* GP parameter controls */}
-      {showGP && (
-        <div className="controls">
-          <label>
-            ℓ (length scale): {gpEll.toFixed(2)}
-            <input
-              type="range"
-              min="0.02"
-              max="0.2"
-              step="0.01"
-              value={gpEll}
-              onChange={(e) => setGpEll(parseFloat(e.target.value))}
-              className="gen-slider"
-            />
+        <div className="display-toggles">
+          <label className="toggle-label">
+            <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
+            Show F
           </label>
-          <label>
-            n (truncation): {gpN}
+          <label className="toggle-label">
+            <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
+            Show GP
+          </label>
+        </div>
+
+        {/* F-shape offset — revealed when Show F is on */}
+        {showF && (
+          <div className="display-sub">
+            <label className="slider-inline">
+              F offset x: {fOffsetX.toFixed(2)}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={fOffsetX}
+                onChange={(e) => setFOffsetX(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              F offset y: {fOffsetY.toFixed(2)}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={fOffsetY}
+                onChange={(e) => setFOffsetY(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+          </div>
+        )}
+
+        {/* GP controls — revealed when Show GP is on */}
+        {showGP && (
+          <div className="display-sub">
+            <label className="slider-inline">
+              ℓ (length scale): {gpEll.toFixed(2)}
+              <input
+                type="range"
+                min="0.02"
+                max="0.2"
+                step="0.01"
+                value={gpEll}
+                onChange={(e) => setGpEll(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              n (truncation): {gpN}
+              <input
+                type="range"
+                min="1"
+                max="15"
+                step="1"
+                value={gpN}
+                onChange={(e) => setGpN(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+            <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
+              🎲 New Draw
+            </button>
+          </div>
+        )}
+
+        <div className="display-generation">
+          <label className="slider-inline">
+            Max word length: {maxWords}
             <input
               type="range"
               min="1"
-              max="15"
+              max="20"
               step="1"
-              value={gpN}
-              onChange={(e) => setGpN(parseInt(e.target.value, 10))}
+              value={maxWords}
+              onChange={(e) => setMaxWords(parseInt(e.target.value, 10))}
+              className="gen-slider"
+            />
+          </label>
+          <label className="slider-inline">
+            Max elements: {maxElements}
+            <input
+              type="range"
+              min="100"
+              max="5000"
+              step="100"
+              value={maxElements}
+              onChange={(e) => setMaxElements(parseInt(e.target.value, 10))}
               className="gen-slider"
             />
           </label>
         </div>
-      )}
 
-      {/* F-shape translation offset */}
-      {showF && (
-        <div className="controls">
-          <label>
-            F offset x: {fOffsetX.toFixed(2)}
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={fOffsetX}
-              onChange={(e) => setFOffsetX(parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-          </label>
-          <label>
-            F offset y: {fOffsetY.toFixed(2)}
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={fOffsetY}
-              onChange={(e) => setFOffsetY(parseFloat(e.target.value))}
-              className="gen-slider"
-            />
-          </label>
+        <div className="display-actions">
+          <button className="btn-copy" onClick={copyToClipboard}>
+            📋 Copy JSON
+          </button>
+          {copySuccess && <span className="copy-success">✓ Copied!</span>}
         </div>
-      )}
+      </div>
 
       {/* Timing info */}
       {timeMs !== null && (

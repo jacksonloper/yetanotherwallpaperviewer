@@ -90,10 +90,10 @@ export const ALL_WALLPAPER_TYPES = [
   // --- CM slider (centered-rect → hex → well-rounded → square) ---
   { name: 'cm', description: 'Reflection (centered)', latticeControl: 'cm-slider',
     variants: [
-      { label: 'Mirror variant 1', generators: [
+      { label: 'Mirror ∥ a+b', generators: [
         { type: 'reflection', cmDir: 0 },
       ]},
-      { label: 'Mirror variant 2', generators: [
+      { label: 'Mirror ∥ b−a', generators: [
         { type: 'reflection', cmDir: 1 },
       ]},
     ]},
