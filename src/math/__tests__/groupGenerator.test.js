@@ -227,17 +227,17 @@ describe('generateGroup – all 17 preset generators are valid', () => {
     expect(result.error).toBeNull();
   });
 
-  it('p3m1: hexagonal lattice, 120° rotation + vertical reflection', () => {
+  it('p3m1: hexagonal lattice, 120° rotation + horizontal reflection', () => {
     const result = generateGroup(
-      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
       4
     );
     expect(result.error).toBeNull();
   });
 
-  it('p31m: hexagonal lattice, 120° rotation + horizontal reflection', () => {
+  it('p31m: hexagonal lattice, 120° rotation + vertical reflection', () => {
     const result = generateGroup(
-      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
       4
     );
     expect(result.error).toBeNull();
@@ -660,17 +660,20 @@ describe('hexagonal lattice groups are all distinct', () => {
 //               pure mirror line; the other two are free (not on any mirror).
 //
 // Hexagonal lattice: a = (0,1), b = (√3/2, 1/2).
-// The three inequivalent 3-fold centers are:
-//   (0,0), (1/3·a + 2/3·b) = (√3/3, 2/3), (2/3·a + 1/3·b) = (√3/6, 5/6).
+// The three inequivalent 3-fold centers come from the orbits of T_{n,m} ∘ R:
+//   center(n,m) = ((√3/6)(m−n), (n+m)/2)
+// Reduced mod the lattice, the three orbit representatives are:
+//   (0,0),  (√3/6, 1/2)  [frac (1/3,1/3)],  (−√3/6, 1/2)  [frac (2/3,2/3)].
 
 describe('p3m1 vs p31m: mirror placement distinguishes the two groups', () => {
   const s3 = Math.sqrt(3);
 
-  // Three inequivalent 3-fold rotation centers of the hexagonal lattice (Cartesian).
+  // The three inequivalent 3-fold rotation centers (Cartesian).
+  // These are the fixed points of T_{0,0}∘R, T_{0,1}∘R, and T_{1,0}∘R respectively.
   const threeFoldCenters = [
-    { name: 'origin',    x: 0,       y: 0     },
-    { name: '(1/3,2/3)', x: s3 / 3,  y: 2 / 3 },
-    { name: '(2/3,1/3)', x: s3 / 6,  y: 5 / 6 },
+    { name: 'origin',         x: 0,        y: 0   },
+    { name: '(1/3,1/3) frac', x:  s3 / 6,  y: 0.5 },
+    { name: '(2/3,2/3) frac', x: -s3 / 6,  y: 0.5 },
   ];
 
   /**
@@ -690,9 +693,9 @@ describe('p3m1 vs p31m: mirror placement distinguishes the two groups', () => {
   }
 
   it('p3m1: all three inequivalent 3-fold centers lie on pure mirror lines', () => {
-    // p3m1 generator: 120° rotation + vertical mirror (dir = a, angle = π/2)
+    // p3m1 generator: 120° rotation + horizontal mirror (dir = 2b−a, angle = 0)
     const result = generateGroup(
-      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
       6
     );
     expect(result.error).toBeNull();
@@ -702,9 +705,9 @@ describe('p3m1 vs p31m: mirror placement distinguishes the two groups', () => {
   });
 
   it('p31m: only the origin 3-fold center lies on a pure mirror; the other two do not', () => {
-    // p31m generator: 120° rotation + horizontal mirror (dir = 2b-a, angle = 0)
+    // p31m generator: 120° rotation + vertical mirror (dir = a, angle = π/2)
     const result = generateGroup(
-      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(0, 0, 0)],
+      [...hexLattice(), rotation((2 * PI) / 3, 0, 0), reflection(PI / 2, 0, 0)],
       6
     );
     expect(result.error).toBeNull();

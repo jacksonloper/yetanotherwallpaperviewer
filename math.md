@@ -169,8 +169,8 @@ parameters are fixed by the type template (see §3).  Types marked with
 | cm **(V)** | reflection dir 0 *or* dir 1 | Mirror ∥ a+b / Mirror ∥ b−a |
 | cmm | reflection dir 0 + reflection dir 1 | — |
 | p3 | rotation order 3, center (0, 0) | — |
-| p3m1 | rotation order 3, center (0, 0) + reflection dir 2 | — |
-| p31m | rotation order 3, center (0, 0) + reflection dir 4 | — |
+| p3m1 | rotation order 3, center (0, 0) + reflection dir 4 | — |
+| p31m | rotation order 3, center (0, 0) + reflection dir 2 | — |
 | p6 | rotation order 6, center (0, 0) | — |
 | p6m | rotation order 6, center (0, 0) + reflection dir 4 | — |
 
@@ -749,15 +749,20 @@ translated to the origin.  Zero continuous degrees of freedom. ✔
 ### p3m1 — 120° rotation + reflection (mirrors through rotation centers)
 
 **Lattice:** Hexagonal only.
-**Generators:** rotation(2π/3, 0, 0) + reflection(π/2, 0, 0).
-**Dir:** rotation order 3 + reflection dir 2 (angle π/2, along **a**).
+**Generators:** rotation(2π/3, 0, 0) + reflection(0, 0, 0).
+**Dir:** rotation order 3 + reflection dir 4 (angle 0, along 2**b**−**a**).
 
 **p3m1 vs p31m.**  These are the two distinct ways to combine 3-fold
 rotations with mirrors on a hexagonal lattice:
-- **p3m1**: mirrors along **a** (dirIndex 2, angle π/2) pass *through* the
-  3-fold centers.
-- **p31m**: mirrors along 2**b**−**a** (dirIndex 4, angle 0) pass *between*
-  the 3-fold centers.
+- **p3m1**: mirrors along 2**b**−**a** (dirIndex 4, angle 0) pass *through*
+  all three inequivalent 3-fold centers (all centers have site symmetry 3m).
+- **p31m**: mirrors along **a** (dirIndex 2, angle π/2) pass *through* only
+  the origin center; the other two 3-fold centers are free (site symmetry 3).
+
+The three inequivalent 3-fold rotation centers are at fractional coordinates
+(0,0), (1/3,1/3), and (2/3,2/3).  For p3m1 the horizontal mirrors at
+y = n/2 pass through all three; for p31m the vertical mirrors at x = k√3/2
+pass through the origin only.
 
 The UI distinguishes them by using different dirIndex values. ✔
 
@@ -766,13 +771,13 @@ The UI distinguishes them by using different dirIndex values. ✔
 ### p31m — 120° rotation + reflection (mirrors between rotation centers)
 
 **Lattice:** Hexagonal only.
-**Generators:** rotation(2π/3, 0, 0) + reflection(0, 0, 0).
-**Dir:** rotation order 3 + reflection dir 4 (angle 0, along 2**b**−**a**).
+**Generators:** rotation(2π/3, 0, 0) + reflection(π/2, 0, 0).
+**Dir:** rotation order 3 + reflection dir 2 (angle π/2, along **a**).
 
-**Surjectivity.**  The p31m group has 3-fold centers at positions *not* on
-the mirror lines.  The fixed placement (both at origin) produces the correct
-relative configuration; any other valid placement is related by
-translation. ✔
+**Surjectivity.**  The p31m group has two 3-fold centers at positions *not*
+on any mirror line (site symmetry 3); only the origin center lies on a
+mirror.  The fixed placement (both at origin) produces the correct relative
+configuration; any other valid placement is related by translation. ✔
 
 ---
 
