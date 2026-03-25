@@ -107,6 +107,8 @@ export default function App() {
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
   const [gpN, setGpN] = useState(5)
+  const [gpSpeed, setGpSpeed] = useState(0)
+  const [gpDamping, setGpDamping] = useState(0.5)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -329,6 +331,30 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
+            <label className="slider-inline">
+              Animation speed: {gpSpeed.toFixed(1)}
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="0.1"
+                value={gpSpeed}
+                onChange={(e) => setGpSpeed(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Damping: {gpDamping.toFixed(2)}
+              <input
+                type="range"
+                min="0.05"
+                max="2"
+                step="0.05"
+                value={gpDamping}
+                onChange={(e) => setGpDamping(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
@@ -366,6 +392,8 @@ export default function App() {
           gpSeed={gpSeed}
           gpEll={gpEll}
           gpN={gpN}
+          gpSpeed={gpSpeed}
+          gpDamping={gpDamping}
         />
       )}
     </div>
