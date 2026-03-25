@@ -7,11 +7,8 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import {
-  drawGPCoefficients,
-  generateGPHeatmap,
-  heatmapToDataURL,
-} from '../math/gaussianProcess.js';
+import { drawGPCoefficients } from '../math/gaussianProcess.js';
+import GPShaderCanvas from './GPShaderCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -185,7 +182,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, showGroupElements }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -213,14 +210,11 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     [viewWidth, height]
   );
 
-  // GP heatmap data URL
-  const gpImageUrl = useMemo(() => {
-    if (!showGP || !latticeVectors || !cosetReps) return null;
-    const coeffs = drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-    // Use G/T coset representatives directly as point-group elements
-    const heatmap = generateGPHeatmap(coeffs, cosetReps, gpBounds, 150);
-    return heatmapToDataURL(heatmap);
-  }, [showGP, latticeVectors, cosetReps, gpSeed, gpEll, gpN, gpBounds]);
+  // GP coefficients (computed on CPU, rendered on GPU)
+  const gpCoeffs = useMemo(() => {
+    if (!showGP || !latticeVectors) return null;
+    return drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+  }, [showGP, latticeVectors, gpSeed, gpEll, gpN]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];
@@ -303,85 +297,95 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         Rot: {counts.rotation} | Refl: {counts.reflection} |{' '}
         Glide: {counts['glide-reflection']} | Trans: {counts.translation}
       </div>
-      <svg
-        width={width}
-        height={height}
-        style={{ border: '1px solid #ccc', background: '#fafafa', borderRadius: '4px' }}
-      >
-        {/* GP heatmap background */}
-        {gpImageUrl && (
-          <image
-            href={gpImageUrl}
-            x={0}
-            y={0}
+      <div style={{ position: 'relative', width, height }}>
+        {/* Three.js GP canvas (behind SVG) */}
+        {showGP && gpCoeffs && cosetReps && (
+          <GPShaderCanvas
+            gpCoeffs={gpCoeffs}
+            cosetReps={cosetReps}
+            bounds={gpBounds}
             width={width}
             height={height}
-            preserveAspectRatio="none"
-            opacity="0.85"
           />
         )}
 
-        {/* Lattice dots */}
-        {latticePoints.map((p, i) => {
-          const sp = toSvg(p.x, p.y, svgCx, svgCy);
-          return (
-            <circle
-              key={`lp-${i}`}
-              cx={sp.x}
-              cy={sp.y}
-              r="3"
-              fill="#999"
-              opacity="0.5"
+        {/* SVG overlay for group elements */}
+        <svg
+          width={width}
+          height={height}
+          style={{
+            position: showGP ? 'absolute' : 'relative',
+            top: 0,
+            left: 0,
+            border: '1px solid #ccc',
+            background: showGP ? 'transparent' : '#fafafa',
+            borderRadius: '4px',
+          }}
+        >
+          {/* Lattice dots */}
+          {showGroupElements !== false && latticePoints.map((p, i) => {
+            const sp = toSvg(p.x, p.y, svgCx, svgCy);
+            return (
+              <circle
+                key={`lp-${i}`}
+                cx={sp.x}
+                cy={sp.y}
+                r="3"
+                fill="#999"
+                opacity="0.5"
+              />
+            );
+          })}
+
+          {/* F shapes (one per group element) */}
+          {showF && elements && elements.map((el, i) => (
+            <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} fOffset={fOffset} />
+          ))}
+
+          {/* Reflection lines (solid) */}
+          {showGroupElements !== false && reflLines.map((r, i) => (
+            <ReflectionLine
+              key={`refl-${i}`}
+              angle={r.angle}
+              px={r.px}
+              py={r.py}
+              svgCx={svgCx}
+              svgCy={svgCy}
+              viewWidth={viewWidth}
             />
-          );
-        })}
+          ))}
 
-        {/* F shapes (one per group element) */}
-        {showF && elements && elements.map((el, i) => (
-          <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} fOffset={fOffset} />
-        ))}
+          {/* Glide reflection lines (dotted) */}
+          {showGroupElements !== false && glideLines.map((g, i) => (
+            <GlideReflectionLine
+              key={`glide-${i}`}
+              angle={g.angle}
+              px={g.px}
+              py={g.py}
+              svgCx={svgCx}
+              svgCy={svgCy}
+              viewWidth={viewWidth}
+            />
+          ))}
 
-        {/* Reflection lines (solid) */}
-        {reflLines.map((r, i) => (
-          <ReflectionLine
-            key={`refl-${i}`}
-            angle={r.angle}
-            px={r.px}
-            py={r.py}
-            svgCx={svgCx}
-            svgCy={svgCy}
-            viewWidth={viewWidth}
-          />
-        ))}
+          {/* Rotation markers */}
+          {showGroupElements !== false && rotationMarkers.map((r, i) => (
+            <RotationMarker
+              key={`rot-${i}`}
+              cx={r.cx}
+              cy={r.cy}
+              order={r.order}
+              svgCx={svgCx}
+              svgCy={svgCy}
+            />
+          ))}
 
-        {/* Glide reflection lines (dotted) */}
-        {glideLines.map((g, i) => (
-          <GlideReflectionLine
-            key={`glide-${i}`}
-            angle={g.angle}
-            px={g.px}
-            py={g.py}
-            svgCx={svgCx}
-            svgCy={svgCy}
-            viewWidth={viewWidth}
-          />
-        ))}
-
-        {/* Rotation markers */}
-        {rotationMarkers.map((r, i) => (
-          <RotationMarker
-            key={`rot-${i}`}
-            cx={r.cx}
-            cy={r.cy}
-            order={r.order}
-            svgCx={svgCx}
-            svgCy={svgCy}
-          />
-        ))}
-
-        {/* Origin marker */}
-        <circle cx={svgCx} cy={svgCy} r="4" fill="#222" />
-      </svg>
+          {/* Origin marker */}
+          {showGroupElements !== false && (
+            <circle cx={svgCx} cy={svgCy} r="4" fill="#222" />
+          )}
+        </svg>
+      </div>
 
       {/* Legend */}
       <div style={{ marginTop: '8px', fontSize: '13px', display: 'flex', gap: '16px', flexWrap: 'wrap', color: '#555' }}>
