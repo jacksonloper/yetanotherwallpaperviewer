@@ -103,6 +103,7 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
+  const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
   const [gpN, setGpN] = useState(5)
@@ -265,6 +266,10 @@ export default function App() {
             <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
             Show GP
           </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
+            Show Group Elements
+          </label>
         </div>
 
         {/* F-shape offset — revealed when Show F is on */}
@@ -357,6 +362,7 @@ export default function App() {
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
+          showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}
           gpN={gpN}
