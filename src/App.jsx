@@ -146,20 +146,36 @@ export default function App() {
     setLatticeState(prev => ({ ...prev, ...newState }))
   }, [])
 
-  // Auto-generate the group whenever inputs change
-  const groupResult = useMemo(() => {
+  // Stage 1: Enumerate G/T cosets in rational (lattice) coordinates.
+  // This depends only on the wallpaper type and variant, NOT on the
+  // lattice vector, so lattice changes skip this computation entirely.
+  const rationalCosets = useMemo(() => {
     try {
-      const vec = latticeVec
-
-      // Use rational group pipeline: enumerate G/T exactly
       const stdGen = standardGenerators(wallpaperType, variantIndex)
       if (!stdGen) {
-        return { result: null, error: `Unknown wallpaper type: ${wallpaperType}`, warning: null }
+        return { cosets: null, error: `Unknown wallpaper type: ${wallpaperType}`, warning: null }
       }
       const { cosets, isDegenerate, error: groupError } = processGroup(stdGen.generators)
       if (groupError) {
-        return { result: null, error: groupError, warning: null }
+        return { cosets: null, error: groupError, warning: null }
       }
+      const warning = isDegenerate ? 'Group appears degenerate.' : null
+      return { cosets, error: null, warning }
+    } catch (err) {
+      return { cosets: null, error: `Error: ${err.message}`, warning: null }
+    }
+  }, [wallpaperType, variantIndex])
+
+  // Stage 2: Convert rational cosets to physical isometries and generate
+  // all visible elements.  This runs when the lattice changes but does
+  // NOT re-enumerate G/T.
+  const groupResult = useMemo(() => {
+    if (rationalCosets.error || !rationalCosets.cosets) {
+      return { result: null, error: rationalCosets.error, warning: rationalCosets.warning }
+    }
+    try {
+      const { cosets } = rationalCosets
+      const vec = latticeVec
 
       // Convert coset representatives to physical isometries (for GP point group)
       const cosetReps = quotientToPhysical(cosets, vec)
@@ -174,13 +190,11 @@ export default function App() {
       }
       const elements = generateElements(cosets, vec, bounds)
 
-      const warning = isDegenerate ? 'Group appears degenerate.' : null
-
-      return { result: { elements, latticeVectors, cosetReps }, error: null, warning }
+      return { result: { elements, latticeVectors, cosetReps }, error: null, warning: rationalCosets.warning }
     } catch (err) {
-      return { result: null, error: `Error: ${err.message}`, warning: null }
+      return { result: null, error: `Error: ${err.message}`, warning: rationalCosets.warning }
     }
-  }, [wallpaperType, variantIndex, latticeVec])
+  }, [rationalCosets, latticeVec])
 
   const { result, error, warning } = groupResult
 
