@@ -6,6 +6,7 @@ import {
   extractPointGroup,
   generateGPHeatmap,
   ouStepGPCoefficients,
+  shoStepGPCoefficients,
 } from '../gaussianProcess.js';
 import { identity, rotation, reflection, translation } from '../isometry.js';
 
@@ -164,6 +165,113 @@ describe('ouStepGPCoefficients', () => {
     const initial = drawGPCoefficients(lv, 42, 3);
     const stepped = ouStepGPCoefficients(initial, 0.9);
     expect(stepped.dcEnvelope).toBe(initial.dcEnvelope);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Stochastic harmonic oscillator step                                */
+/* ------------------------------------------------------------------ */
+
+describe('shoStepGPCoefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+
+  it('preserves mode count, kx, ky, and envelope values', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = shoStepGPCoefficients(initial, 0.016, 2, 0.5);
+    expect(stepped.modes.length).toBe(initial.modes.length);
+    for (let i = 0; i < initial.modes.length; i++) {
+      expect(stepped.modes[i].kx).toBe(initial.modes[i].kx);
+      expect(stepped.modes[i].ky).toBe(initial.modes[i].ky);
+      expect(stepped.modes[i].envelope).toBe(initial.modes[i].envelope);
+    }
+  });
+
+  it('adds velocity fields (va, vb, vdc) to output', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = shoStepGPCoefficients(initial, 0.016, 2, 0.5);
+    for (const m of stepped.modes) {
+      expect(m.va).toBeDefined();
+      expect(m.vb).toBeDefined();
+      expect(typeof m.va).toBe('number');
+      expect(typeof m.vb).toBe('number');
+    }
+    expect(stepped.vdc).toBeDefined();
+    expect(typeof stepped.vdc).toBe('number');
+  });
+
+  it('preserves coefficients when dt=0', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = shoStepGPCoefficients(initial, 0, 2, 0.5);
+    expect(stepped.dc).toBe(initial.dc);
+    for (let i = 0; i < initial.modes.length; i++) {
+      expect(stepped.modes[i].a).toBe(initial.modes[i].a);
+      expect(stepped.modes[i].b).toBe(initial.modes[i].b);
+    }
+  });
+
+  it('preserves dcEnvelope through steps', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = shoStepGPCoefficients(initial, 0.016, 2, 0.5);
+    expect(stepped.dcEnvelope).toBe(initial.dcEnvelope);
+  });
+
+  it('preserves the stationary variance of X (underdamped, Monte Carlo)', () => {
+    const initial = drawGPCoefficients(lv, 7, 2, 0.1);
+    const omega = 3;
+    const damping = 0.3;
+    const dt = 0.016;
+
+    let coeffs = initial;
+    const burnIn = 500;
+    const nSamples = 3000;
+    const env0 = initial.modes[0].envelope;
+    let sumSq = 0;
+
+    for (let i = 0; i < burnIn + nSamples; i++) {
+      coeffs = shoStepGPCoefficients(coeffs, dt, omega, damping);
+      if (i >= burnIn) {
+        sumSq += coeffs.modes[0].a * coeffs.modes[0].a;
+      }
+    }
+
+    const empiricalVar = sumSq / nSamples;
+    const expectedVar = env0 * env0;
+    // Allow 40% relative tolerance (Monte Carlo noise)
+    expect(empiricalVar).toBeGreaterThan(expectedVar * 0.6);
+    expect(empiricalVar).toBeLessThan(expectedVar * 1.4);
+  });
+
+  it('preserves the stationary variance of X (overdamped, Monte Carlo)', () => {
+    const initial = drawGPCoefficients(lv, 7, 2, 0.1);
+    const omega = 3;
+    const damping = 1.5;
+    const dt = 0.016;
+
+    let coeffs = initial;
+    const burnIn = 500;
+    const nSamples = 3000;
+    const env0 = initial.modes[0].envelope;
+    let sumSq = 0;
+
+    for (let i = 0; i < burnIn + nSamples; i++) {
+      coeffs = shoStepGPCoefficients(coeffs, dt, omega, damping);
+      if (i >= burnIn) {
+        sumSq += coeffs.modes[0].a * coeffs.modes[0].a;
+      }
+    }
+
+    const empiricalVar = sumSq / nSamples;
+    const expectedVar = env0 * env0;
+    expect(empiricalVar).toBeGreaterThan(expectedVar * 0.6);
+    expect(empiricalVar).toBeLessThan(expectedVar * 1.4);
+  });
+
+  it('works near critical damping (ζ ≈ 1)', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    // Should not throw for ζ exactly 1
+    const stepped = shoStepGPCoefficients(initial, 0.016, 2, 1.0);
+    expect(stepped.modes.length).toBe(initial.modes.length);
+    expect(Number.isFinite(stepped.modes[0].a)).toBe(true);
   });
 });
 

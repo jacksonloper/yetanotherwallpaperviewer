@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, ouStepGPCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
@@ -182,7 +182,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, gpSpeed, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, gpSpeed, gpDamping, showGroupElements }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -225,19 +225,19 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     setGpCoeffs(initialCoeffs);
   }
 
-  // Animation loop: evolve coefficients via Ornstein–Uhlenbeck when speed > 0
+  // Animation loop: evolve coefficients via stochastic harmonic oscillator when speed > 0
   useEffect(() => {
     if (!gpSpeed || gpSpeed <= 0) return;
 
     let animId;
     let lastTime = null;
+    const damping = gpDamping;
 
     const animate = (timestamp) => {
       if (lastTime !== null) {
         const dt = (timestamp - lastTime) / 1000; // seconds
-        const decay = Math.exp(-gpSpeed * dt);
         setGpCoeffs((prev) =>
-          prev ? ouStepGPCoefficients(prev, decay) : prev
+          prev ? shoStepGPCoefficients(prev, dt, gpSpeed, damping) : prev
         );
       }
       lastTime = timestamp;
@@ -246,7 +246,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [gpSpeed]);
+  }, [gpSpeed, gpDamping]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];

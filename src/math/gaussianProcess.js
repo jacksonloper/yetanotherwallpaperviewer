@@ -134,6 +134,130 @@ export function ouStepGPCoefficients(gpCoeffs, decayFactor) {
   return { modes: newModes, dc: newDc, dcEnvelope: dcEnv };
 }
 
+/* ---------- Stochastic harmonic oscillator step -------------------------- */
+
+/**
+ * Compute the matrix exponential M = exp(A·dt) for the 2D SHO system
+ *   A = [[0, 1], [-ω², -2ζω]]
+ * Handles underdamped (ζ<1), critically damped (ζ≈1), and overdamped (ζ>1).
+ */
+function shoMatrixExp(dt, omega, damping) {
+  const alpha = damping * omega;
+  const eadt = Math.exp(-alpha * dt);
+
+  if (damping < 1 - 1e-6) {
+    // Underdamped
+    const omega_d = omega * Math.sqrt(1 - damping * damping);
+    const cos_wd = Math.cos(omega_d * dt);
+    const sin_wd = Math.sin(omega_d * dt);
+    return {
+      M11: eadt * (cos_wd + (alpha / omega_d) * sin_wd),
+      M12: eadt * sin_wd / omega_d,
+      M21: -eadt * (omega * omega / omega_d) * sin_wd,
+      M22: eadt * (cos_wd - (alpha / omega_d) * sin_wd),
+    };
+  } else if (damping > 1 + 1e-6) {
+    // Overdamped
+    const omega_d = omega * Math.sqrt(damping * damping - 1);
+    const cosh_wd = Math.cosh(omega_d * dt);
+    const sinh_wd = Math.sinh(omega_d * dt);
+    return {
+      M11: eadt * (cosh_wd + (alpha / omega_d) * sinh_wd),
+      M12: eadt * sinh_wd / omega_d,
+      M21: -eadt * (omega * omega / omega_d) * sinh_wd,
+      M22: eadt * (cosh_wd - (alpha / omega_d) * sinh_wd),
+    };
+  } else {
+    // Critically damped
+    return {
+      M11: eadt * (1 + alpha * dt),
+      M12: eadt * dt,
+      M21: -eadt * omega * omega * dt,
+      M22: eadt * (1 - alpha * dt),
+    };
+  }
+}
+
+/**
+ * Apply one exact SHO step to a single (position, velocity) pair.
+ *
+ * Uses Q = Σ_∞ − M Σ_∞ M^T for the noise covariance, where
+ *   Σ_∞ = diag(envelope², ω²·envelope²)
+ * is the stationary covariance (X and V are uncorrelated).
+ */
+function shoStep1D(x, v, M11, M12, M21, M22, envelope, omega) {
+  // Deterministic part
+  const newX0 = M11 * x + M12 * v;
+  const newV0 = M21 * x + M22 * v;
+
+  // Stationary covariance
+  const varX = envelope * envelope;
+  const varV = omega * omega * varX;
+
+  // Noise covariance Q = Σ_∞ − M Σ_∞ M^T
+  const q11 = varX - (M11 * M11 * varX + M12 * M12 * varV);
+  const q12 = -(M11 * M21 * varX + M12 * M22 * varV);
+  const q22 = varV - (M21 * M21 * varX + M22 * M22 * varV);
+
+  // Cholesky decomposition Q = L L^T
+  const L11 = Math.sqrt(Math.max(0, q11));
+  const L21 = L11 > 1e-15 ? q12 / L11 : 0;
+  const L22 = Math.sqrt(Math.max(0, q22 - L21 * L21));
+
+  const z1 = randn(Math.random);
+  const z2 = randn(Math.random);
+
+  return {
+    x: newX0 + L11 * z1,
+    v: newV0 + L21 * z1 + L22 * z2,
+  };
+}
+
+/**
+ * Advance GP coefficients by one stochastic harmonic oscillator (SHO) step.
+ *
+ * Each Fourier coefficient (a, b) and DC offset evolve as independent
+ * underdamped Langevin oscillators:
+ *   dX = V dt
+ *   dV = −ω² X dt − 2ζω V dt + σ dW
+ *
+ * with σ chosen so that the stationary marginal for X is N(0, envelope²),
+ * preserving the same stationary distribution as drawGPCoefficients.
+ *
+ * Uses the exact discrete-time solution via matrix exponential and
+ * noise covariance Q = Σ_∞ − M Σ_∞ M^T.
+ *
+ * @param {object} gpCoeffs  Current state (modes with optional va/vb velocities)
+ * @param {number} dt        Time step in seconds
+ * @param {number} omega     Natural frequency (animation speed)
+ * @param {number} damping   Damping ratio ζ (ζ < 1 underdamped, ζ ≥ 1 overdamped; clamped to min 1e-4)
+ * @returns {object} Updated gpCoeffs with new positions and velocities
+ */
+export function shoStepGPCoefficients(gpCoeffs, dt, omega, damping) {
+  const zeta = Math.max(damping, 1e-4);
+  const { M11, M12, M21, M22 } = shoMatrixExp(dt, omega, zeta);
+
+  const newModes = gpCoeffs.modes.map((m) => {
+    const { x: newA, v: newVa } = shoStep1D(
+      m.a, m.va ?? 0, M11, M12, M21, M22, m.envelope, omega
+    );
+    const { x: newB, v: newVb } = shoStep1D(
+      m.b, m.vb ?? 0, M11, M12, M21, M22, m.envelope, omega
+    );
+    return {
+      kx: m.kx, ky: m.ky, envelope: m.envelope,
+      a: newA, b: newB, va: newVa, vb: newVb,
+    };
+  });
+
+  const dcEnv = gpCoeffs.dcEnvelope ?? 0.1;
+  const { x: newDc, v: newVdc } = shoStep1D(
+    gpCoeffs.dc, gpCoeffs.vdc ?? 0, M11, M12, M21, M22, dcEnv, omega
+  );
+
+  return { modes: newModes, dc: newDc, vdc: newVdc, dcEnvelope: dcEnv };
+}
+
 /* ---------- GP evaluation ------------------------------------------------ */
 
 /**
