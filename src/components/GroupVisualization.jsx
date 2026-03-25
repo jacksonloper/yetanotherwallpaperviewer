@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   classify,
   rotationInfo,
@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, ouStepGPCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
@@ -182,7 +182,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, gpSpeed, showGroupElements }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -210,11 +210,43 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     [viewWidth, height]
   );
 
-  // GP coefficients (computed on CPU, rendered on GPU)
-  const gpCoeffs = useMemo(() => {
+  // GP coefficients: initialize from seed, then evolve via OU process
+  const initialCoeffs = useMemo(() => {
     if (!showGP || !latticeVectors) return null;
     return drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
   }, [showGP, latticeVectors, gpSeed, gpEll, gpN]);
+
+  const [gpCoeffs, setGpCoeffs] = useState(null);
+  const [prevInitialCoeffs, setPrevInitialCoeffs] = useState(null);
+
+  // Reset state when initial coefficients change (React "adjust state during render" pattern)
+  if (initialCoeffs !== prevInitialCoeffs) {
+    setPrevInitialCoeffs(initialCoeffs);
+    setGpCoeffs(initialCoeffs);
+  }
+
+  // Animation loop: evolve coefficients via Ornstein–Uhlenbeck when speed > 0
+  useEffect(() => {
+    if (!gpSpeed || gpSpeed <= 0) return;
+
+    let animId;
+    let lastTime = null;
+
+    const animate = (timestamp) => {
+      if (lastTime !== null) {
+        const dt = (timestamp - lastTime) / 1000; // seconds
+        const decay = Math.exp(-gpSpeed * dt);
+        setGpCoeffs((prev) =>
+          prev ? ouStepGPCoefficients(prev, decay) : prev
+        );
+      }
+      lastTime = timestamp;
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [gpSpeed]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];

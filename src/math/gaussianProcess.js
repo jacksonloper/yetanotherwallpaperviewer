@@ -60,7 +60,7 @@ export function computeDualLattice(v1, v2) {
  * @param {number} seed          Integer seed for the PRNG.
  * @param {number} [maxFreq=5]   Max absolute frequency index in each direction.
  * @param {number} [lengthScale=0.1]  Length scale for the spectral envelope.
- * @returns {{ modes: Array<{kx,ky,a,b}>, dc: number }}
+ * @returns {{ modes: Array<{kx,ky,a,b,envelope}>, dc: number, dcEnvelope: number }}
  */
 export function drawGPCoefficients(
   latticeVectors,
@@ -90,12 +90,48 @@ export function drawGPCoefficients(
       const a = randn(rng) * envelope;
       const b = randn(rng) * envelope;
 
-      modes.push({ kx, ky, a, b });
+      modes.push({ kx, ky, a, b, envelope });
     }
   }
 
   const dc = randn(rng) * 0.1;
-  return { modes, dc };
+  return { modes, dc, dcEnvelope: 0.1 };
+}
+
+/* ---------- Ornstein–Uhlenbeck step -------------------------------------- */
+
+/**
+ * Advance GP coefficients by one Ornstein–Uhlenbeck step.
+ *
+ * Each Fourier coefficient (a, b) and the DC offset evolve as independent
+ * OU processes with mean 0 and stationary variance equal to their original
+ * envelope².  This preserves the same stationary distribution as
+ * drawGPCoefficients.
+ *
+ * Discrete update:
+ *   X(t+Δt) = ρ X(t) + envelope √(1 − ρ²) Z,   Z ~ N(0,1)
+ * where ρ = decayFactor = exp(−θ Δt).
+ *
+ * @param {{ modes: Array<{kx,ky,a,b,envelope}>, dc: number, dcEnvelope: number }} gpCoeffs
+ * @param {number} decayFactor  exp(−speed × dt), in [0, 1].
+ * @returns {{ modes: Array<{kx,ky,a,b,envelope}>, dc: number, dcEnvelope: number }}
+ */
+export function ouStepGPCoefficients(gpCoeffs, decayFactor) {
+  const rho = Math.min(Math.max(decayFactor, 0), 1);
+  const noiseScale = Math.sqrt(Math.max(0, 1 - rho * rho));
+
+  const newModes = gpCoeffs.modes.map((m) => ({
+    kx: m.kx,
+    ky: m.ky,
+    envelope: m.envelope,
+    a: m.a * rho + m.envelope * noiseScale * randn(Math.random),
+    b: m.b * rho + m.envelope * noiseScale * randn(Math.random),
+  }));
+
+  const dcEnv = gpCoeffs.dcEnvelope ?? 0.1;
+  const newDc = gpCoeffs.dc * rho + dcEnv * noiseScale * randn(Math.random);
+
+  return { modes: newModes, dc: newDc, dcEnvelope: dcEnv };
 }
 
 /* ---------- GP evaluation ------------------------------------------------ */

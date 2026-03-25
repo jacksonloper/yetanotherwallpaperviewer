@@ -8,7 +8,7 @@
  *   - Viewport bounds, DC offset, mode/coset counts, normalization scale
  */
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 
 /* ───────────────────── GLSL shaders ───────────────────── */
@@ -252,27 +252,59 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
     if (!gpCoeffs || !cosetReps || !bounds) return;
 
     const { modes, dc } = gpCoeffs;
+    const n = Math.max(modes.length, 1);
 
-    // Dispose old textures
-    if (texturesRef.current.modes) texturesRef.current.modes.dispose();
-    if (texturesRef.current.cosets) texturesRef.current.cosets.dispose();
+    // Update modes texture: reuse in-place if width matches, else recreate
+    const existingModes = texturesRef.current.modes;
+    if (existingModes && existingModes.image.width === n) {
+      const data = existingModes.image.data;
+      for (let i = 0; i < modes.length; i++) {
+        data[i * 4 + 0] = modes[i].kx;
+        data[i * 4 + 1] = modes[i].ky;
+        data[i * 4 + 2] = modes[i].a;
+        data[i * 4 + 3] = modes[i].b;
+      }
+      existingModes.needsUpdate = true;
+    } else {
+      if (existingModes) existingModes.dispose();
+      const modesTex = buildModesTexture(modes);
+      texturesRef.current.modes = modesTex;
+      material.uniforms.u_modesTexture.value = modesTex;
+      material.uniforms.u_modesTexWidth.value = n;
+    }
 
-    // Build new textures
-    const modesTex = buildModesTexture(modes);
-    const cosetsTex = buildCosetsTexture(cosetReps);
-    texturesRef.current = { modes: modesTex, cosets: cosetsTex };
+    // Update cosets texture: reuse in-place if width matches, else recreate
+    const existingCosets = texturesRef.current.cosets;
+    const cn = Math.max(cosetReps.length, 1);
+    if (existingCosets && existingCosets.image.width === cn) {
+      const data = existingCosets.image.data;
+      for (let i = 0; i < cosetReps.length; i++) {
+        data[i * 4 + 0] = cosetReps[i].a;
+        data[i * 4 + 1] = cosetReps[i].b;
+        data[i * 4 + 2] = cosetReps[i].c;
+        data[i * 4 + 3] = cosetReps[i].d;
+        const row1 = cn * 4;
+        data[row1 + i * 4 + 0] = cosetReps[i].tx;
+        data[row1 + i * 4 + 1] = cosetReps[i].ty;
+        data[row1 + i * 4 + 2] = 0;
+        data[row1 + i * 4 + 3] = 0;
+      }
+      existingCosets.needsUpdate = true;
+    } else {
+      if (existingCosets) existingCosets.dispose();
+      const cosetsTex = buildCosetsTexture(cosetReps);
+      texturesRef.current.cosets = cosetsTex;
+      material.uniforms.u_cosetsTexture.value = cosetsTex;
+      material.uniforms.u_cosetsTexWidth.value = cn;
+    }
 
-    // Update uniforms
+    // Update remaining uniforms
     material.uniforms.u_boundsMin.value.set(bounds.minX, bounds.minY);
     material.uniforms.u_boundsMax.value.set(bounds.maxX, bounds.maxY);
     material.uniforms.u_dc.value = dc;
     material.uniforms.u_numModes.value = modes.length;
     material.uniforms.u_numCosets.value = cosetReps.length;
     material.uniforms.u_normScale.value = computeNormScale(modes);
-    material.uniforms.u_modesTexture.value = modesTex;
-    material.uniforms.u_cosetsTexture.value = cosetsTex;
-    material.uniforms.u_modesTexWidth.value = Math.max(modes.length, 1);
-    material.uniforms.u_cosetsTexWidth.value = Math.max(cosetReps.length, 1);
 
     // Render
     renderer.render(scene, camera);

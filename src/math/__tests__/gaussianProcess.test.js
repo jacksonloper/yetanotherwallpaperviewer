@@ -5,6 +5,7 @@ import {
   evaluateGP,
   extractPointGroup,
   generateGPHeatmap,
+  ouStepGPCoefficients,
 } from '../gaussianProcess.js';
 import { identity, rotation, reflection, translation } from '../isometry.js';
 
@@ -81,6 +82,88 @@ describe('drawGPCoefficients', () => {
     // maxFreq=3: n1 in [-3,3], n2 in [-3,3]
     // half-plane: n1>0 → 3*7=21 modes, plus n1=0 & n2>0 → 3 modes = 24
     expect(c.modes.length).toBe(24);
+  });
+
+  it('includes envelope and dcEnvelope in output', () => {
+    const c = drawGPCoefficients(lv, 1, 3, 0.1);
+    expect(c.dcEnvelope).toBe(0.1);
+    for (const m of c.modes) {
+      expect(m.envelope).toBeDefined();
+      expect(m.envelope).toBeGreaterThan(0);
+      expect(m.envelope).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Ornstein–Uhlenbeck step                                            */
+/* ------------------------------------------------------------------ */
+
+describe('ouStepGPCoefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+
+  it('preserves mode count, kx, ky, and envelope values', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = ouStepGPCoefficients(initial, 0.9);
+    expect(stepped.modes.length).toBe(initial.modes.length);
+    for (let i = 0; i < initial.modes.length; i++) {
+      expect(stepped.modes[i].kx).toBe(initial.modes[i].kx);
+      expect(stepped.modes[i].ky).toBe(initial.modes[i].ky);
+      expect(stepped.modes[i].envelope).toBe(initial.modes[i].envelope);
+    }
+  });
+
+  it('returns identical coefficients when decayFactor=1 (no evolution)', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = ouStepGPCoefficients(initial, 1.0);
+    expect(stepped.dc).toBe(initial.dc);
+    for (let i = 0; i < initial.modes.length; i++) {
+      expect(stepped.modes[i].a).toBe(initial.modes[i].a);
+      expect(stepped.modes[i].b).toBe(initial.modes[i].b);
+    }
+  });
+
+  it('produces fresh iid draws when decayFactor=0', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    // With decay=0, output is independent of input (pure noise)
+    const stepped = ouStepGPCoefficients(initial, 0);
+    // Values should generally differ (probabilistically)
+    const allSame = initial.modes.every(
+      (m, i) => m.a === stepped.modes[i].a && m.b === stepped.modes[i].b
+    );
+    expect(allSame).toBe(false);
+  });
+
+  it('preserves the stationary variance (Monte Carlo check)', () => {
+    // Run many OU steps and check that empirical variance ≈ envelope²
+    const initial = drawGPCoefficients(lv, 7, 2, 0.1);
+    const decay = 0.9; // moderate mixing
+
+    let coeffs = initial;
+    const burnIn = 200;
+    const nSamples = 2000;
+    // Track variance of the first mode's 'a' coefficient
+    const env0 = initial.modes[0].envelope;
+    let sumSq = 0;
+
+    for (let i = 0; i < burnIn + nSamples; i++) {
+      coeffs = ouStepGPCoefficients(coeffs, decay);
+      if (i >= burnIn) {
+        sumSq += coeffs.modes[0].a * coeffs.modes[0].a;
+      }
+    }
+
+    const empiricalVar = sumSq / nSamples;
+    const expectedVar = env0 * env0;
+    // Allow 40% relative tolerance (Monte Carlo noise)
+    expect(empiricalVar).toBeGreaterThan(expectedVar * 0.6);
+    expect(empiricalVar).toBeLessThan(expectedVar * 1.4);
+  });
+
+  it('preserves dcEnvelope through steps', () => {
+    const initial = drawGPCoefficients(lv, 42, 3);
+    const stepped = ouStepGPCoefficients(initial, 0.9);
+    expect(stepped.dcEnvelope).toBe(initial.dcEnvelope);
   });
 });
 
