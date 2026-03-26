@@ -65,6 +65,7 @@ function randomColor(rng) {
  * @param {number}  params.centerSeed     Seed for random centre point.
  * @param {number}  params.gpSeed         Seed for GP draw.
  * @param {number}  params.gpScale        Overall scale multiplier for GP (length scale).
+ * @param {number}  [params.gpMagnitude=1] Magnitude multiplier applied to f before softplus.
  * @param {number}  [params.gpN=5]        Fourier truncation.
  * @param {number}  [params.gridScale=0.5] Fraction of pixel resolution for the eikonal grid.
  * @returns {{ label: Int32Array, colors: string[], gridW: number, gridH: number }}
@@ -79,6 +80,7 @@ export function computeFundamentalDomains({
   centerSeed,
   gpSeed,
   gpScale,
+  gpMagnitude = 1,
   gpN = 5,
   gridScale = 0.5,
 }) {
@@ -141,8 +143,8 @@ export function computeFundamentalDomains({
       }
       const fVal = sum / cosetReps.length;
 
-      // softplus(f) as speediness: always positive
-      speed[r * gridW + c] = softplus(fVal);
+      // softplus(magnitude * f) as speediness: always positive
+      speed[r * gridW + c] = softplus(gpMagnitude * fVal);
     }
   }
 

@@ -52,6 +52,7 @@ function hslToRgb(hslStr) {
  * @param {number} props.centerSeed      Seed for center point.
  * @param {number} props.gpSeed          Seed for GP draw.
  * @param {number} props.gpScale         GP length scale.
+ * @param {number} props.gpMagnitude     Magnitude multiplier for f before softplus.
  * @param {number} props.gpN             GP truncation.
  */
 export default function FundamentalDomainsCanvas({
@@ -64,6 +65,7 @@ export default function FundamentalDomainsCanvas({
   centerSeed,
   gpSeed,
   gpScale,
+  gpMagnitude,
   gpN,
 }) {
   const canvasRef = useRef(null);
@@ -81,10 +83,11 @@ export default function FundamentalDomainsCanvas({
       centerSeed,
       gpSeed,
       gpScale,
+      gpMagnitude,
       gpN,
       gridScale: 0.5,
     });
-  }, [elements, cosetReps, latticeVectors, bounds, width, height, centerSeed, gpSeed, gpScale, gpN]);
+  }, [elements, cosetReps, latticeVectors, bounds, width, height, centerSeed, gpSeed, gpScale, gpMagnitude, gpN]);
 
   // Render to canvas
   useEffect(() => {

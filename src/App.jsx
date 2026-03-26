@@ -113,6 +113,7 @@ export default function App() {
   const [fdCenterSeed, setFdCenterSeed] = useState(1)
   const [fdGpSeed, setFdGpSeed] = useState(1)
   const [fdGpScale, setFdGpScale] = useState(0.1)
+  const [fdGpMagnitude, setFdGpMagnitude] = useState(1)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -390,6 +391,18 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
+            <label className="slider-inline">
+              Magnitude: {fdGpMagnitude.toFixed(1)}
+              <input
+                type="range"
+                min="0"
+                max="20"
+                step="0.1"
+                value={fdGpMagnitude}
+                onChange={(e) => setFdGpMagnitude(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
             <button className="btn-secondary" onClick={() => setFdCenterSeed(s => s + 1)}>
               🎯 New Center
             </button>
@@ -436,6 +449,7 @@ export default function App() {
           fdCenterSeed={fdCenterSeed}
           fdGpSeed={fdGpSeed}
           fdGpScale={fdGpScale}
+          fdGpMagnitude={fdGpMagnitude}
         />
       )}
     </div>

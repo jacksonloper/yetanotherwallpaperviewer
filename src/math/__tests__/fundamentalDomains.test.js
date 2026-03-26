@@ -139,4 +139,81 @@ describe('computeFundamentalDomains', () => {
       expect(result.label[i]).toBeGreaterThanOrEqual(0);
     }
   });
+
+  it('magnitude zero gives Euclidean Voronoi (uniform speed)', () => {
+    // With gpMagnitude=0, softplus(0 * f) = softplus(0) = ln(2) everywhere
+    // regardless of the GP draw, so changing gpSeed should have no effect
+    const r1 = computeFundamentalDomains({
+      elements,
+      cosetReps,
+      latticeVectors,
+      bounds,
+      width: 40,
+      height: 30,
+      centerSeed: 1,
+      gpSeed: 1,
+      gpScale: 0.1,
+      gpMagnitude: 0,
+      gpN: 3,
+      gridScale: 0.5,
+    });
+
+    const r2 = computeFundamentalDomains({
+      elements,
+      cosetReps,
+      latticeVectors,
+      bounds,
+      width: 40,
+      height: 30,
+      centerSeed: 1,
+      gpSeed: 99,
+      gpScale: 0.1,
+      gpMagnitude: 0,
+      gpN: 3,
+      gridScale: 0.5,
+    });
+
+    // Both should produce identical labels: uniform speed → pure Voronoi
+    for (let i = 0; i < r1.label.length; i++) {
+      expect(r1.label[i]).toBe(r2.label[i]);
+    }
+  });
+
+  it('different magnitudes produce different label patterns', () => {
+    const rLow = computeFundamentalDomains({
+      elements,
+      cosetReps,
+      latticeVectors,
+      bounds,
+      width: 40,
+      height: 30,
+      centerSeed: 1,
+      gpSeed: 1,
+      gpScale: 0.1,
+      gpMagnitude: 1,
+      gpN: 3,
+      gridScale: 0.5,
+    });
+
+    const rHigh = computeFundamentalDomains({
+      elements,
+      cosetReps,
+      latticeVectors,
+      bounds,
+      width: 40,
+      height: 30,
+      centerSeed: 1,
+      gpSeed: 1,
+      gpScale: 0.1,
+      gpMagnitude: 10,
+      gpN: 3,
+      gridScale: 0.5,
+    });
+
+    let diffCount = 0;
+    for (let i = 0; i < rLow.label.length; i++) {
+      if (rLow.label[i] !== rHigh.label[i]) diffCount++;
+    }
+    expect(diffCount).toBeGreaterThan(0);
+  });
 });

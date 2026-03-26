@@ -183,7 +183,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showFD, gpSeed, gpEll, gpN, gpSpeed, gpDamping, showGroupElements, fdCenterSeed, fdGpSeed, fdGpScale }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showFD, gpSeed, gpEll, gpN, gpSpeed, gpDamping, showGroupElements, fdCenterSeed, fdGpSeed, fdGpScale, fdGpMagnitude }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -354,6 +354,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             centerSeed={fdCenterSeed}
             gpSeed={fdGpSeed}
             gpScale={fdGpScale}
+            gpMagnitude={fdGpMagnitude}
             gpN={gpN}
           />
         )}
