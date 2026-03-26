@@ -2,8 +2,8 @@
  * Fundamental domains computation.
  *
  * Given a wallpaper group (its elements / coset reps), a GP draw, and
- * a random centre point, this module:
- *   1. Generates source positions by applying group elements to the centre.
+ * a random center point, this module:
+ *   1. Generates source positions by applying group elements to the center.
  *   2. Snaps those positions to a fine square grid (same resolution as the
  *      GP fragment shader).
  *   3. Evaluates a symmetrized GP on the grid to compute a speed field
@@ -93,7 +93,7 @@ export function computeFundamentalDomains({
 
   // 2. Random centre point (inside one fundamental domain ≈ unit cell)
   const centerRng = mulberry32(centerSeed);
-  const cx = centerRng() - 0.5; // in [-0.5, 0.5]
+  const cx = centerRng() - 0.5; // in [-0.5, 0.5)
   const cy = centerRng() - 0.5;
 
   // 3. Apply all visible group elements to generate source positions

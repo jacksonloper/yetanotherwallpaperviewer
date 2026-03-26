@@ -49,7 +49,7 @@ function hslToRgb(hslStr) {
  * @param {{minX,maxX,minY,maxY}} props.bounds  Viewport bounds.
  * @param {number} props.width           Canvas width in pixels.
  * @param {number} props.height          Canvas height in pixels.
- * @param {number} props.centerSeed      Seed for centre point.
+ * @param {number} props.centerSeed      Seed for center point.
  * @param {number} props.gpSeed          Seed for GP draw.
  * @param {number} props.gpScale         GP length scale.
  * @param {number} props.gpN             GP truncation.
