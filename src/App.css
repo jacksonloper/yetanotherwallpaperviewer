@@ -6,12 +6,12 @@
 }
 
 h1 {
-  color: #2c3e50;
+  color: var(--color-heading);
   margin-bottom: 4px;
 }
 
 .subtitle {
-  color: #666;
+  color: var(--color-text-secondary);
   margin-top: 0;
   margin-bottom: 16px;
 }
@@ -20,15 +20,15 @@ h1 {
 .panel {
   margin-bottom: 16px;
   padding: 14px 16px;
-  background: #f7f9fb;
+  background: var(--color-panel-bg);
   border-radius: 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--color-panel-border);
 }
 
 .panel-heading {
   margin: 0 0 10px;
   font-size: 16px;
-  color: #2c3e50;
+  color: var(--color-heading);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -37,7 +37,7 @@ h1 {
 /* ── Lattice section (uses .panel) ── */
 .lattice-info {
   font-size: 14px;
-  color: #555;
+  color: var(--color-text-secondary);
   margin: 0 0 10px;
 }
 
@@ -69,7 +69,7 @@ h1 {
 .slider-label {
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--color-text-label);
   min-width: 50px;
   text-align: center;
 }
@@ -83,7 +83,7 @@ h1 {
 .slider-info {
   margin-top: 6px;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 /* Not well-rounded controls */
@@ -138,7 +138,7 @@ h1 {
 
 .slider-value {
   font-size: 13px;
-  color: #555;
+  color: var(--color-text-secondary);
   min-width: 40px;
   display: inline-block;
 }
@@ -150,17 +150,17 @@ h1 {
 
 .constraint-hint {
   font-size: 12px;
-  color: #888;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
 .constraint-note {
   font-size: 12px;
-  color: #b8860b;
+  color: var(--color-note-text);
   font-style: italic;
   margin-top: 4px;
   padding: 4px 8px;
-  background: #fff8e1;
+  background: var(--color-note-bg);
   border-radius: 4px;
 }
 
@@ -188,7 +188,7 @@ h1 {
   align-items: center;
   flex-wrap: wrap;
   padding: 8px 0 8px 4px;
-  border-top: 1px solid #e2e6ea;
+  border-top: 1px solid var(--color-separator);
 }
 
 .slider-inline {
@@ -196,7 +196,7 @@ h1 {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #444;
+  color: var(--color-text-label);
   white-space: nowrap;
 }
 
@@ -206,7 +206,7 @@ h1 {
   align-items: center;
   flex-wrap: wrap;
   padding-top: 8px;
-  border-top: 1px solid #e2e6ea;
+  border-top: 1px solid var(--color-separator);
 }
 
 .display-actions {
@@ -214,7 +214,7 @@ h1 {
   gap: 10px;
   align-items: center;
   padding-top: 10px;
-  border-top: 1px solid #e2e6ea;
+  border-top: 1px solid var(--color-separator);
   margin-top: 8px;
 }
 
@@ -235,23 +235,23 @@ h1 {
 /* ── Status ── */
 .timing-info {
   font-size: 13px;
-  color: #888;
+  color: var(--color-text-muted);
   margin-bottom: 8px;
 }
 
 .error-box {
-  background: #fdedec;
-  border: 1px solid #e74c3c;
-  color: #c0392b;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 16px;
 }
 
 .warning-box {
-  background: #fef9e7;
-  border: 1px solid #f39c12;
-  color: #7d6608;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 16px;
@@ -259,8 +259,8 @@ h1 {
 
 /* Validated input cue */
 .input-invalid {
-  border: 2px solid #e74c3c !important;
-  background-color: #fff0f0 !important;
+  border: 2px solid var(--color-error-border) !important;
+  background-color: var(--color-invalid-bg) !important;
   outline: none;
 }
 
@@ -306,7 +306,7 @@ h1 {
 .variant-radios {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #e2e6ea;
+  border-top: 1px solid var(--color-separator);
   display: flex;
   gap: 12px;
   align-items: center;
@@ -317,7 +317,7 @@ h1 {
 .variant-label {
   font-weight: 600;
   font-size: 13px;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .variant-radio-label {
@@ -345,7 +345,7 @@ h1 {
 
 .group-category-label {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--color-category-label);
   min-width: 0;
   white-space: nowrap;
   flex-shrink: 0;
@@ -362,10 +362,10 @@ h1 {
   align-items: center;
   justify-content: center;
   padding: 5px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--color-btn-border);
   border-radius: 16px;
-  background: #fff;
-  color: #495057;
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -376,24 +376,24 @@ h1 {
 }
 
 .group-btn:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: var(--color-btn-hover-bg);
+  border-color: var(--color-btn-hover-border);
 }
 
 .group-btn--selected {
-  background: #2c3e50;
-  color: #fff;
-  border-color: #2c3e50;
+  background: var(--color-btn-selected-bg);
+  color: var(--color-btn-selected-text);
+  border-color: var(--color-btn-selected-bg);
 }
 
 .group-btn--selected:hover {
-  background: #34495e;
-  border-color: #34495e;
+  background: var(--color-btn-selected-hover-bg);
+  border-color: var(--color-btn-selected-hover-bg);
 }
 
 .group-description {
   font-size: 13px;
-  color: #555;
+  color: var(--color-text-secondary);
   padding: 4px 0 0;
 }
 

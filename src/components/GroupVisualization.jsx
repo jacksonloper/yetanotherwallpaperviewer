@@ -47,7 +47,7 @@ function RotationMarker({ cx, cy, order, svgCx, svgCy }) {
       <polygon
         points={pts.join(' ')}
         fill={color}
-        stroke="#222"
+        stroke="var(--color-svg-stroke, #222)"
         strokeWidth="1"
         opacity="0.85"
       />
@@ -64,7 +64,7 @@ function RotationMarker({ cx, cy, order, svgCx, svgCy }) {
     <polygon
       points={points.join(' ')}
       fill={color}
-      stroke="#222"
+      stroke="var(--color-svg-stroke, #222)"
       strokeWidth="1"
       opacity="0.85"
     />
@@ -145,7 +145,7 @@ function FShape({ isometry, svgCx, svgCy, fOffset }) {
     return toSvg(p.x, p.y, svgCx, svgCy);
   });
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
-  return <path d={d} fill="#2c3e50" fillOpacity="0.35" stroke="#2c3e50" strokeWidth="0.5" />;
+  return <path d={d} fill="var(--color-fundamental-domain, #2c3e50)" fillOpacity="0.35" stroke="var(--color-fundamental-domain, #2c3e50)" strokeWidth="0.5" />;
 }
 
 /**
@@ -324,7 +324,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
   return (
     <div>
-      <div style={{ marginBottom: '8px', fontSize: '14px', color: '#666' }}>
+      <div style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--color-text-secondary, #666)' }}>
         Elements: {elements?.length || 0} |{' '}
         Rot: {counts.rotation} | Refl: {counts.reflection} |{' '}
         Glide: {counts['glide-reflection']} | Trans: {counts.translation}
@@ -349,8 +349,8 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             position: showGP ? 'absolute' : 'relative',
             top: 0,
             left: 0,
-            border: '1px solid #ccc',
-            background: showGP ? 'transparent' : '#fafafa',
+            border: '1px solid var(--color-svg-container-border, #ccc)',
+            background: showGP ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
             borderRadius: '4px',
           }}
         >
@@ -363,7 +363,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
                 cx={sp.x}
                 cy={sp.y}
                 r="3"
-                fill="#999"
+                fill="var(--color-svg-muted, #999)"
                 opacity="0.5"
               />
             );
@@ -414,13 +414,13 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
           {/* Origin marker */}
           {showGroupElements !== false && (
-            <circle cx={svgCx} cy={svgCy} r="4" fill="#222" />
+            <circle cx={svgCx} cy={svgCy} r="4" fill="var(--color-svg-stroke, #222)" />
           )}
         </svg>
       </div>
 
       {/* Legend */}
-      <div style={{ marginTop: '8px', fontSize: '13px', display: 'flex', gap: '16px', flexWrap: 'wrap', color: '#555' }}>
+      <div style={{ marginTop: '8px', fontSize: '13px', display: 'flex', gap: '16px', flexWrap: 'wrap', color: 'var(--color-text-secondary, #555)' }}>
         <span>● Lattice point</span>
         <span style={{ color: '#e74c3c' }}>◆ 2-fold rotation</span>
         <span style={{ color: '#2ecc71' }}>▲ 3-fold rotation</span>
