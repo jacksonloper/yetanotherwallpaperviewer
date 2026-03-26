@@ -103,12 +103,16 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
+  const [showFD, setShowFD] = useState(false)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
   const [gpN, setGpN] = useState(5)
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
+  const [fdCenterSeed, setFdCenterSeed] = useState(1)
+  const [fdGpSeed, setFdGpSeed] = useState(1)
+  const [fdGpScale, setFdGpScale] = useState(0.1)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -265,8 +269,18 @@ export default function App() {
             Show F
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
+            <input type="checkbox" checked={showGP} onChange={(e) => {
+              if (e.target.checked) setShowFD(false)
+              setShowGP(e.target.checked)
+            }} />
             Show GP
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showFD} onChange={(e) => {
+              if (e.target.checked) setShowGP(false)
+              setShowFD(e.target.checked)
+            }} />
+            Show Fundamental Domains
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
@@ -361,6 +375,30 @@ export default function App() {
           </div>
         )}
 
+        {/* Fundamental Domains controls — revealed when Show FD is on */}
+        {showFD && (
+          <div className="display-sub">
+            <label className="slider-inline">
+              GP scale (ℓ): {fdGpScale.toFixed(3)}
+              <input
+                type="range"
+                min="0.001"
+                max="0.3"
+                step="0.001"
+                value={fdGpScale}
+                onChange={(e) => setFdGpScale(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <button className="btn-secondary" onClick={() => setFdCenterSeed(s => s + 1)}>
+              🎯 New Center
+            </button>
+            <button className="btn-secondary" onClick={() => setFdGpSeed(s => s + 1)}>
+              🎲 New f
+            </button>
+          </div>
+        )}
+
         <div className="display-actions">
           <button className="btn-copy" onClick={copyToClipboard}>
             📋 Copy JSON
@@ -388,12 +426,16 @@ export default function App() {
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
+          showFD={showFD}
           showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}
           gpN={gpN}
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
+          fdCenterSeed={fdCenterSeed}
+          fdGpSeed={fdGpSeed}
+          fdGpScale={fdGpScale}
         />
       )}
     </div>

@@ -9,6 +9,7 @@ import {
 import { generateLatticePoints } from '../math/groupGenerator.js';
 import { drawGPCoefficients, shoStepGPCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
+import FundamentalDomainsCanvas from './FundamentalDomainsCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -182,7 +183,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, gpSpeed, gpDamping, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showFD, gpSeed, gpEll, gpN, gpSpeed, gpDamping, showGroupElements, fdCenterSeed, fdGpSeed, fdGpScale }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -341,16 +342,32 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
           />
         )}
 
+        {/* Fundamental Domains canvas (behind SVG) */}
+        {showFD && elements && cosetReps && latticeVectors && (
+          <FundamentalDomainsCanvas
+            elements={elements}
+            cosetReps={cosetReps}
+            latticeVectors={latticeVectors}
+            bounds={gpBounds}
+            width={width}
+            height={height}
+            centerSeed={fdCenterSeed}
+            gpSeed={fdGpSeed}
+            gpScale={fdGpScale}
+            gpN={gpN}
+          />
+        )}
+
         {/* SVG overlay for group elements */}
         <svg
           width={width}
           height={height}
           style={{
-            position: showGP ? 'absolute' : 'relative',
+            position: (showGP || showFD) ? 'absolute' : 'relative',
             top: 0,
             left: 0,
             border: '1px solid var(--color-svg-container-border, #ccc)',
-            background: showGP ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
+            background: (showGP || showFD) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
             borderRadius: '4px',
           }}
         >
