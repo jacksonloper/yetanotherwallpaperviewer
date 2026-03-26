@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getWallpaperTypeByName,
   getGeneratorsForVariant,
@@ -485,6 +486,10 @@ export default function App() {
           fdResetTrigger={fdResetTrigger}
         />
       )}
+
+      <div style={{ marginTop: '24px', textAlign: 'right', fontSize: '11px', opacity: 0.4 }}>
+        <Link to="/dev" style={{ color: 'inherit', textDecoration: 'none' }}>🔧 dev</Link>
+      </div>
     </div>
   )
 }
