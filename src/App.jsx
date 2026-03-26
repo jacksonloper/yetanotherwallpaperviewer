@@ -114,6 +114,9 @@ export default function App() {
   const [fdGpSeed, setFdGpSeed] = useState(1)
   const [fdGpScale, setFdGpScale] = useState(0.1)
   const [fdGpMagnitude, setFdGpMagnitude] = useState(1)
+  const [fdIterSpeed, setFdIterSpeed] = useState(5)
+  const [fdGridScale, setFdGridScale] = useState(0.5)
+  const [fdResetTrigger, setFdResetTrigger] = useState(0)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -380,6 +383,30 @@ export default function App() {
         {showFD && (
           <div className="display-sub">
             <label className="slider-inline">
+              Speed: {fdIterSpeed} iter/frame
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                value={fdIterSpeed}
+                onChange={(e) => setFdIterSpeed(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Resolution: {fdGridScale.toFixed(2)}× ({Math.round(700 * fdGridScale)}×{Math.round(500 * fdGridScale)})
+              <input
+                type="range"
+                min="0.1"
+                max="2"
+                step="0.05"
+                value={fdGridScale}
+                onChange={(e) => setFdGridScale(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
               GP scale (ℓ): {fdGpScale.toFixed(3)}
               <input
                 type="range"
@@ -403,6 +430,9 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
+            <button className="btn-secondary" onClick={() => setFdResetTrigger(s => s + 1)}>
+              🔄 Restart from Seeds
+            </button>
             <button className="btn-secondary" onClick={() => setFdCenterSeed(s => s + 1)}>
               🎯 New Center
             </button>
@@ -450,6 +480,9 @@ export default function App() {
           fdGpSeed={fdGpSeed}
           fdGpScale={fdGpScale}
           fdGpMagnitude={fdGpMagnitude}
+          fdIterSpeed={fdIterSpeed}
+          fdGridScale={fdGridScale}
+          fdResetTrigger={fdResetTrigger}
         />
       )}
     </div>

@@ -1,16 +1,21 @@
 /**
- * GPU-accelerated fundamental domain rendering via Jacobi relaxation.
+ * GPU-accelerated fundamental domain rendering via animated Jacobi relaxation.
  *
  * Replaces the CPU-based eikonal FMM with a GPU-based iterative solver:
  *   1. Evaluates the symmetrized GP speed field on the GPU via softplus,
  *      clamped with a minimum speed to prevent instability.
  *   2. Initializes source positions (computed on CPU) and labels.
- *   3. Runs Jacobi relaxation iterations (ping-pong rendering) to solve
- *      the eikonal equation on the GPU.
- *   4. Renders the final label → color mapping.
+ *   3. Runs Jacobi relaxation iterations via requestAnimationFrame,
+ *      allowing the user to watch the wavefront propagate.
+ *   4. Renders the current label → color mapping each frame.
  *
  * Distances are gated with a minimum speed threshold so that costs
  * (1/speed) never blow up, keeping the solver stable.
+ *
+ * Props:
+ *   iterSpeed    — Jacobi iterations per animation frame (0 = paused).
+ *   gridScale    — Resolution multiplier (e.g. 0.5 = half-pixel grid).
+ *   resetTrigger — Increment to restart iteration from seeds.
  */
 
 import { useRef, useEffect } from 'react';
@@ -298,7 +303,7 @@ function randomColorRGB(rng) {
 
 /* ---------- Constants ---------------------------------------------------- */
 
-const GRID_SCALE = 0.5;
+const DEFAULT_GRID_SCALE = 0.5;
 const MIN_SPEED = 0.01;
 
 /* ---------- Render-target factory ---------------------------------------- */
@@ -330,6 +335,9 @@ function makeRT(w, h) {
  * @param {number} props.gpScale         GP length scale.
  * @param {number} props.gpMagnitude     Magnitude multiplier for f before softplus.
  * @param {number} props.gpN             GP truncation.
+ * @param {number} [props.iterSpeed=5]   Jacobi iterations per animation frame (0 = paused).
+ * @param {number} [props.gridScale=0.5] Resolution multiplier for the grid.
+ * @param {number} [props.resetTrigger=0] Increment to restart iteration from seeds.
  */
 export default function FDShaderCanvas({
   elements,
@@ -343,12 +351,16 @@ export default function FDShaderCanvas({
   gpScale,
   gpMagnitude,
   gpN,
+  iterSpeed = 5,
+  gridScale = DEFAULT_GRID_SCALE,
+  resetTrigger = 0,
 }) {
   const canvasRef = useRef(null);
+  const iterLabelRef = useRef(null);
   const stateRef = useRef(null);
 
-  const gridW = Math.max(2, Math.round(width * GRID_SCALE));
-  const gridH = Math.max(2, Math.round(height * GRID_SCALE));
+  const gridW = Math.max(2, Math.round(width * gridScale));
+  const gridH = Math.max(2, Math.round(height * gridScale));
 
   /* ── Initialise Three.js once ── */
   useEffect(() => {
@@ -356,14 +368,13 @@ export default function FDShaderCanvas({
     if (!canvas) return;
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, preserveDrawingBuffer: true });
-    renderer.setSize(gridW, gridH, false);
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const geometry = new THREE.PlaneGeometry(2, 2);
 
     /* — materials — */
-    const speedMaterial = new THREE.ShaderMaterial({
+    const speedMat = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: speedFieldShader,
       uniforms: {
@@ -381,7 +392,7 @@ export default function FDShaderCanvas({
       },
     });
 
-    const jacobiMaterial = new THREE.ShaderMaterial({
+    const jacobiMat = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: jacobiShader,
       uniforms: {
@@ -391,7 +402,7 @@ export default function FDShaderCanvas({
       },
     });
 
-    const displayMaterial = new THREE.ShaderMaterial({
+    const displayMat = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: displayShader,
       uniforms: {
@@ -401,81 +412,74 @@ export default function FDShaderCanvas({
       },
     });
 
-    const copyMaterial = new THREE.ShaderMaterial({
+    const copyMat = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: copyShader,
       uniforms: { u_input: { value: null } },
     });
 
-    const mesh = new THREE.Mesh(geometry, speedMaterial);
+    const mesh = new THREE.Mesh(geometry, speedMat);
     scene.add(mesh);
-
-    const speedRT = makeRT(gridW, gridH);
-    const rt1 = makeRT(gridW, gridH);
-    const rt2 = makeRT(gridW, gridH);
 
     stateRef.current = {
       renderer, scene, camera, geometry, mesh,
-      speedMaterial, jacobiMaterial, displayMaterial, copyMaterial,
-      speedRT, rt1, rt2,
+      speedMat, jacobiMat, displayMat, copyMat,
+      speedRT: null, rt1: null, rt2: null,
+      readRT: null, writeRT: null,
+      iterCount: 0, maxIter: 0,
       disposables: [],
-      gridW, gridH,
+      gridW: 0, gridH: 0,
     };
 
     return () => {
       geometry.dispose();
-      speedMaterial.dispose();
-      jacobiMaterial.dispose();
-      displayMaterial.dispose();
-      copyMaterial.dispose();
-      speedRT.dispose();
-      rt1.dispose();
-      rt2.dispose();
-      renderer.dispose();
+      speedMat.dispose();
+      jacobiMat.dispose();
+      displayMat.dispose();
+      copyMat.dispose();
       if (stateRef.current) {
+        if (stateRef.current.speedRT) stateRef.current.speedRT.dispose();
+        if (stateRef.current.rt1) stateRef.current.rt1.dispose();
+        if (stateRef.current.rt2) stateRef.current.rt2.dispose();
         for (const tex of stateRef.current.disposables) tex.dispose();
       }
+      renderer.dispose();
       stateRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Resize render targets when grid dims change ── */
-  useEffect(() => {
-    const st = stateRef.current;
-    if (!st) return;
-    if (st.gridW === gridW && st.gridH === gridH) return;
-
-    st.renderer.setSize(gridW, gridH, false);
-    st.speedRT.dispose();
-    st.rt1.dispose();
-    st.rt2.dispose();
-    st.speedRT = makeRT(gridW, gridH);
-    st.rt1 = makeRT(gridW, gridH);
-    st.rt2 = makeRT(gridW, gridH);
-    st.gridW = gridW;
-    st.gridH = gridH;
-  }, [gridW, gridH]);
-
-  /* ── Main computation & rendering ── */
+  /* ── Setup: compute speed field, initialise seeds, reset iteration ── */
   useEffect(() => {
     const st = stateRef.current;
     if (!st) return;
     if (!elements || !cosetReps || !latticeVectors || !bounds) return;
 
     const { renderer, scene, camera, mesh,
-      speedMaterial, jacobiMaterial, displayMaterial, copyMaterial,
-      speedRT, rt1, rt2 } = st;
+      speedMat, jacobiMat, displayMat, copyMat } = st;
 
-    /* 1. Dispose previous per-frame textures */
+    /* 1. Resize render targets if grid dimensions changed */
+    if (st.gridW !== gridW || st.gridH !== gridH || !st.speedRT) {
+      renderer.setSize(gridW, gridH, false);
+      if (st.speedRT) st.speedRT.dispose();
+      if (st.rt1) st.rt1.dispose();
+      if (st.rt2) st.rt2.dispose();
+      st.speedRT = makeRT(gridW, gridH);
+      st.rt1 = makeRT(gridW, gridH);
+      st.rt2 = makeRT(gridW, gridH);
+      st.gridW = gridW;
+      st.gridH = gridH;
+    }
+
+    /* 2. Dispose previous per-frame textures */
     for (const tex of st.disposables) tex.dispose();
     st.disposables = [];
 
-    /* 2. Draw GP coefficients */
+    /* 3. Draw GP coefficients */
     const gpCoeffs = drawGPCoefficients(latticeVectors, gpSeed, gpN ?? 5, gpScale);
     const { modes, dc } = gpCoeffs;
 
-    /* 3. Compute source positions on CPU (mirrors fundamentalDomains.js) */
+    /* 4. Compute source positions on CPU (mirrors fundamentalDomains.js) */
     const dx = (bounds.maxX - bounds.minX) / gridW;
     const dy = (bounds.maxY - bounds.minY) / gridH;
 
@@ -506,82 +510,137 @@ export default function FDShaderCanvas({
       }
     }
 
-    /* 4. Generate colour palette (same seed logic as CPU code) */
+    /* 5. Generate colour palette (same seed logic as CPU code) */
     const colorRng = mulberry32(centerSeed * 31 + gpSeed * 97 + 42);
     const rgbColors = [];
     for (let i = 0; i < labelCount; i++) {
       rgbColors.push(randomColorRGB(colorRng));
     }
 
-    /* 5. Build GPU textures */
+    /* 6. Build GPU textures */
     const modesTex = buildModesTexture(modes);
     const cosetsTex = buildCosetsTexture(cosetReps);
     const initTex = buildInitTexture(gridW, gridH, sources);
     const paletteTex = buildPaletteTexture(rgbColors);
     st.disposables.push(modesTex, cosetsTex, initTex, paletteTex);
 
-    /* 6. Render speed field to texture */
-    mesh.material = speedMaterial;
-    speedMaterial.uniforms.u_boundsMin.value.set(bounds.minX, bounds.minY);
-    speedMaterial.uniforms.u_boundsMax.value.set(bounds.maxX, bounds.maxY);
-    speedMaterial.uniforms.u_dc.value = dc;
-    speedMaterial.uniforms.u_numModes.value = modes.length;
-    speedMaterial.uniforms.u_numCosets.value = cosetReps.length;
-    speedMaterial.uniforms.u_magnitude.value = gpMagnitude ?? 1;
-    speedMaterial.uniforms.u_minSpeed.value = MIN_SPEED;
-    speedMaterial.uniforms.u_modesTexture.value = modesTex;
-    speedMaterial.uniforms.u_cosetsTexture.value = cosetsTex;
-    speedMaterial.uniforms.u_modesTexWidth.value = Math.max(modes.length, 1);
-    speedMaterial.uniforms.u_cosetsTexWidth.value = Math.max(cosetReps.length, 1);
+    /* 7. Render speed field to texture */
+    mesh.material = speedMat;
+    speedMat.uniforms.u_boundsMin.value.set(bounds.minX, bounds.minY);
+    speedMat.uniforms.u_boundsMax.value.set(bounds.maxX, bounds.maxY);
+    speedMat.uniforms.u_dc.value = dc;
+    speedMat.uniforms.u_numModes.value = modes.length;
+    speedMat.uniforms.u_numCosets.value = cosetReps.length;
+    speedMat.uniforms.u_magnitude.value = gpMagnitude ?? 1;
+    speedMat.uniforms.u_minSpeed.value = MIN_SPEED;
+    speedMat.uniforms.u_modesTexture.value = modesTex;
+    speedMat.uniforms.u_cosetsTexture.value = cosetsTex;
+    speedMat.uniforms.u_modesTexWidth.value = Math.max(modes.length, 1);
+    speedMat.uniforms.u_cosetsTexWidth.value = Math.max(cosetReps.length, 1);
 
-    renderer.setRenderTarget(speedRT);
+    renderer.setRenderTarget(st.speedRT);
     renderer.render(scene, camera);
 
-    /* 7. Copy initial state into rt1 */
-    mesh.material = copyMaterial;
-    copyMaterial.uniforms.u_input.value = initTex;
-    renderer.setRenderTarget(rt1);
+    /* 8. Prepare Jacobi uniforms */
+    jacobiMat.uniforms.u_speed.value = st.speedRT.texture;
+    jacobiMat.uniforms.u_texelSize.value.set(1.0 / gridW, 1.0 / gridH);
+
+    /* 9. Copy initial state into rt1 — seeds at distance 0, rest at 1e6 */
+    mesh.material = copyMat;
+    copyMat.uniforms.u_input.value = initTex;
+    renderer.setRenderTarget(st.rt1);
     renderer.render(scene, camera);
 
-    /* 8. Jacobi iterations (ping-pong between rt1 ↔ rt2) */
-    mesh.material = jacobiMaterial;
-    jacobiMaterial.uniforms.u_speed.value = speedRT.texture;
-    jacobiMaterial.uniforms.u_texelSize.value.set(1.0 / gridW, 1.0 / gridH);
+    st.readRT = st.rt1;
+    st.writeRT = st.rt2;
+    st.iterCount = 0;
+    st.maxIter = gridW + gridH;  // Manhattan distance across the grid
 
-    const numIterations = Math.max(gridW, gridH);
-    let readRT = rt1;
-    let writeRT = rt2;
+    /* 10. Prepare display uniforms */
+    displayMat.uniforms.u_palette.value = paletteTex;
+    displayMat.uniforms.u_paletteWidth.value = Math.max(labelCount, 1);
 
-    for (let i = 0; i < numIterations; i++) {
-      jacobiMaterial.uniforms.u_state.value = readRT.texture;
-      renderer.setRenderTarget(writeRT);
-      renderer.render(scene, camera);
-      const tmp = readRT;
-      readRT = writeRT;
-      writeRT = tmp;
-    }
-
-    /* 9. Display: label → colour, rendered to the visible canvas */
-    mesh.material = displayMaterial;
-    displayMaterial.uniforms.u_state.value = readRT.texture;
-    displayMaterial.uniforms.u_palette.value = paletteTex;
-    displayMaterial.uniforms.u_paletteWidth.value = Math.max(labelCount, 1);
-
+    /* 11. Display initial state (seed points) */
+    mesh.material = displayMat;
+    displayMat.uniforms.u_state.value = st.readRT.texture;
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
 
+    /* 12. Update iteration label */
+    if (iterLabelRef.current) {
+      iterLabelRef.current.textContent = `Iteration 0 / ${st.maxIter}`;
+    }
+
   }, [elements, cosetReps, latticeVectors, bounds, width, height,
-      centerSeed, gpSeed, gpScale, gpMagnitude, gpN, gridW, gridH]);
+      centerSeed, gpSeed, gpScale, gpMagnitude, gpN, gridW, gridH,
+      resetTrigger]);
+
+  /* ── Animation loop: run Jacobi iterations incrementally ── */
+  useEffect(() => {
+    if (!iterSpeed || iterSpeed <= 0) return;
+
+    let animId;
+    const animate = () => {
+      const st = stateRef.current;
+      if (st && st.readRT && st.iterCount < st.maxIter) {
+        const { renderer, scene, camera, mesh, jacobiMat, displayMat } = st;
+
+        const itersThisFrame = Math.min(iterSpeed, st.maxIter - st.iterCount);
+        mesh.material = jacobiMat;
+        for (let i = 0; i < itersThisFrame; i++) {
+          jacobiMat.uniforms.u_state.value = st.readRT.texture;
+          renderer.setRenderTarget(st.writeRT);
+          renderer.render(scene, camera);
+          const tmp = st.readRT;
+          st.readRT = st.writeRT;
+          st.writeRT = tmp;
+          st.iterCount++;
+        }
+
+        // Display current state
+        mesh.material = displayMat;
+        displayMat.uniforms.u_state.value = st.readRT.texture;
+        renderer.setRenderTarget(null);
+        renderer.render(scene, camera);
+
+        // Update iteration label
+        if (iterLabelRef.current) {
+          iterLabelRef.current.textContent = st.iterCount >= st.maxIter
+            ? `Converged (${st.maxIter} iterations)`
+            : `Iteration ${st.iterCount} / ${st.maxIter}`;
+        }
+      }
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [iterSpeed]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        display: 'block',
-        width: `${width}px`,
-        height: `${height}px`,
-        imageRendering: 'pixelated',
-      }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: 'block',
+          width: `${width}px`,
+          height: `${height}px`,
+          imageRendering: 'pixelated',
+        }}
+      />
+      <div
+        ref={iterLabelRef}
+        style={{
+          position: 'absolute',
+          top: '4px',
+          left: '6px',
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          color: '#fff',
+          textShadow: '0 0 3px #000, 0 0 6px #000',
+          pointerEvents: 'none',
+        }}
+      />
+    </>
   );
 }
