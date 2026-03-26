@@ -9,7 +9,7 @@ import {
 import { generateLatticePoints } from '../math/groupGenerator.js';
 import { drawGPCoefficients, shoStepGPCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
-import FundamentalDomainsCanvas from './FundamentalDomainsCanvas.jsx';
+import FDShaderCanvas from './FDShaderCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -342,9 +342,9 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
           />
         )}
 
-        {/* Fundamental Domains canvas (behind SVG) */}
+        {/* Fundamental Domains canvas (behind SVG) — GPU Jacobi solver */}
         {showFD && elements && cosetReps && latticeVectors && (
-          <FundamentalDomainsCanvas
+          <FDShaderCanvas
             elements={elements}
             cosetReps={cosetReps}
             latticeVectors={latticeVectors}
