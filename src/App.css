@@ -579,6 +579,12 @@ h1 {
   color: #155724;
 }
 
+.math-result-warn {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
+}
+
 @media (prefers-color-scheme: dark) {
   .math-result-ok {
     background: #1a3a2a;

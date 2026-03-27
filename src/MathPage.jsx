@@ -8,9 +8,12 @@ import {
   processGroup,
   rmatToJsonObj,
   quotientToPhysical,
+  generateElements,
+  validateGenerators,
 } from './math/rationalGroup.js'
 import { classify, rotationOrder } from './math/isometry.js'
 import { fixedLatticeVector } from './math/latticeUtils.js'
+import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import './App.css'
 
 // ───────────────────────────────────────────────────
@@ -192,6 +195,9 @@ export default function MathPage() {
   // --- Generators (as editable string objects) ---
   const [genStrs, setGenStrs] = useState([])
 
+  // --- Copy JSON state ---
+  const [copySuccess, setCopySuccess] = useState(false)
+
   // --- Load preset ---
   const loadPreset = useCallback((typeName) => {
     const stdGen = standardGenerators(typeName)
@@ -222,10 +228,10 @@ export default function MathPage() {
     const lx = parseFloat(latticeX)
     const ly = parseFloat(latticeY)
     if (!Number.isFinite(lx) || !Number.isFinite(ly)) {
-      return { error: 'Invalid lattice vector: x and y must be numbers.', data: null }
+      return { error: 'Invalid lattice vector: x and y must be numbers.', data: null, validation: null }
     }
     if (lx === 0 && ly === 0) {
-      return { error: 'Lattice vector (x, y) must be non-zero.', data: null }
+      return { error: 'Lattice vector (x, y) must be non-zero.', data: null, validation: null }
     }
     const latticeVec = { x: lx, y: ly }
 
@@ -234,31 +240,78 @@ export default function MathPage() {
     for (let i = 0; i < genStrs.length; i++) {
       const { mat, error } = parseRmatStrings(genStrs[i])
       if (error) {
-        return { error: `Generator ${i + 1}: ${error}`, data: null }
+        return { error: `Generator ${i + 1}: ${error}`, data: null, validation: null }
       }
       generators.push(mat)
     }
+
+    // Validate generators
+    const validation = validateGenerators(generators, latticeVec)
 
     // Run the algorithm
     try {
       const { cosets, isDegenerate, order, error: groupError } = processGroup(generators)
       if (groupError) {
-        return { error: groupError, data: null }
+        return { error: groupError, data: null, validation }
       }
+
+      // Generate visible elements for visualization
+      const cosetReps = quotientToPhysical(cosets, latticeVec)
+      const latticeVectors = { v1: { x: 0, y: 1 }, v2: latticeVec }
+      const bounds = {
+        minX: -SVG_WIDTH / (2 * SCALE) - 1,
+        maxX: SVG_WIDTH / (2 * SCALE) + 1,
+        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
+        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+      }
+      const elements = generateElements(cosets, latticeVec, bounds)
+
       return {
         error: null,
+        validation,
         data: {
           cosets,
           order,
           isDegenerate,
           latticeVec,
           generators,
+          cosetReps,
+          latticeVectors,
+          elements,
         },
       }
     } catch (err) {
-      return { error: `Algorithm error: ${err.message}`, data: null }
+      return { error: `Algorithm error: ${err.message}`, data: null, validation }
     }
   }, [latticeX, latticeY, genStrs])
+
+  // --- Build JSON for clipboard ---
+  const buildJson = useCallback(() => {
+    if (!result.data) return '{}'
+    const { data, validation } = result
+    const spec = {
+      lattice_vectors: [
+        [0, 1],
+        [parseFloat(parseFloat(latticeX).toFixed(6)), parseFloat(parseFloat(latticeY).toFixed(6))],
+      ],
+      generators: data.generators.map(rmatToJsonObj),
+      result: {
+        order: data.order,
+        validation_ok: validation ? validation.ok : null,
+        validation_warnings: validation ? validation.warnings : [],
+        coset_representatives: data.cosets.map(rmatToJsonObj),
+      },
+    }
+    return JSON.stringify(spec, null, 2)
+  }, [result, latticeX, latticeY])
+
+  const copyToClipboard = useCallback(() => {
+    const json = buildJson()
+    navigator.clipboard.writeText(json).then(() => {
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 1500)
+    }).catch(() => {})
+  }, [buildJson])
 
   return (
     <div className="app-container">
@@ -343,6 +396,18 @@ export default function MathPage() {
       <div className="panel">
         <h3 className="panel-heading">Results</h3>
 
+        {/* Validation warnings */}
+        {result.validation && !result.validation.ok && (
+          <div className="warning-box">
+            <strong>Validation warnings:</strong>
+            <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+              {result.validation.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {result.error && (
           <div className="error-box">{result.error}</div>
         )}
@@ -350,10 +415,18 @@ export default function MathPage() {
         {result.data && (
           <>
             <div className="math-result-summary">
-              <span className="math-result-badge math-result-ok">
-                ✓ Valid wallpaper group
+              <span className={`math-result-badge ${result.validation?.ok ? 'math-result-ok' : 'math-result-warn'}`}>
+                {result.validation?.ok ? '✓ Valid wallpaper group' : '⚠ Group enumerated (see warnings)'}
               </span>
               <span className="math-result-order">|G/T| = {result.data.order}</span>
+            </div>
+
+            {/* Copy JSON */}
+            <div className="display-actions">
+              <button className="btn-copy" onClick={copyToClipboard}>
+                📋 Copy JSON
+              </button>
+              {copySuccess && <span className="copy-success">✓ Copied!</span>}
             </div>
 
             <h4 style={{ margin: '12px 0 8px', fontSize: 14, color: 'var(--color-heading)' }}>
@@ -363,6 +436,19 @@ export default function MathPage() {
           </>
         )}
       </div>
+
+      {/* ── Visualization ── */}
+      {result.data && (
+        <GroupVisualization
+          elements={result.data.elements}
+          latticeVectors={result.data.latticeVectors}
+          cosetReps={result.data.cosetReps}
+          showF={true}
+          fOffset={{ x: 0, y: 0 }}
+          showGP={false}
+          showGroupElements={true}
+        />
+      )}
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
         <Link to="/">← Back to Viewer</Link>

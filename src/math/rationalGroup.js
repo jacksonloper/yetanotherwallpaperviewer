@@ -176,7 +176,7 @@ export function standardGenerators(typeName, variantIndex = 0) {
 /**
  * Check whether a rational number is an integer (denominator = 1).
  */
-function risInteger(r) {
+function rIsInteger(r) {
   return r[1] === 1
 }
 
@@ -221,7 +221,7 @@ export function validateGenerators(generators, latticeVec, eps = 1e-9) {
     const label = `Generator ${i + 1}`
 
     // Check 1: integer linear part
-    if (!risInteger(g.a) || !risInteger(g.b) || !risInteger(g.c) || !risInteger(g.d)) {
+    if (!rIsInteger(g.a) || !rIsInteger(g.b) || !rIsInteger(g.c) || !rIsInteger(g.d)) {
       warnings.push(`${label}: linear part is not integer — generators must map the lattice to itself.`)
       continue  // skip further checks if linear part isn't integer
     }
