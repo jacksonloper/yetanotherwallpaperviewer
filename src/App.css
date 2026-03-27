@@ -439,3 +439,155 @@ h1 {
     gap: 8px;
   }
 }
+
+/* ── Math Explorer page ── */
+.gen-editor {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 6px;
+}
+
+.gen-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.gen-editor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.btn-remove {
+  background: none;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 4px;
+  color: var(--color-error-text);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+
+.btn-remove:hover {
+  background: var(--color-error-bg);
+}
+
+.gen-matrix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gen-matrix-bracket {
+  font-size: 28px;
+  font-weight: 200;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+.gen-matrix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.gen-input {
+  width: 56px;
+  padding: 4px 6px;
+  font-size: 14px;
+  font-family: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+  text-align: center;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 4px;
+  background: var(--color-btn-bg);
+  color: var(--color-text);
+}
+
+.gen-input:focus {
+  outline: 2px solid #388bfd;
+  outline-offset: -1px;
+}
+
+/* Coset result cards */
+.coset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.coset-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 150px;
+}
+
+.coset-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.coset-index {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.coset-type {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.coset-matrix {
+  display: flex;
+  flex-direction: column;
+  font-family: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.coset-row {
+  white-space: nowrap;
+}
+
+/* Math result summary */
+.math-result-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.math-result-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.math-result-ok {
+  background: #d4edda;
+  color: #155724;
+}
+
+@media (prefers-color-scheme: dark) {
+  .math-result-ok {
+    background: #1a3a2a;
+    color: #7ee2a8;
+  }
+}
+
+.math-result-order {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-heading);
+}

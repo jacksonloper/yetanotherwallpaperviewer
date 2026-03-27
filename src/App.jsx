@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getWallpaperTypeByName,
   getGeneratorsForVariant,
@@ -367,6 +368,10 @@ export default function App() {
           gpDamping={gpDamping}
         />
       )}
+
+      <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
+        <Link to="/math">🔢 Math Explorer</Link>
+      </p>
     </div>
   )
 }
