@@ -36,6 +36,9 @@ import {
   rmodT,
   rToFloat,
   rToString,
+  req,
+  rsub,
+  rmul,
 } from './rational.js'
 
 import {
@@ -164,6 +167,98 @@ export function standardGenerators(typeName, variantIndex = 0) {
     generators: entry.generators,
     variantLabels: null,
   }
+}
+
+// ───────────────────────────────────────────────────
+//  Generator validation
+// ───────────────────────────────────────────────────
+
+/**
+ * Check whether a rational number is an integer (denominator = 1).
+ */
+function risInteger(r) {
+  return r[1] === 1
+}
+
+/**
+ * Validate that generators are well-formed for a wallpaper group with
+ * translation subgroup T = Z².
+ *
+ * Checks performed on each generator g = (A, t):
+ *   1. **Integer linear part** – all entries of A must be integers.
+ *      Without this, applying g to a lattice vector can produce
+ *      non-integer results, so T would not be preserved.
+ *   2. **det(A) = ±1** – A must be in GL(2,Z).  This ensures A maps
+ *      Z² bijectively onto Z², so T is an invariant subgroup.
+ *   3. **Metric preservation** – for the Euclidean metric in lattice
+ *      coordinates Q = Hᵀ H (where H maps lattice → physical), the
+ *      linear part must satisfy AᵀQA = Q (up to a floating-point
+ *      tolerance).  Without this the map is not an isometry.
+ *
+ * @param {rmat[]} generators – rational affine matrices (lattice coords)
+ * @param {{ x: number, y: number }} latticeVec – second lattice vector (first is (0,1))
+ * @param {number} eps – tolerance for floating-point metric check
+ * @returns {{ ok: boolean, warnings: string[] }}
+ */
+export function validateGenerators(generators, latticeVec, eps = 1e-9) {
+  const warnings = []
+
+  // Build Q = H^T H where H = [[0, x], [1, y]]
+  const { x, y } = latticeVec
+  // H = [[0, x], [1, y]]
+  // Q = H^T H = [[0,1],[x,y]]^T . [[0,x],[1,y]]
+  //           = [[0,1],[x,y]] . [[0,x],[1,y]]  — no, transpose first
+  // H^T = [[0, 1], [x, y]]
+  // Q = H^T H = [[0*0+1*1, 0*x+1*y], [x*0+y*1, x*x+y*y]]
+  //           = [[1, y], [y, x²+y²]]
+  const q11 = 1
+  const q12 = y
+  const q21 = y
+  const q22 = x * x + y * y
+
+  for (let i = 0; i < generators.length; i++) {
+    const g = generators[i]
+    const label = `Generator ${i + 1}`
+
+    // Check 1: integer linear part
+    if (!risInteger(g.a) || !risInteger(g.b) || !risInteger(g.c) || !risInteger(g.d)) {
+      warnings.push(`${label}: linear part is not integer — generators must map the lattice to itself.`)
+      continue  // skip further checks if linear part isn't integer
+    }
+
+    // Check 2: det = ±1 (GL(2,Z))
+    const det = rsub(rmul(g.a, g.d), rmul(g.b, g.c))
+    const detVal = det[0]  // det is integer since a,b,c,d are all integer
+    if (detVal !== 1 && detVal !== -1) {
+      warnings.push(`${label}: det(A) = ${detVal} ≠ ±1 — linear part must be in GL(2,ℤ).`)
+      continue
+    }
+
+    // Check 3: A^T Q A = Q  (metric preservation)
+    const a = g.a[0], b = g.b[0], c = g.c[0], d = g.d[0]
+    // A^T Q A where A = [[a,b],[c,d]]
+    // A^T = [[a,c],[b,d]]
+    // (A^T Q) = [[a*q11+c*q21, a*q12+c*q22], [b*q11+d*q21, b*q12+d*q22]]
+    const tq11 = a * q11 + c * q21
+    const tq12 = a * q12 + c * q22
+    const tq21 = b * q11 + d * q21
+    const tq22 = b * q12 + d * q22
+    // (A^T Q) A = [[tq11*a+tq12*c, tq11*b+tq12*d], [tq21*a+tq22*c, tq21*b+tq22*d]]
+    const r11 = tq11 * a + tq12 * c
+    const r12 = tq11 * b + tq12 * d
+    const r21 = tq21 * a + tq22 * c
+    const r22 = tq21 * b + tq22 * d
+
+    const maxDiff = Math.max(
+      Math.abs(r11 - q11), Math.abs(r12 - q12),
+      Math.abs(r21 - q21), Math.abs(r22 - q22),
+    )
+    if (maxDiff > eps) {
+      warnings.push(`${label}: linear part does not preserve the lattice metric (AᵀQA ≠ Q, max error ${maxDiff.toExponential(2)}).`)
+    }
+  }
+
+  return { ok: warnings.length === 0, warnings }
 }
 
 // ───────────────────────────────────────────────────

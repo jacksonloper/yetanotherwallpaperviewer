@@ -10,6 +10,7 @@ import {
   quotientToPhysical,
   generateElements,
   rmatToJsonObj,
+  validateGenerators,
 } from '../rationalGroup.js'
 import {
   rotation,
@@ -613,4 +614,88 @@ describe('G/T cosets form a group', () => {
       }
     })
   }
+})
+
+// ───────────────────────────────────────────────────
+//  validateGenerators
+// ───────────────────────────────────────────────────
+
+describe('validateGenerators', () => {
+  const sqVec = { x: 1, y: 0 }
+  const hexVec = { x: s3h, y: 0.5 }
+
+  it('accepts all standard generators on their natural lattices', () => {
+    const lattices = {
+      any: sqVec,
+      rectangular: { x: 1.5, y: 0 },
+      'centered-rectangular': { x: 0.8, y: 0.6 },
+      square: sqVec,
+      hexagonal: hexVec,
+    }
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators, latticeType } = standardGenerators(t)
+      const vec = lattices[latticeType] || sqVec
+      const { ok, warnings } = validateGenerators(generators, vec)
+      expect(ok).toBe(true)
+      expect(warnings).toEqual([])
+    }
+  })
+
+  it('rejects a generator with non-integer linear part', () => {
+    // [[1/2, 0], [0, 1]] has non-integer entry
+    const g = {
+      a: rat(1, 2), b: rat(0), c: rat(0), d: rat(1),
+      tx: rat(0), ty: rat(0),
+    }
+    const { ok, warnings } = validateGenerators([g], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('not integer')
+  })
+
+  it('rejects a generator with det ≠ ±1', () => {
+    // [[2, 0], [0, 1]] has det = 2
+    const g = rimat(2, 0, 0, 1)
+    const { ok, warnings } = validateGenerators([g], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('det')
+  })
+
+  it('warns when linear part does not preserve metric', () => {
+    // [[0,1],[-1,0]] (R₄) is a 90° rotation: it preserves the square
+    // metric but NOT a generic rectangular metric.
+    const rectVec = { x: 2, y: 0 }
+    const r4 = rimat(0, 1, -1, 0)
+    const { ok, warnings } = validateGenerators([r4], rectVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('metric')
+  })
+
+  it('accepts R₄ on the square lattice', () => {
+    const r4 = rimat(0, 1, -1, 0)
+    const { ok } = validateGenerators([r4], sqVec)
+    expect(ok).toBe(true)
+  })
+
+  it('accepts R₃ on the hexagonal lattice', () => {
+    const r3 = rimat(0, 1, -1, -1)
+    const { ok } = validateGenerators([r3], hexVec)
+    expect(ok).toBe(true)
+  })
+
+  it('validates multiple generators, reporting all issues', () => {
+    const good = rimat(-1, 0, 0, -1) // R₂, always valid
+    const bad = rimat(2, 0, 0, 1)    // det = 2
+    const { ok, warnings } = validateGenerators([good, bad], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('Generator 2')
+  })
 })
