@@ -176,6 +176,29 @@ void main() {
 }
 `;
 
+/**
+ * Distance display shader: maps distance (R channel) to a grayscale colormap.
+ * Unvisited cells (dist >= 1e5) render as black.
+ */
+const distanceDisplayShader = /* glsl */ `
+precision highp float;
+
+uniform sampler2D u_state;
+uniform float u_maxDist;
+
+varying vec2 vUv;
+
+void main() {
+  float dist = texture2D(u_state, vUv).r;
+  if (dist >= 1e5) {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  float t = clamp(dist / u_maxDist, 0.0, 1.0);
+  gl_FragColor = vec4(vec3(t), 1.0);
+}
+`;
+
 /** Simple passthrough for copying a texture into a render target. */
 const copyShader = /* glsl */ `
 precision highp float;
@@ -338,6 +361,7 @@ function makeRT(w, h) {
  * @param {number} [props.iterSpeed=5]   Jacobi iterations per animation frame (0 = paused).
  * @param {number} [props.gridScale=0.5] Resolution multiplier for the grid.
  * @param {number} [props.resetTrigger=0] Increment to restart iteration from seeds.
+ * @param {'labels'|'distance'} [props.displayMode='labels'] What to render: label colors or distance field.
  */
 export default function FDShaderCanvas({
   elements,
@@ -354,6 +378,7 @@ export default function FDShaderCanvas({
   iterSpeed = 5,
   gridScale = DEFAULT_GRID_SCALE,
   resetTrigger = 0,
+  displayMode = 'labels',
 }) {
   const canvasRef = useRef(null);
   const iterLabelRef = useRef(null);
@@ -412,6 +437,15 @@ export default function FDShaderCanvas({
       },
     });
 
+    const distDisplayMat = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader: distanceDisplayShader,
+      uniforms: {
+        u_state: { value: null },
+        u_maxDist: { value: 1.0 },
+      },
+    });
+
     const copyMat = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: copyShader,
@@ -423,7 +457,7 @@ export default function FDShaderCanvas({
 
     stateRef.current = {
       renderer, scene, camera, geometry, mesh,
-      speedMat, jacobiMat, displayMat, copyMat,
+      speedMat, jacobiMat, displayMat, distDisplayMat, copyMat,
       speedRT: null, rt1: null, rt2: null,
       readRT: null, writeRT: null,
       iterCount: 0, maxIter: 0,
@@ -436,6 +470,7 @@ export default function FDShaderCanvas({
       speedMat.dispose();
       jacobiMat.dispose();
       displayMat.dispose();
+      distDisplayMat.dispose();
       copyMat.dispose();
       if (stateRef.current) {
         if (stateRef.current.speedRT) stateRef.current.speedRT.dispose();
@@ -456,7 +491,7 @@ export default function FDShaderCanvas({
     if (!elements || !cosetReps || !latticeVectors || !bounds) return;
 
     const { renderer, scene, camera, mesh,
-      speedMat, jacobiMat, displayMat, copyMat } = st;
+      speedMat, jacobiMat, displayMat, distDisplayMat, copyMat } = st;
 
     /* 1. Resize render targets if grid dimensions changed */
     if (st.gridW !== gridW || st.gridH !== gridH || !st.speedRT) {
@@ -559,10 +594,12 @@ export default function FDShaderCanvas({
     /* 10. Prepare display uniforms */
     displayMat.uniforms.u_palette.value = paletteTex;
     displayMat.uniforms.u_paletteWidth.value = Math.max(labelCount, 1);
+    distDisplayMat.uniforms.u_maxDist.value = st.maxIter;
 
     /* 11. Display initial state (seed points) */
-    mesh.material = displayMat;
-    displayMat.uniforms.u_state.value = st.readRT.texture;
+    const activeMat = displayMode === 'distance' ? distDisplayMat : displayMat;
+    mesh.material = activeMat;
+    activeMat.uniforms.u_state.value = st.readRT.texture;
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
 
@@ -573,41 +610,49 @@ export default function FDShaderCanvas({
 
   }, [elements, cosetReps, latticeVectors, bounds, width, height,
       centerSeed, gpSeed, gpScale, gpMagnitude, gpN, gridW, gridH,
-      resetTrigger]);
+      resetTrigger, displayMode]);
 
   /* ── Animation loop: run Jacobi iterations incrementally ── */
   useEffect(() => {
     if (!iterSpeed || iterSpeed <= 0) return;
 
     let animId;
+    let accumulator = 0;
     const animate = () => {
       const st = stateRef.current;
       if (st && st.readRT && st.iterCount < st.maxIter) {
-        const { renderer, scene, camera, mesh, jacobiMat, displayMat } = st;
+        const { renderer, scene, camera, mesh, jacobiMat, displayMat, distDisplayMat } = st;
 
-        const itersThisFrame = Math.min(iterSpeed, st.maxIter - st.iterCount);
-        mesh.material = jacobiMat;
-        for (let i = 0; i < itersThisFrame; i++) {
-          jacobiMat.uniforms.u_state.value = st.readRT.texture;
-          renderer.setRenderTarget(st.writeRT);
+        accumulator += iterSpeed;
+        const wholeIters = Math.floor(accumulator);
+        accumulator -= wholeIters;
+        const itersThisFrame = Math.min(wholeIters, st.maxIter - st.iterCount);
+
+        if (itersThisFrame > 0) {
+          mesh.material = jacobiMat;
+          for (let i = 0; i < itersThisFrame; i++) {
+            jacobiMat.uniforms.u_state.value = st.readRT.texture;
+            renderer.setRenderTarget(st.writeRT);
+            renderer.render(scene, camera);
+            const tmp = st.readRT;
+            st.readRT = st.writeRT;
+            st.writeRT = tmp;
+            st.iterCount++;
+          }
+
+          // Display current state
+          const activeMat = displayMode === 'distance' ? distDisplayMat : displayMat;
+          mesh.material = activeMat;
+          activeMat.uniforms.u_state.value = st.readRT.texture;
+          renderer.setRenderTarget(null);
           renderer.render(scene, camera);
-          const tmp = st.readRT;
-          st.readRT = st.writeRT;
-          st.writeRT = tmp;
-          st.iterCount++;
-        }
 
-        // Display current state
-        mesh.material = displayMat;
-        displayMat.uniforms.u_state.value = st.readRT.texture;
-        renderer.setRenderTarget(null);
-        renderer.render(scene, camera);
-
-        // Update iteration label
-        if (iterLabelRef.current) {
-          iterLabelRef.current.textContent = st.iterCount >= st.maxIter
-            ? `Converged (${st.maxIter} iterations)`
-            : `Iteration ${st.iterCount} / ${st.maxIter}`;
+          // Update iteration label
+          if (iterLabelRef.current) {
+            iterLabelRef.current.textContent = st.iterCount >= st.maxIter
+              ? `Converged (${st.maxIter} iterations)`
+              : `Iteration ${st.iterCount} / ${st.maxIter}`;
+          }
         }
       }
       animId = requestAnimationFrame(animate);
@@ -615,7 +660,7 @@ export default function FDShaderCanvas({
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [iterSpeed]);
+  }, [iterSpeed, displayMode]);
 
   return (
     <>
