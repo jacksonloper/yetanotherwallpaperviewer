@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  rat, radd, rsub, rmul, rdiv, rneg, req, rToFloat, rmod1, gcd,
+  rat, radd, rsub, rmul, rdiv, rneg, req, rToFloat, rToString, rmod1, gcd,
   rimat, ridentity, rcompose, rinverse, rmatEqual, rmodT,
 } from '../rational.js'
 import {
@@ -9,6 +9,7 @@ import {
   toPhysical,
   quotientToPhysical,
   generateElements,
+  rmatToJsonObj,
 } from '../rationalGroup.js'
 import {
   rotation,
@@ -84,6 +85,15 @@ describe('rational arithmetic', () => {
     expect(rmod1([1, 1])).toEqual([0, 1])    // 1 → 0
     expect(rmod1([5, 3])).toEqual([2, 3])    // 5/3 → 2/3
     expect(rmod1([-3, 2])).toEqual([1, 2])   // -3/2 → 1/2
+  })
+
+  it('rToString formats rationals as strings', () => {
+    expect(rToString([0, 1])).toBe('0')
+    expect(rToString([1, 1])).toBe('1')
+    expect(rToString([-1, 1])).toBe('-1')
+    expect(rToString([1, 2])).toBe('1/2')
+    expect(rToString([-3, 4])).toBe('-3/4')
+    expect(rToString([7, 1])).toBe('7')
   })
 })
 
@@ -200,6 +210,71 @@ describe('rational matrices', () => {
     expect(req(glideA2.c, [0, 1])).toBe(true)
     expect(req(glideA2.tx, [1, 1])).toBe(true)
     expect(req(glideA2.ty, [0, 1])).toBe(true)
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  JSON serialisation (rmatToJsonObj)
+// ───────────────────────────────────────────────────
+
+describe('rmatToJsonObj', () => {
+  it('serialises the identity matrix', () => {
+    const obj = rmatToJsonObj(ridentity())
+    expect(obj).toEqual({
+      linear: [['1', '0'], ['0', '1']],
+      translation: ['0', '0'],
+    })
+  })
+
+  it('serialises a glide reflection with half-integer translation (rimat tx=1/2)', () => {
+    // rimat(1, 0, 0, -1, 1, 2) → tx = rat(1,2) = 1/2
+    const g = rimat(1, 0, 0, -1, 1, 2)
+    const obj = rmatToJsonObj(g)
+    expect(obj).toEqual({
+      linear: [['1', '0'], ['0', '-1']],
+      translation: ['1/2', '0'],
+    })
+  })
+
+  it('serialises p4g generator with translation 1/2, 1/2', () => {
+    const g = rimat(0, -1, -1, 0, 1, 2, 1, 2)
+    const obj = rmatToJsonObj(g)
+    expect(obj).toEqual({
+      linear: [['0', '-1'], ['-1', '0']],
+      translation: ['1/2', '1/2'],
+    })
+  })
+
+  it('round-trips through JSON.stringify / JSON.parse', () => {
+    const g = rimat(-1, 0, 0, 1, 0, 1, 1, 2)
+    const obj = rmatToJsonObj(g)
+    const json = JSON.stringify(obj)
+    const parsed = JSON.parse(json)
+    expect(parsed.linear[0][0]).toBe('-1')
+    expect(parsed.translation[1]).toBe('1/2')
+  })
+
+  it('serialises all standard generators for every wallpaper type', () => {
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators } = standardGenerators(t)
+      for (const gen of generators) {
+        const obj = rmatToJsonObj(gen)
+        // Each entry should be a string
+        for (const row of obj.linear) {
+          for (const entry of row) {
+            expect(typeof entry).toBe('string')
+          }
+        }
+        for (const entry of obj.translation) {
+          expect(typeof entry).toBe('string')
+        }
+      }
+    }
   })
 })
 

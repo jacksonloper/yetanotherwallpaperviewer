@@ -8,6 +8,7 @@ import {
   processGroup,
   generateElements,
   quotientToPhysical,
+  rmatToJsonObj,
 } from './math/rationalGroup.js'
 import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
@@ -16,16 +17,11 @@ import {
   latticeToVector,
   getLatticeType,
   classifyLatticeVector,
-  axisOffsetToPoint,
-  resolveDirection,
-  resolveCmDirection,
   cmSliderToVector,
   rectSliderToVector,
   fixedLatticeVector,
 } from './math/latticeUtils.js'
 import './App.css'
-
-const PI = Math.PI
 
 /**
  * Compute the second lattice vector from the app state.
@@ -46,46 +42,21 @@ function getLatticeVector(wpType, latticeState) {
 
 /**
  * Build JSON spec for copy-to-clipboard.
+ *
+ * The wallpaper group is a floating-point lattice together with
+ * rational affine transforms in lattice coordinates.  The JSON
+ * records the lattice vectors as numbers and the generator matrices
+ * with exact rational entries stored as strings (e.g. "1/2").
  */
-function buildJsonSpec(wpType, generators, latticeVec) {
+function buildJsonSpec(wallpaperType, variantIndex, latticeVec) {
+  const stdGen = standardGenerators(wallpaperType, variantIndex)
   const spec = {
-    translations: [[0, 1], [parseFloat(latticeVec.x.toFixed(6)), parseFloat(latticeVec.y.toFixed(6))]],
-    generators: generators.map((gen) => {
-      switch (gen.type) {
-        case 'rotation':
-          return {
-            type: 'rotation',
-            order: gen.order || 2,
-            angle_degrees: 360 / (gen.order || 2),
-            center: [0, 0],
-          }
-        case 'reflection': {
-          let angle
-          if ('dir' in gen) angle = resolveDirection(gen.dir, latticeVec).angle
-          else if ('cmDir' in gen) angle = resolveCmDirection(gen.cmDir, latticeVec).angle
-          else angle = 0
-          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, angle, latticeVec)
-          return {
-            type: 'reflection',
-            axis_angle_degrees: parseFloat(((angle * 180) / PI).toFixed(6)),
-            point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
-          }
-        }
-        case 'glide': {
-          const d = resolveDirection(gen.dir, latticeVec)
-          const dist = d.length / 2
-          const { px, py } = axisOffsetToPoint(gen.axisOffset || 0, d.angle, latticeVec)
-          return {
-            type: 'glide-reflection',
-            axis_angle_degrees: parseFloat(((d.angle * 180) / PI).toFixed(6)),
-            glide_distance: parseFloat(dist.toFixed(6)),
-            point_on_axis: [parseFloat(px.toFixed(6)), parseFloat(py.toFixed(6))],
-          }
-        }
-        default:
-          return gen
-      }
-    }),
+    wallpaper_type: wallpaperType,
+    lattice_vectors: [
+      [0, 1],
+      [parseFloat(latticeVec.x.toFixed(6)), parseFloat(latticeVec.y.toFixed(6))],
+    ],
+    generators: stdGen ? stdGen.generators.map(rmatToJsonObj) : [],
   }
   return JSON.stringify(spec, null, 2)
 }
@@ -202,14 +173,14 @@ export default function App() {
   const { result, error, warning } = groupResult
 
   const copyToClipboard = useCallback(() => {
-    const json = buildJsonSpec(wpType, generators, latticeVec)
+    const json = buildJsonSpec(wallpaperType, variantIndex, latticeVec)
     navigator.clipboard.writeText(json).then(() => {
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 1500)
     }).catch(() => {
       // Clipboard API may be unavailable (e.g. insecure context)
     })
-  }, [wpType, generators, latticeVec])
+  }, [wallpaperType, variantIndex, latticeVec])
 
   return (
     <div className="app-container">

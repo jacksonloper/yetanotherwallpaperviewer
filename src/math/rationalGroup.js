@@ -35,6 +35,7 @@ import {
   rmatEqual,
   rmodT,
   rToFloat,
+  rToString,
 } from './rational.js'
 
 import {
@@ -235,6 +236,30 @@ export function processGroup(generators, maxOrder = 24) {
   }
 
   return { cosets, isDegenerate: false, order: cosets.length, error: null }
+}
+
+// ───────────────────────────────────────────────────
+//  JSON serialisation helpers
+// ───────────────────────────────────────────────────
+
+/**
+ * Convert a rational affine matrix to a JSON-serialisable plain object
+ * with rational entries represented as strings (e.g. "1/2", "-1", "0").
+ *
+ * The output has the form:
+ *   { linear: [["a","b"],["c","d"]], translation: ["tx","ty"] }
+ *
+ * @param {rmat} A – rational affine matrix
+ * @returns {Object}
+ */
+export function rmatToJsonObj(A) {
+  return {
+    linear: [
+      [rToString(A.a), rToString(A.b)],
+      [rToString(A.c), rToString(A.d)],
+    ],
+    translation: [rToString(A.tx), rToString(A.ty)],
+  }
 }
 
 // ───────────────────────────────────────────────────
