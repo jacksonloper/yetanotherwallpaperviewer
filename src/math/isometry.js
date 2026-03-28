@@ -163,7 +163,7 @@ export function rotationInfo(M) {
  * For a rotation, determine its order (2, 3, 4, 6 for wallpaper groups).
  * Returns the integer order, or 0 if it doesn't match a standard order.
  */
-export function rotationOrder(M, eps = EPS) {
+export function rotationOrder(M, eps = 1e-4) {
   const angle = Math.abs(Math.atan2(M.c, M.a));
   for (const n of [2, 3, 4, 6]) {
     if (Math.abs(angle - (2 * Math.PI) / n) < eps) return n;

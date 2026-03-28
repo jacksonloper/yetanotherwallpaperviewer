@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  rat, radd, rsub, rmul, rdiv, rneg, req, rToFloat, rmod1, gcd,
+  rat, radd, rsub, rmul, rdiv, rneg, req, rToFloat, rToString, rmod1, gcd,
   rimat, ridentity, rcompose, rinverse, rmatEqual, rmodT,
 } from '../rational.js'
 import {
@@ -9,6 +9,9 @@ import {
   toPhysical,
   quotientToPhysical,
   generateElements,
+  rmatToJsonObj,
+  validateGenerators,
+  validateCosetTranslations,
 } from '../rationalGroup.js'
 import {
   rotation,
@@ -16,6 +19,7 @@ import {
   glideReflection,
   isometryEqual,
   classify,
+  rotationOrder,
 } from '../isometry.js'
 
 const PI = Math.PI
@@ -84,6 +88,15 @@ describe('rational arithmetic', () => {
     expect(rmod1([1, 1])).toEqual([0, 1])    // 1 → 0
     expect(rmod1([5, 3])).toEqual([2, 3])    // 5/3 → 2/3
     expect(rmod1([-3, 2])).toEqual([1, 2])   // -3/2 → 1/2
+  })
+
+  it('rToString formats rationals as strings', () => {
+    expect(rToString([0, 1])).toBe('0')
+    expect(rToString([1, 1])).toBe('1')
+    expect(rToString([-1, 1])).toBe('-1')
+    expect(rToString([1, 2])).toBe('1/2')
+    expect(rToString([-3, 4])).toBe('-3/4')
+    expect(rToString([7, 1])).toBe('7')
   })
 })
 
@@ -204,6 +217,71 @@ describe('rational matrices', () => {
 })
 
 // ───────────────────────────────────────────────────
+//  JSON serialisation (rmatToJsonObj)
+// ───────────────────────────────────────────────────
+
+describe('rmatToJsonObj', () => {
+  it('serialises the identity matrix', () => {
+    const obj = rmatToJsonObj(ridentity())
+    expect(obj).toEqual({
+      linear: [['1', '0'], ['0', '1']],
+      translation: ['0', '0'],
+    })
+  })
+
+  it('serialises a glide reflection with half-integer translation (rimat tx=1/2)', () => {
+    // rimat(1, 0, 0, -1, 1, 2) → tx = rat(1,2) = 1/2
+    const g = rimat(1, 0, 0, -1, 1, 2)
+    const obj = rmatToJsonObj(g)
+    expect(obj).toEqual({
+      linear: [['1', '0'], ['0', '-1']],
+      translation: ['1/2', '0'],
+    })
+  })
+
+  it('serialises p4g generator with translation 1/2, 1/2', () => {
+    const g = rimat(0, -1, -1, 0, 1, 2, 1, 2)
+    const obj = rmatToJsonObj(g)
+    expect(obj).toEqual({
+      linear: [['0', '-1'], ['-1', '0']],
+      translation: ['1/2', '1/2'],
+    })
+  })
+
+  it('round-trips through JSON.stringify / JSON.parse', () => {
+    const g = rimat(-1, 0, 0, 1, 0, 1, 1, 2)
+    const obj = rmatToJsonObj(g)
+    const json = JSON.stringify(obj)
+    const parsed = JSON.parse(json)
+    expect(parsed.linear[0][0]).toBe('-1')
+    expect(parsed.translation[1]).toBe('1/2')
+  })
+
+  it('serialises all standard generators for every wallpaper type', () => {
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators } = standardGenerators(t)
+      for (const gen of generators) {
+        const obj = rmatToJsonObj(gen)
+        // Each entry should be a string
+        for (const row of obj.linear) {
+          for (const entry of row) {
+            expect(typeof entry).toBe('string')
+          }
+        }
+        for (const entry of obj.translation) {
+          expect(typeof entry).toBe('string')
+        }
+      }
+    }
+  })
+})
+
+// ───────────────────────────────────────────────────
 //  Standard generators and G/T orders
 // ───────────────────────────────────────────────────
 
@@ -283,7 +361,9 @@ describe('processGroup – degeneracy detection', () => {
     const shear = rimat(1, 1, 0, 1)
     const result = processGroup([shear], 24)
     expect(result.isDegenerate).toBe(true)
-    expect(result.error).toBeTruthy()
+    // Should still return cosets (not a hard error)
+    expect(result.cosets.length).toBe(24)
+    expect(result.error).toBeNull()
   })
 })
 
@@ -350,6 +430,35 @@ describe('toPhysical – hexagonal lattice', () => {
     const expected = reflection(PI / 2, 0, 0)
     expect(isometryEqual(phys, expected, 1e-9)).toBe(true)
   })
+})
+
+describe('toPhysical – hex groups produce correct rotation orders', () => {
+  // Even with a truncated hex lattice (6 decimal digits), the physical
+  // isometries should yield the correct rotation order.
+  const truncHexVec = { x: 0.866025, y: 0.5 }
+  const fullHexVec = { x: s3h, y: 0.5 }
+
+  for (const hexVec of [fullHexVec, truncHexVec]) {
+    const label = hexVec === fullHexVec ? 'full precision' : 'truncated (6 digits)'
+
+    it(`R₃ → order 3 (${label})`, () => {
+      const phys = toPhysical(rimat(0, 1, -1, -1), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(3)
+    })
+
+    it(`R₆ → order 6 (${label})`, () => {
+      const phys = toPhysical(rimat(1, 1, -1, 0), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(6)
+    })
+
+    it(`R₂ → order 2 (${label})`, () => {
+      const phys = toPhysical(rimat(-1, 0, 0, -1), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(2)
+    })
+  }
 })
 
 describe('toPhysical – rectangular lattice', () => {
@@ -538,4 +647,181 @@ describe('G/T cosets form a group', () => {
       }
     })
   }
+})
+
+// ───────────────────────────────────────────────────
+//  validateGenerators
+// ───────────────────────────────────────────────────
+
+describe('validateGenerators', () => {
+  const sqVec = { x: 1, y: 0 }
+  const hexVec = { x: s3h, y: 0.5 }
+
+  it('accepts all standard generators on their natural lattices', () => {
+    const lattices = {
+      any: sqVec,
+      rectangular: { x: 1.5, y: 0 },
+      'centered-rectangular': { x: 0.8, y: 0.6 },
+      square: sqVec,
+      hexagonal: hexVec,
+    }
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators, latticeType } = standardGenerators(t)
+      const vec = lattices[latticeType] || sqVec
+      const { ok, warnings } = validateGenerators(generators, vec)
+      expect(ok).toBe(true)
+      expect(warnings).toEqual([])
+    }
+  })
+
+  it('rejects a generator with non-integer linear part', () => {
+    // [[1/2, 0], [0, 1]] has non-integer entry
+    const g = {
+      a: rat(1, 2), b: rat(0), c: rat(0), d: rat(1),
+      tx: rat(0), ty: rat(0),
+    }
+    const { ok, warnings } = validateGenerators([g], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('not integer')
+  })
+
+  it('rejects a generator with det ≠ ±1', () => {
+    // [[2, 0], [0, 1]] has det = 2
+    const g = rimat(2, 0, 0, 1)
+    const { ok, warnings } = validateGenerators([g], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('det')
+  })
+
+  it('warns when linear part does not preserve metric', () => {
+    // [[0,1],[-1,0]] (R₄) is a 90° rotation: it preserves the square
+    // metric but NOT a generic rectangular metric.
+    const rectVec = { x: 2, y: 0 }
+    const r4 = rimat(0, 1, -1, 0)
+    const { ok, warnings } = validateGenerators([r4], rectVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('metric')
+  })
+
+  it('accepts R₄ on the square lattice', () => {
+    const r4 = rimat(0, 1, -1, 0)
+    const { ok } = validateGenerators([r4], sqVec)
+    expect(ok).toBe(true)
+  })
+
+  it('accepts R₃ on the hexagonal lattice', () => {
+    const r3 = rimat(0, 1, -1, -1)
+    const { ok } = validateGenerators([r3], hexVec)
+    expect(ok).toBe(true)
+  })
+
+  it('validates multiple generators, reporting all issues', () => {
+    const good = rimat(-1, 0, 0, -1) // R₂, always valid
+    const bad = rimat(2, 0, 0, 1)    // det = 2
+    const { ok, warnings } = validateGenerators([good, bad], sqVec)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('Generator 2')
+  })
+
+  it('accepts cm generators on a rhombus lattice (|b| = 1)', () => {
+    // cm uses σ+ = [[0,1],[1,0]] which swaps e₁ and e₂.
+    // This is an isometry only when |e₁| = |e₂|, i.e. the lattice is a rhombus.
+    const rhombusVec = { x: 0.766044, y: 0.642788 } // ≈ cmSliderToVector(0.5)
+    const { generators } = standardGenerators('cm')
+    const { ok, warnings } = validateGenerators(generators, rhombusVec)
+    expect(ok).toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('accepts cmm generators on a rhombus lattice (|b| = 1)', () => {
+    const rhombusVec = { x: 0.766044, y: 0.642788 }
+    const { generators } = standardGenerators('cmm')
+    const { ok, warnings } = validateGenerators(generators, rhombusVec)
+    expect(ok).toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('rejects cm generators on a rectangular (non-rhombus) lattice', () => {
+    // With a=(0,1) (length 1) and b=(1.5,0) (length 1.5), |a| ≠ |b|.
+    // The swap [[0,1],[1,0]] does NOT preserve the metric.
+    const rectVec = { x: 1.5, y: 0 }
+    const { generators } = standardGenerators('cm')
+    const { ok, warnings } = validateGenerators(generators, rectVec)
+    expect(ok).toBe(false)
+    expect(warnings[0]).toContain('metric')
+  })
+
+  it('accepts hex generators even with moderately truncated lattice (6 digits)', () => {
+    // With eps = 1e-6, a 6-digit approximation to √3/2 should still pass.
+    const approxHexVec = { x: 0.866025, y: 0.5 }
+    const hexTypes = ['p3', 'p3m1', 'p31m', 'p6', 'p6m']
+    for (const t of hexTypes) {
+      const { generators } = standardGenerators(t)
+      const { ok, warnings } = validateGenerators(generators, approxHexVec)
+      expect(ok).toBe(true)
+      expect(warnings).toEqual([])
+    }
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  validateCosetTranslations
+// ───────────────────────────────────────────────────
+
+describe('validateCosetTranslations', () => {
+  it('accepts all standard wallpaper groups (no non-lattice translations)', () => {
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators } = standardGenerators(t)
+      const { cosets } = processGroup(generators)
+      const { ok, warnings } = validateCosetTranslations(cosets)
+      expect(ok).toBe(true)
+      expect(warnings).toEqual([])
+    }
+  })
+
+  it('detects non-lattice translations for the user scenario (reflection with 3/10 translation)', () => {
+    // Generator: reflection [[0,1],[1,0]] with translation [0, 3/10]
+    const g = {
+      a: rat(0), b: rat(1), c: rat(1), d: rat(0),
+      tx: rat(0), ty: rat(3, 10),
+    }
+    const { cosets, order } = processGroup([g])
+    expect(order).toBe(20) // The BFS produces 20 cosets
+
+    const { ok, warnings } = validateCosetTranslations(cosets)
+    expect(ok).toBe(false)
+    expect(warnings.length).toBeGreaterThan(0)
+    // Should mention non-integer translations
+    expect(warnings[0]).toContain('non-integer translations')
+  })
+
+  it('consolidates non-lattice translations into a single warning', () => {
+    // Generator: identity with translation [0, 1/3]
+    const g = {
+      a: rat(1), b: rat(0), c: rat(0), d: rat(1),
+      tx: rat(0), ty: rat(1, 3),
+    }
+    const { cosets } = processGroup([g])
+    // This generates cosets with translations (0, 1/3) and (0, 2/3)
+    const { ok, warnings } = validateCosetTranslations(cosets)
+    expect(ok).toBe(false)
+    // Consolidated into one warning mentioning both
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('(0, 1/3)')
+    expect(warnings[0]).toContain('(0, 2/3)')
+  })
 })

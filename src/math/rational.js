@@ -77,6 +77,11 @@ export function rToFloat(a) {
   return a[0] / a[1]
 }
 
+/** Convert rational to string, e.g. [1,2] → "1/2", [3,1] → "3", [0,1] → "0". */
+export function rToString(a) {
+  return a[1] === 1 ? String(a[0]) : `${a[0]}/${a[1]}`
+}
+
 /**
  * Reduce a rational modulo 1 to [0, 1).
  *
