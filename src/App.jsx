@@ -81,6 +81,7 @@ export default function App() {
   const [gpN, setGpN] = useState(5)
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
+  const [gpEquivariant, setGpEquivariant] = useState(false)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -111,6 +112,7 @@ export default function App() {
   const handleWallpaperTypeChange = (typeName) => {
     setWallpaperType(typeName)
     setVariantIndex(0)
+    setGpEquivariant(false)
   }
 
   const handleVariantChange = (idx) => {
@@ -330,6 +332,16 @@ export default function App() {
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
+            {rationalCosets.cosets && rationalCosets.cosets.length === 2 && (
+              <label className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={gpEquivariant}
+                  onChange={(e) => setGpEquivariant(e.target.checked)}
+                />
+                Equivariant
+              </label>
+            )}
           </div>
         )}
 
@@ -366,6 +378,7 @@ export default function App() {
           gpN={gpN}
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
+          gpEquivariant={gpEquivariant}
         />
       )}
 

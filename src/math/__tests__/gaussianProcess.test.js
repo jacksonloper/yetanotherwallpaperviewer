@@ -378,4 +378,46 @@ describe('generateGPHeatmap', () => {
       expect(hm.data[15][10]).toBeCloseTo(hm.data[rj][ri], 1);
     }
   });
+
+  it('equivariant heatmap flips sign under the non-identity coset (p2 example)', () => {
+    const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+    const coeffs = drawGPCoefficients(lv, 42, 4);
+    const rot180 = rotation(PI, 0, 0);
+    const pg = [identity(), rot180];
+
+    const bounds = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+    const hm = generateGPHeatmap(coeffs, pg, bounds, 40, true);
+
+    // For equivariant: f_eq(r) = (1/2)[f(r) − f(−r)]
+    // So f_eq(−r) = (1/2)[f(−r) − f(r)] = −f_eq(r)
+    // Pixel (10, 15) maps to some (x, y); rotation by 180° maps to (−x, −y).
+    const x = bounds.minX + (10 + 0.5) * (bounds.maxX - bounds.minX) / 40;
+    const y = bounds.maxY - (15 + 0.5) * (bounds.maxY - bounds.minY) / 40;
+    const rx = -x;
+    const ry = -y;
+    const ri = Math.floor((rx - bounds.minX) / ((bounds.maxX - bounds.minX) / 40));
+    const rj = Math.floor((bounds.maxY - ry) / ((bounds.maxY - bounds.minY) / 40));
+
+    if (ri >= 0 && ri < 40 && rj >= 0 && rj < 40) {
+      // Equivariant GP should be anti-symmetric: f(r) ≈ −f(g(r))
+      expect(hm.data[15][10]).toBeCloseTo(-hm.data[rj][ri], 1);
+    }
+  });
+
+  it('equivariant=false (default) gives same result as omitting the parameter', () => {
+    const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+    const coeffs = drawGPCoefficients(lv, 42, 4);
+    const rot180 = rotation(PI, 0, 0);
+    const pg = [identity(), rot180];
+
+    const bounds = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+    const hmDefault = generateGPHeatmap(coeffs, pg, bounds, 20);
+    const hmExplicit = generateGPHeatmap(coeffs, pg, bounds, 20, false);
+
+    for (let j = 0; j < 20; j++) {
+      for (let i = 0; i < 20; i++) {
+        expect(hmExplicit.data[j][i]).toBe(hmDefault.data[j][i]);
+      }
+    }
+  });
 });
