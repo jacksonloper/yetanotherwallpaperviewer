@@ -12,7 +12,7 @@ import {
   validateGenerators,
 } from './math/rationalGroup.js'
 import { classify, rotationOrder } from './math/isometry.js'
-import { fixedLatticeVector } from './math/latticeUtils.js'
+import { fixedLatticeVector, cmSliderToVector } from './math/latticeUtils.js'
 import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import './App.css'
 
@@ -75,6 +75,7 @@ function parseRmatStrings(strs) {
 function defaultLatticeVec(latticeType) {
   if (latticeType === 'square') return fixedLatticeVector('square')
   if (latticeType === 'hexagonal') return fixedLatticeVector('hexagonal')
+  if (latticeType === 'centered-rectangular') return cmSliderToVector(0.5)
   return { x: 1.5, y: 0 }
 }
 
@@ -205,8 +206,8 @@ export default function MathPage() {
     const gens = stdGen.generators.map(rmatToStrings)
     setGenStrs(gens)
     const vec = defaultLatticeVec(stdGen.latticeType)
-    setLatticeX(String(parseFloat(vec.x.toFixed(6))))
-    setLatticeY(String(parseFloat(vec.y.toFixed(6))))
+    setLatticeX(String(vec.x))
+    setLatticeY(String(vec.y))
   }, [])
 
   // --- Generator editing ---

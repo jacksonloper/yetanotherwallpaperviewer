@@ -18,6 +18,7 @@ import {
   glideReflection,
   isometryEqual,
   classify,
+  rotationOrder,
 } from '../isometry.js'
 
 const PI = Math.PI
@@ -428,6 +429,35 @@ describe('toPhysical – hexagonal lattice', () => {
   })
 })
 
+describe('toPhysical – hex groups produce correct rotation orders', () => {
+  // Even with a truncated hex lattice (6 decimal digits), the physical
+  // isometries should yield the correct rotation order.
+  const truncHexVec = { x: 0.866025, y: 0.5 }
+  const fullHexVec = { x: s3h, y: 0.5 }
+
+  for (const hexVec of [fullHexVec, truncHexVec]) {
+    const label = hexVec === fullHexVec ? 'full precision' : 'truncated (6 digits)'
+
+    it(`R₃ → order 3 (${label})`, () => {
+      const phys = toPhysical(rimat(0, 1, -1, -1), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(3)
+    })
+
+    it(`R₆ → order 6 (${label})`, () => {
+      const phys = toPhysical(rimat(1, 1, -1, 0), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(6)
+    })
+
+    it(`R₂ → order 2 (${label})`, () => {
+      const phys = toPhysical(rimat(-1, 0, 0, -1), hexVec)
+      expect(classify(phys)).toBe('rotation')
+      expect(rotationOrder(phys)).toBe(2)
+    })
+  }
+})
+
 describe('toPhysical – rectangular lattice', () => {
   const rectVec = { x: 1.5, y: 0 }
 
@@ -697,5 +727,45 @@ describe('validateGenerators', () => {
     expect(ok).toBe(false)
     expect(warnings.length).toBe(1)
     expect(warnings[0]).toContain('Generator 2')
+  })
+
+  it('accepts cm generators on a rhombus lattice (|b| = 1)', () => {
+    // cm uses σ+ = [[0,1],[1,0]] which swaps e₁ and e₂.
+    // This is an isometry only when |e₁| = |e₂|, i.e. the lattice is a rhombus.
+    const rhombusVec = { x: 0.766044, y: 0.642788 } // ≈ cmSliderToVector(0.5)
+    const { generators } = standardGenerators('cm')
+    const { ok, warnings } = validateGenerators(generators, rhombusVec)
+    expect(ok).toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('accepts cmm generators on a rhombus lattice (|b| = 1)', () => {
+    const rhombusVec = { x: 0.766044, y: 0.642788 }
+    const { generators } = standardGenerators('cmm')
+    const { ok, warnings } = validateGenerators(generators, rhombusVec)
+    expect(ok).toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('rejects cm generators on a rectangular (non-rhombus) lattice', () => {
+    // With a=(0,1) (length 1) and b=(1.5,0) (length 1.5), |a| ≠ |b|.
+    // The swap [[0,1],[1,0]] does NOT preserve the metric.
+    const rectVec = { x: 1.5, y: 0 }
+    const { generators } = standardGenerators('cm')
+    const { ok, warnings } = validateGenerators(generators, rectVec)
+    expect(ok).toBe(false)
+    expect(warnings[0]).toContain('metric')
+  })
+
+  it('accepts hex generators even with moderately truncated lattice (6 digits)', () => {
+    // With eps = 1e-6, a 6-digit approximation to √3/2 should still pass.
+    const approxHexVec = { x: 0.866025, y: 0.5 }
+    const hexTypes = ['p3', 'p3m1', 'p31m', 'p6', 'p6m']
+    for (const t of hexTypes) {
+      const { generators } = standardGenerators(t)
+      const { ok, warnings } = validateGenerators(generators, approxHexVec)
+      expect(ok).toBe(true)
+      expect(warnings).toEqual([])
+    }
   })
 })

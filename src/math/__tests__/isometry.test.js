@@ -147,6 +147,18 @@ describe('rotationInfo and rotationOrder', () => {
   it('order of 60° rotation is 6', () => {
     expect(rotationOrder(rotation(PI / 3, 0, 0))).toBe(6);
   });
+
+  it('detects order 3 from slightly imprecise physical isometry', () => {
+    // Simulate what toPhysical produces for R₃ with a 6-digit hex lattice.
+    // The matrix entries are slightly off from the exact cos/sin(2π/3) values.
+    const M = { a: -0.5000003, b: -0.8660250, c: 0.8660250, d: -0.5000003, tx: 0, ty: 0 };
+    expect(rotationOrder(M)).toBe(3);
+  });
+
+  it('detects order 6 from slightly imprecise physical isometry', () => {
+    const M = { a: 0.5000003, b: -0.8660250, c: 0.8660250, d: 0.5000003, tx: 0, ty: 0 };
+    expect(rotationOrder(M)).toBe(6);
+  });
 });
 
 describe('reflectionInfo', () => {

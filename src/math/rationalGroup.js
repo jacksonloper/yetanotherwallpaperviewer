@@ -200,7 +200,7 @@ function rIsInteger(r) {
  * @param {number} eps – tolerance for floating-point metric check
  * @returns {{ ok: boolean, warnings: string[] }}
  */
-export function validateGenerators(generators, latticeVec, eps = 1e-9) {
+export function validateGenerators(generators, latticeVec, eps = 1e-6) {
   const warnings = []
 
   // Build Q = H^T H where H = [[0, x], [1, y]]
