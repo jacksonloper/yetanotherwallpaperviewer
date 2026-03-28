@@ -98,7 +98,8 @@ void main() {
       val2 += mode2.z * cp + mode2.w * sp;
     }
 
-    // R_g^{-1} = R_g^T :  [[a,c],[b,d]] applied to (val1,val2)
+    // R_g = [[a,b],[c,d]] (row-major in abcd).  R_g^{-1} = R_g^T.
+    // Transpose applied to (val1,val2):  (a*v1+c*v2, b*v1+d*v2)
     V += vec2(
       abcd.x * val1 + abcd.z * val2,
       abcd.y * val1 + abcd.w * val2
@@ -220,6 +221,7 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
   const pingPongRef     = useRef(0);
   const texturesRef     = useRef({ modes1: null, modes2: null, cosets: null });
   const resetRef        = useRef(resetTrigger);
+  const prevResetRef    = useRef(resetTrigger);
   const animIdRef       = useRef(null);
 
   /* ── Initialise Three.js (once) ── */
@@ -227,7 +229,7 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, preserveDrawingBuffer: true });
     renderer.setSize(width, height, false);
     renderer.autoClear = false;
     rendererRef.current = renderer;
@@ -243,12 +245,12 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
     const phCosets  = buildCosetsTexture([{ a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 }]);
     texturesRef.current = { modes1: phModes1, modes2: phModes2, cosets: phCosets };
 
-    // Render targets (ping-pong)
+    // Render targets (ping-pong) — use UnsignedByteType for broad WebGL compat
     const mkRT = () => new THREE.WebGLRenderTarget(width, height, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       format: THREE.RGBAFormat,
-      type: THREE.HalfFloatType,
+      type: THREE.UnsignedByteType,
     });
     rtRef.current = [mkRT(), mkRT()];
 
@@ -303,13 +305,16 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
       const am = advMatRef.current;
       const dm = dispMatRef.current;
       const rt = rtRef.current;
-      if (!r || !am || !dm || !rt[0] || !rt[1]) return;
+      if (!r || !am || !dm || !rt[0] || !rt[1]) {
+        animIdRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
       // Handle reset
-      if (resetRef.current !== null && resetRef.current !== resetRef._prev) {
+      if (resetRef.current !== prevResetRef.current) {
         r.setRenderTarget(rt[0]); r.clear();
         r.setRenderTarget(rt[1]); r.clear();
-        resetRef._prev = resetRef.current;
+        prevResetRef.current = resetRef.current;
       }
 
       const curr = pingPongRef.current;
@@ -341,8 +346,8 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
       phModes1.dispose();
       phModes2.dispose();
       phCosets.dispose();
-      rt[0].dispose();
-      rt[1].dispose();
+      if (rtRef.current[0]) rtRef.current[0].dispose();
+      if (rtRef.current[1]) rtRef.current[1].dispose();
       renderer.dispose();
       rendererRef.current = null;
     };
