@@ -805,8 +805,8 @@ describe('validateCosetTranslations', () => {
     const { ok, warnings } = validateCosetTranslations(cosets)
     expect(ok).toBe(false)
     expect(warnings.length).toBeGreaterThan(0)
-    // Should mention non-lattice translation
-    expect(warnings[0]).toContain('non-lattice translation')
+    // Should mention non-integer translations
+    expect(warnings[0]).toContain('non-integer translations')
   })
 
   it('consolidates non-lattice translations into a single warning', () => {

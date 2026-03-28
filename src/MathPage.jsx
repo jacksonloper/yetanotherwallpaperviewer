@@ -302,7 +302,8 @@ export default function MathPage() {
         validation = {
           ok: false,
           warnings: [...validation.warnings,
-            `G/T exceeds ${order} elements (enumeration stopped) — the generators do not produce a valid wallpaper group.`],
+            `G/T exceeds ${order} elements (enumeration stopped). ` +
+            `This usually means the generators produce non-integer translations for this lattice.`],
         }
       }
 

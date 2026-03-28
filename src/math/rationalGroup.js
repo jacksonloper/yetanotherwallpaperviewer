@@ -263,12 +263,13 @@ export function validateGenerators(generators, latticeVec, eps = 1e-6) {
 
 /**
  * Check whether the enumerated G/T cosets contain non-integer
- * translations with identity linear part.  In a valid wallpaper group
- * every element whose linear part is the identity must be a lattice
- * translation (i.e. its translation part must be integer).  If we
- * find non-integer translations it means the generators produce
- * non-lattice translations, which is the hallmark of a non-wallpaper
- * group.
+ * translations with identity linear part.  Our algorithm assumes the
+ * translation subgroup is exactly Z² (the chosen lattice).  If we
+ * find coset representatives with identity linear part and non-integer
+ * translation, the generated group contains translations that are not
+ * in Z², so the chosen lattice does not capture the full translation
+ * subgroup.  The group may still be a valid wallpaper group with a
+ * different choice of lattice.
  *
  * Returns a single consolidated warning listing the offending
  * translations, rather than one warning per translation.
@@ -282,7 +283,7 @@ export function validateCosetTranslations(cosets) {
     // Check if linear part is the identity
     if (req(c.a, [1, 1]) && req(c.b, [0, 1]) &&
         req(c.c, [0, 1]) && req(c.d, [1, 1])) {
-      // Translation should be [0,0] mod Z² for a valid wallpaper group
+      // Translation should be [0,0] mod Z² for compatible lattice
       const txZero = req(c.tx, [0, 1])
       const tyZero = req(c.ty, [0, 1])
       if (!txZero || !tyZero) {
@@ -294,8 +295,9 @@ export function validateCosetTranslations(cosets) {
   return {
     ok: false,
     warnings: [
-      `G/T contains non-lattice translations: ${bad.join(', ')} — ` +
-      `in a valid wallpaper group, all translations must be integer lattice vectors.`
+      `The generated group contains non-integer translations: ${bad.join(', ')}. ` +
+      `The chosen lattice does not capture the full translation subgroup — ` +
+      `try a different lattice, or adjust the generator translations.`
     ],
   }
 }
@@ -317,7 +319,10 @@ export function validateCosetTranslations(cosets) {
  * this by reducing translations mod Z² and comparing exactly.
  *
  * For a valid wallpaper group, |G/T| ≤ 12 (attained by p6m).
- * If |G/T| exceeds maxOrder, the group is declared degenerate.
+ * If |G/T| exceeds maxOrder we stop enumerating and return the
+ * partial result with isDegenerate = true.  This typically happens
+ * when the generators produce non-integer translations (the chosen
+ * lattice doesn't match the group's translation subgroup).
  *
  * @param {rmat[]} generators – rational affine matrices (lattice coords)
  * @param {number} maxOrder – upper bound on |G/T| before declaring degenerate
