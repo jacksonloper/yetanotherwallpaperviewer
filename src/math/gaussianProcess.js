@@ -258,6 +258,32 @@ export function shoStepGPCoefficients(gpCoeffs, dt, omega, damping) {
   return { modes: newModes, dc: newDc, vdc: newVdc, dcEnvelope: dcEnv };
 }
 
+/* ---------- Wind (vector-field) coefficients ----------------------------- */
+
+/**
+ * Draw random Fourier coefficients for two independent GPs, used to build
+ * an equivariant vector field for the wind-map mode.
+ *
+ * Both GPs share the same lattice and spectral envelope but receive
+ * independent random draws (offset seeds).
+ */
+export function drawWindCoefficients(latticeVectors, seed, maxFreq = 5, lengthScale = 0.1) {
+  return {
+    gp1: drawGPCoefficients(latticeVectors, seed, maxFreq, lengthScale),
+    gp2: drawGPCoefficients(latticeVectors, seed + 1000, maxFreq, lengthScale),
+  };
+}
+
+/**
+ * Advance both GP components of a wind field by one SHO step.
+ */
+export function shoStepWindCoefficients(windCoeffs, dt, omega, damping) {
+  return {
+    gp1: shoStepGPCoefficients(windCoeffs.gp1, dt, omega, damping),
+    gp2: shoStepGPCoefficients(windCoeffs.gp2, dt, omega, damping),
+  };
+}
+
 /* ---------- GP evaluation ------------------------------------------------ */
 
 /**

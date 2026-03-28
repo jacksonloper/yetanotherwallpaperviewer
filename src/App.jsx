@@ -75,6 +75,7 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
+  const [showWind, setShowWind] = useState(false)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
@@ -239,8 +240,12 @@ export default function App() {
             Show F
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => setShowGP(e.target.checked)} />
+            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) setShowWind(false); }} />
             Show GP
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showWind} onChange={(e) => { setShowWind(e.target.checked); if (e.target.checked) setShowGP(false); }} />
+            Show Wind
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
@@ -278,8 +283,8 @@ export default function App() {
           </div>
         )}
 
-        {/* GP controls — revealed when Show GP is on */}
-        {showGP && (
+        {/* GP / Wind controls — revealed when Show GP or Show Wind is on */}
+        {(showGP || showWind) && (
           <div className="display-sub">
             <label className="slider-inline">
               ℓ (length scale): {gpEll.toFixed(2)}
@@ -332,7 +337,7 @@ export default function App() {
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
-            {rationalCosets.cosets && rationalCosets.cosets.length === 2 && (
+            {showGP && rationalCosets.cosets && rationalCosets.cosets.length === 2 && (
               <label className="toggle-label">
                 <input
                   type="checkbox"
@@ -372,6 +377,7 @@ export default function App() {
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
+          showWind={showWind}
           showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}

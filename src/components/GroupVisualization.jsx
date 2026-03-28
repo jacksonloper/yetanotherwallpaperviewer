@@ -7,8 +7,9 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, shoStepGPCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
+import WindShaderCanvas from './WindShaderCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -182,7 +183,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showWind, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -199,7 +200,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     [viewWidth, height]
   );
 
-  // Visible bounds for GP rendering (exact viewport, no margin)
+  // Visible bounds for GP / wind rendering (exact viewport, no margin)
   const gpBounds = useMemo(
     () => ({
       minX: -viewWidth / 2,
@@ -210,7 +211,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     [viewWidth, height]
   );
 
-  // GP coefficients: initialize from seed, then evolve via OU process
+  // GP coefficients: initialize from seed, then evolve via SHO
   const initialCoeffs = useMemo(() => {
     if (!showGP || !latticeVectors) return null;
     return drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
@@ -219,13 +220,12 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
   const [gpCoeffs, setGpCoeffs] = useState(null);
   const [prevInitialCoeffs, setPrevInitialCoeffs] = useState(null);
 
-  // Reset state when initial coefficients change (React "adjust state during render" pattern)
   if (initialCoeffs !== prevInitialCoeffs) {
     setPrevInitialCoeffs(initialCoeffs);
     setGpCoeffs(initialCoeffs);
   }
 
-  // Animation loop: evolve coefficients via stochastic harmonic oscillator when speed > 0
+  // GP animation loop
   useEffect(() => {
     if (!gpSpeed || gpSpeed <= 0) return;
 
@@ -235,7 +235,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     const animate = (timestamp) => {
       if (lastTime !== null) {
-        const dt = (timestamp - lastTime) / 1000; // seconds
+        const dt = (timestamp - lastTime) / 1000;
         setGpCoeffs((prev) =>
           prev ? shoStepGPCoefficients(prev, dt, gpSpeed, damping) : prev
         );
@@ -247,6 +247,45 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
   }, [gpSpeed, gpDamping]);
+
+  // ── Wind coefficients ────────────────────────────────────
+  const windInitialCoeffs = useMemo(() => {
+    if (!showWind || !latticeVectors) return null;
+    return drawWindCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+  }, [showWind, latticeVectors, gpSeed, gpEll, gpN]);
+
+  const [windCoeffs, setWindCoeffs] = useState(null);
+  const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
+  const [windResetCount, setWindResetCount] = useState(0);
+
+  if (windInitialCoeffs !== prevWindInitialCoeffs) {
+    setPrevWindInitialCoeffs(windInitialCoeffs);
+    setWindCoeffs(windInitialCoeffs);
+    setWindResetCount((c) => c + 1);
+  }
+
+  // Wind animation loop (SHO for the two GPs)
+  useEffect(() => {
+    if (!showWind || !gpSpeed || gpSpeed <= 0) return;
+
+    let animId;
+    let lastTime = null;
+    const damping = gpDamping;
+
+    const animate = (timestamp) => {
+      if (lastTime !== null) {
+        const dt = (timestamp - lastTime) / 1000;
+        setWindCoeffs((prev) =>
+          prev ? shoStepWindCoefficients(prev, dt, gpSpeed, damping) : prev
+        );
+      }
+      lastTime = timestamp;
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [showWind, gpSpeed, gpDamping]);
 
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];
@@ -342,16 +381,28 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
           />
         )}
 
+        {/* Three.js wind-map canvas (behind SVG) */}
+        {showWind && windCoeffs && cosetReps && (
+          <WindShaderCanvas
+            windCoeffs={windCoeffs}
+            cosetReps={cosetReps}
+            bounds={gpBounds}
+            width={width}
+            height={height}
+            resetTrigger={windResetCount}
+          />
+        )}
+
         {/* SVG overlay for group elements */}
         <svg
           width={width}
           height={height}
           style={{
-            position: showGP ? 'absolute' : 'relative',
+            position: (showGP || showWind) ? 'absolute' : 'relative',
             top: 0,
             left: 0,
             border: '1px solid var(--color-svg-container-border, #ccc)',
-            background: showGP ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
+            background: (showGP || showWind) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
             borderRadius: '4px',
           }}
         >
