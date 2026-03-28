@@ -21,25 +21,56 @@ import './App.css'
 // ───────────────────────────────────────────────────
 
 /**
- * Parse a rational string like "1/2", "-3", "0" into a [n, d] pair.
+ * Parse a rational string like "1/2", "-3", "0", "0.3" into a [n, d] pair.
+ * Accepts integers ("3"), fractions ("1/2"), and decimals ("0.3", ".5").
  * Returns null on invalid input.
  */
-function parseRational(s) {
+export function parseRational(s) {
   s = s.trim()
   if (s === '') return null
-  const parts = s.split('/')
-  if (parts.length === 1) {
-    const n = parseInt(parts[0], 10)
-    if (!Number.isFinite(n)) return null
-    return rat(n, 1)
-  }
-  if (parts.length === 2) {
+
+  // Fraction: "1/2", "-3/4"
+  if (s.indexOf('/') >= 0) {
+    const parts = s.split('/')
+    if (parts.length !== 2) return null
     const n = parseInt(parts[0], 10)
     const d = parseInt(parts[1], 10)
     if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return null
     return rat(n, d)
   }
-  return null
+
+  // Decimal: "0.3", ".5", "-1.25", "3."
+  if (s.indexOf('.') >= 0) {
+    let sign = 1
+    let str = s
+    if (str.startsWith('-')) { sign = -1; str = str.slice(1) }
+
+    const dotParts = str.split('.')
+    if (dotParts.length !== 2) return null
+
+    const intStr = dotParts[0] || '0'
+    const fracStr = dotParts[1]
+
+    // Trailing dot like "3." → treat as integer
+    if (fracStr.length === 0) {
+      const n = parseInt(intStr, 10)
+      if (!Number.isFinite(n) || n < 0) return null
+      return rat(sign * n, 1)
+    }
+
+    if (!/^\d+$/.test(intStr) || !/^\d+$/.test(fracStr)) return null
+
+    const intVal = parseInt(intStr, 10)
+    const fracVal = parseInt(fracStr, 10)
+    const denom = Math.pow(10, fracStr.length)
+    const numer = sign * (intVal * denom + fracVal)
+    return rat(numer, denom)
+  }
+
+  // Integer: "3", "-3"
+  const n = parseInt(s, 10)
+  if (!Number.isFinite(n)) return null
+  return rat(n, 1)
 }
 
 /**
@@ -293,7 +324,7 @@ export default function MathPage() {
     const spec = {
       lattice_vectors: [
         [0, 1],
-        [parseFloat(parseFloat(latticeX).toFixed(6)), parseFloat(parseFloat(latticeY).toFixed(6))],
+        [parseFloat(latticeX), parseFloat(latticeY)],
       ],
       generators: data.generators.map(rmatToJsonObj),
       result: {
@@ -370,7 +401,7 @@ export default function MathPage() {
         <h3 className="panel-heading">Generators (rational affine matrices in lattice coordinates)</h3>
         <p className="lattice-info">
           Each generator is a 2×3 affine matrix [a b tx ; c d ty].
-          Enter rational numbers as integers or fractions (e.g. <code>1/2</code>, <code>-1</code>, <code>0</code>).
+          Enter rational numbers as integers, fractions, or decimals (e.g. <code>1/2</code>, <code>-1</code>, <code>0.3</code>).
           Lattice translations are always implicit.
         </p>
 
