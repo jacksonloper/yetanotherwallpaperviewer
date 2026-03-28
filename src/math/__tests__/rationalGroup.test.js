@@ -11,7 +11,7 @@ import {
   generateElements,
   rmatToJsonObj,
   validateGenerators,
-  validateGroupOrder,
+  validateCosetTranslations,
 } from '../rationalGroup.js'
 import {
   rotation,
@@ -361,7 +361,9 @@ describe('processGroup – degeneracy detection', () => {
     const shear = rimat(1, 1, 0, 1)
     const result = processGroup([shear], 24)
     expect(result.isDegenerate).toBe(true)
-    expect(result.error).toBeTruthy()
+    // Should still return cosets (not a hard error)
+    expect(result.cosets.length).toBe(24)
+    expect(result.error).toBeNull()
   })
 })
 
@@ -772,43 +774,54 @@ describe('validateGenerators', () => {
 })
 
 // ───────────────────────────────────────────────────
-//  validateGroupOrder
+//  validateCosetTranslations
 // ───────────────────────────────────────────────────
 
-describe('validateGroupOrder', () => {
-  it('accepts all valid wallpaper-group quotient orders', () => {
-    for (const order of [1, 2, 3, 4, 6, 8, 12]) {
-      const { ok, warning } = validateGroupOrder(order)
+describe('validateCosetTranslations', () => {
+  it('accepts all standard wallpaper groups (no non-lattice translations)', () => {
+    const types = [
+      'p1', 'p2', 'pm', 'pg', 'pmm', 'pmg', 'pgg',
+      'cm', 'cmm', 'p4', 'p4m', 'p4g',
+      'p3', 'p3m1', 'p31m', 'p6', 'p6m',
+    ]
+    for (const t of types) {
+      const { generators } = standardGenerators(t)
+      const { cosets } = processGroup(generators)
+      const { ok, warnings } = validateCosetTranslations(cosets)
       expect(ok).toBe(true)
-      expect(warning).toBeNull()
+      expect(warnings).toEqual([])
     }
   })
 
-  it('rejects order 20 (not a valid wallpaper group order)', () => {
-    const { ok, warning } = validateGroupOrder(20)
-    expect(ok).toBe(false)
-    expect(warning).toContain('20')
-    expect(warning).toContain('not valid')
-  })
-
-  it('rejects other invalid orders (5, 7, 9, 10, 11, 16)', () => {
-    for (const order of [5, 7, 9, 10, 11, 16]) {
-      const { ok, warning } = validateGroupOrder(order)
-      expect(ok).toBe(false)
-      expect(warning).toContain(String(order))
-    }
-  })
-
-  it('produces a warning for the exact user scenario (reflection with 3/10 translation)', () => {
+  it('detects non-lattice translations for the user scenario (reflection with 3/10 translation)', () => {
     // Generator: reflection [[0,1],[1,0]] with translation [0, 3/10]
     const g = {
       a: rat(0), b: rat(1), c: rat(1), d: rat(0),
       tx: rat(0), ty: rat(3, 10),
     }
-    const { order } = processGroup([g])
+    const { cosets, order } = processGroup([g])
     expect(order).toBe(20) // The BFS produces 20 cosets
-    const { ok, warning } = validateGroupOrder(order)
+
+    const { ok, warnings } = validateCosetTranslations(cosets)
     expect(ok).toBe(false)
-    expect(warning).toContain('20')
+    expect(warnings.length).toBeGreaterThan(0)
+    // Should mention non-lattice translation
+    expect(warnings[0]).toContain('non-lattice translation')
+  })
+
+  it('consolidates non-lattice translations into a single warning', () => {
+    // Generator: identity with translation [0, 1/3]
+    const g = {
+      a: rat(1), b: rat(0), c: rat(0), d: rat(1),
+      tx: rat(0), ty: rat(1, 3),
+    }
+    const { cosets } = processGroup([g])
+    // This generates cosets with translations (0, 1/3) and (0, 2/3)
+    const { ok, warnings } = validateCosetTranslations(cosets)
+    expect(ok).toBe(false)
+    // Consolidated into one warning mentioning both
+    expect(warnings.length).toBe(1)
+    expect(warnings[0]).toContain('(0, 1/3)')
+    expect(warnings[0]).toContain('(0, 2/3)')
   })
 })

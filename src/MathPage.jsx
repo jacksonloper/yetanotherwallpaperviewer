@@ -10,7 +10,7 @@ import {
   quotientToPhysical,
   generateElements,
   validateGenerators,
-  validateGroupOrder,
+  validateCosetTranslations,
 } from './math/rationalGroup.js'
 import { classify, rotationOrder } from './math/isometry.js'
 import { fixedLatticeVector, cmSliderToVector } from './math/latticeUtils.js'
@@ -288,12 +288,21 @@ export default function MathPage() {
         return { error: groupError, data: null, validation }
       }
 
-      // Check quotient group order
-      const orderCheck = validateGroupOrder(order)
-      if (!orderCheck.ok) {
+      // Check for non-lattice translations in the coset representatives
+      const transCheck = validateCosetTranslations(cosets)
+      if (!transCheck.ok) {
         validation = {
           ok: false,
-          warnings: [...validation.warnings, orderCheck.warning],
+          warnings: [...validation.warnings, ...transCheck.warnings],
+        }
+      }
+
+      // If the group was truncated, add a note
+      if (isDegenerate) {
+        validation = {
+          ok: false,
+          warnings: [...validation.warnings,
+            `G/T exceeds ${order} elements (enumeration stopped) — the generators do not produce a valid wallpaper group.`],
         }
       }
 
@@ -460,7 +469,10 @@ export default function MathPage() {
               <span className={`math-result-badge ${result.validation?.ok ? 'math-result-ok' : 'math-result-warn'}`}>
                 {result.validation?.ok ? '✓ Valid wallpaper group' : '⚠ Group enumerated (see warnings)'}
               </span>
-              <span className="math-result-order">|G/T| = {result.data.order}</span>
+              <span className="math-result-order">
+                |G/T| = {result.data.isDegenerate ? `>${result.data.order}` : result.data.order}
+                {result.data.isDegenerate ? ' (truncated)' : ''}
+              </span>
             </div>
 
             {/* Copy JSON */}

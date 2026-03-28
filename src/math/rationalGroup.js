@@ -262,30 +262,42 @@ export function validateGenerators(generators, latticeVec, eps = 1e-6) {
 }
 
 /**
- * The set of quotient-group orders |G/T| that occur among the 17
- * wallpaper groups.  Any other finite order indicates the generators
- * do not produce a valid wallpaper group.
+ * Check whether the enumerated G/T cosets contain non-integer
+ * translations with identity linear part.  In a valid wallpaper group
+ * every element whose linear part is the identity must be a lattice
+ * translation (i.e. its translation part must be integer).  If we
+ * find non-integer translations it means the generators produce
+ * non-lattice translations, which is the hallmark of a non-wallpaper
+ * group.
  *
- * p1→1, p2→2, pm/pg/cm→2, pmm/pmg/pgg/cmm→4, p4→4,
- * p3→3, p3m1/p31m→6, p6→6, p4m/p4g→8, p6m→12.
- */
-const VALID_QUOTIENT_ORDERS = new Set([1, 2, 3, 4, 6, 8, 12])
-
-/**
- * Check whether a quotient-group order is consistent with a wallpaper
- * group.  Returns { ok, warning }.
+ * Returns a single consolidated warning listing the offending
+ * translations, rather than one warning per translation.
  *
- * @param {number} order – |G/T| as computed by processGroup
- * @returns {{ ok: boolean, warning: string|null }}
+ * @param {rmat[]} cosets – G/T coset representatives (reduced mod Z²)
+ * @returns {{ ok: boolean, warnings: string[] }}
  */
-export function validateGroupOrder(order) {
-  if (!VALID_QUOTIENT_ORDERS.has(order)) {
-    return {
-      ok: false,
-      warning: `|G/T| = ${order} is not valid for any wallpaper group (valid orders: 1, 2, 3, 4, 6, 8, 12).`,
+export function validateCosetTranslations(cosets) {
+  const bad = []
+  for (const c of cosets) {
+    // Check if linear part is the identity
+    if (req(c.a, [1, 1]) && req(c.b, [0, 1]) &&
+        req(c.c, [0, 1]) && req(c.d, [1, 1])) {
+      // Translation should be [0,0] mod Z² for a valid wallpaper group
+      const txZero = req(c.tx, [0, 1])
+      const tyZero = req(c.ty, [0, 1])
+      if (!txZero || !tyZero) {
+        bad.push(`(${rToString(c.tx)}, ${rToString(c.ty)})`)
+      }
     }
   }
-  return { ok: true, warning: null }
+  if (bad.length === 0) return { ok: true, warnings: [] }
+  return {
+    ok: false,
+    warnings: [
+      `G/T contains non-lattice translations: ${bad.join(', ')} — ` +
+      `in a valid wallpaper group, all translations must be integer lattice vectors.`
+    ],
+  }
 }
 
 // ───────────────────────────────────────────────────
@@ -347,8 +359,8 @@ export function processGroup(generators, maxOrder = 24) {
             return {
               cosets: cosets.slice(0, maxOrder),
               isDegenerate: true,
-              order: -1,
-              error: `G/T exceeds ${maxOrder} elements – group appears degenerate.`,
+              order: maxOrder,
+              error: null,
             }
           }
         }
