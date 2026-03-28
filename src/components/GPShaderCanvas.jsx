@@ -30,6 +30,7 @@ uniform float u_dc;          // DC offset
 uniform int   u_numModes;    // number of Fourier modes
 uniform int   u_numCosets;   // number of G/T coset representatives
 uniform float u_normScale;   // normalization for tanh colormap
+uniform int   u_equivariant; // 1 = equivariant (f − f∘g), 0 = invariant (f + f∘g)
 
 uniform sampler2D u_modesTexture;   // width=numModes, height=1, RGBA float
                                     // texel i = (kx, ky, a, b)
@@ -74,7 +75,10 @@ void main() {
       val += mode.z * cos(phase) + mode.w * sin(phase);
     }
 
-    sum += val;
+    // Apply sign: +1 for invariant, −1 for non-identity coset in equivariant mode
+    float sign = 1.0;
+    if (u_equivariant == 1 && g > 0) sign = -1.0;
+    sum += sign * val;
   }
 
   sum /= float(u_numCosets);
@@ -168,8 +172,9 @@ function computeNormScale(modes) {
  * @param {{minX,maxX,minY,maxY}} props.bounds  Viewport bounds in math coords
  * @param {number}  props.width       Canvas width in pixels
  * @param {number}  props.height      Canvas height in pixels
+ * @param {boolean} [props.equivariant=false]  If true and |cosetReps|=2, use f−f∘g.
  */
-export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, height }) {
+export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, height, equivariant }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
@@ -209,6 +214,7 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
         u_numModes: { value: 1 },
         u_numCosets: { value: 1 },
         u_normScale: { value: 1.0 },
+        u_equivariant: { value: 0 },
         u_modesTexture: { value: placeholderModes },
         u_cosetsTexture: { value: placeholderCosets },
         u_modesTexWidth: { value: 1.0 },
@@ -304,11 +310,12 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
     material.uniforms.u_dc.value = dc;
     material.uniforms.u_numModes.value = modes.length;
     material.uniforms.u_numCosets.value = cosetReps.length;
+    material.uniforms.u_equivariant.value = equivariant ? 1 : 0;
     material.uniforms.u_normScale.value = computeNormScale(modes);
 
     // Render
     renderer.render(scene, camera);
-  }, [gpCoeffs, cosetReps, bounds]);
+  }, [gpCoeffs, cosetReps, bounds, equivariant]);
 
   return (
     <canvas

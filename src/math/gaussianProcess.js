@@ -302,18 +302,25 @@ export function extractPointGroup(elements) {
 /**
  * Evaluate the GP symmetrized under the point group.
  *
- * f_sym(r) = (1/|P|) Σ_{g ∈ P} f(g(r))
+ * Invariant mode (default):
+ *   f_sym(r) = (1/|P|) Σ_{g ∈ P} f(g(r))
+ *
+ * Equivariant mode (only valid for |P| = 2):
+ *   f_sym(r) = (1/2) [f(r) − f(g(r))]
+ *   where g is the non-identity coset representative.
  *
  * Because f is already periodic under the lattice, f(g(r)) = f(R r + t)
  * is independent of which coset representative we chose (up to a lattice
  * translation, which doesn't change f).
  */
-function evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup) {
+function evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup, equivariant = false) {
   let sum = 0;
-  for (const g of pointGroup) {
+  for (let i = 0; i < pointGroup.length; i++) {
+    const g = pointGroup[i];
     const gx = g.a * x + g.b * y + g.tx;
     const gy = g.c * x + g.d * y + g.ty;
-    sum += evaluateGP(gpCoeffs, gx, gy);
+    const sign = (equivariant && i > 0) ? -1 : 1;
+    sum += sign * evaluateGP(gpCoeffs, gx, gy);
   }
   return sum / pointGroup.length;
 }
@@ -327,13 +334,15 @@ function evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup) {
  * @param {Array}  pointGroup     Output of extractPointGroup.
  * @param {{minX,maxX,minY,maxY}} bounds  Math-coordinate bounding box.
  * @param {number} [resolution=100]  Grid cells along each axis.
+ * @param {boolean} [equivariant=false]  If true and |pointGroup|=2, use f−f∘g.
  * @returns {{ data: number[][], minVal: number, maxVal: number, resolution: number }}
  */
 export function generateGPHeatmap(
   gpCoeffs,
   pointGroup,
   bounds,
-  resolution = 100
+  resolution = 100,
+  equivariant = false
 ) {
   const { minX, maxX, minY, maxY } = bounds;
   const dx = (maxX - minX) / resolution;
@@ -349,7 +358,7 @@ export function generateGPHeatmap(
     const y = maxY - (j + 0.5) * dy;
     for (let i = 0; i < resolution; i++) {
       const x = minX + (i + 0.5) * dx;
-      const val = evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup);
+      const val = evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup, equivariant);
       row.push(val);
       if (val < minVal) minVal = val;
       if (val > maxVal) maxVal = val;
