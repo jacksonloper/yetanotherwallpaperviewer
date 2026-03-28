@@ -10,6 +10,7 @@ import {
   quotientToPhysical,
   generateElements,
   validateGenerators,
+  validateGroupOrder,
 } from './math/rationalGroup.js'
 import { classify, rotationOrder } from './math/isometry.js'
 import { fixedLatticeVector, cmSliderToVector } from './math/latticeUtils.js'
@@ -278,13 +279,22 @@ export default function MathPage() {
     }
 
     // Validate generators
-    const validation = validateGenerators(generators, latticeVec)
+    let validation = validateGenerators(generators, latticeVec)
 
     // Run the algorithm
     try {
       const { cosets, isDegenerate, order, error: groupError } = processGroup(generators)
       if (groupError) {
         return { error: groupError, data: null, validation }
+      }
+
+      // Check quotient group order
+      const orderCheck = validateGroupOrder(order)
+      if (!orderCheck.ok) {
+        validation = {
+          ok: false,
+          warnings: [...validation.warnings, orderCheck.warning],
+        }
       }
 
       // Generate visible elements for visualization

@@ -261,6 +261,33 @@ export function validateGenerators(generators, latticeVec, eps = 1e-6) {
   return { ok: warnings.length === 0, warnings }
 }
 
+/**
+ * The set of quotient-group orders |G/T| that occur among the 17
+ * wallpaper groups.  Any other finite order indicates the generators
+ * do not produce a valid wallpaper group.
+ *
+ * p1→1, p2→2, pm/pg/cm→2, pmm/pmg/pgg/cmm→4, p4→4,
+ * p3→3, p3m1/p31m→6, p6→6, p4m/p4g→8, p6m→12.
+ */
+const VALID_QUOTIENT_ORDERS = new Set([1, 2, 3, 4, 6, 8, 12])
+
+/**
+ * Check whether a quotient-group order is consistent with a wallpaper
+ * group.  Returns { ok, warning }.
+ *
+ * @param {number} order – |G/T| as computed by processGroup
+ * @returns {{ ok: boolean, warning: string|null }}
+ */
+export function validateGroupOrder(order) {
+  if (!VALID_QUOTIENT_ORDERS.has(order)) {
+    return {
+      ok: false,
+      warning: `|G/T| = ${order} is not valid for any wallpaper group (valid orders: 1, 2, 3, 4, 6, 8, 12).`,
+    }
+  }
+  return { ok: true, warning: null }
+}
+
 // ───────────────────────────────────────────────────
 //  Group processing: enumerate G/T
 // ───────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import {
   generateElements,
   rmatToJsonObj,
   validateGenerators,
+  validateGroupOrder,
 } from '../rationalGroup.js'
 import {
   rotation,
@@ -767,5 +768,47 @@ describe('validateGenerators', () => {
       expect(ok).toBe(true)
       expect(warnings).toEqual([])
     }
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  validateGroupOrder
+// ───────────────────────────────────────────────────
+
+describe('validateGroupOrder', () => {
+  it('accepts all valid wallpaper-group quotient orders', () => {
+    for (const order of [1, 2, 3, 4, 6, 8, 12]) {
+      const { ok, warning } = validateGroupOrder(order)
+      expect(ok).toBe(true)
+      expect(warning).toBeNull()
+    }
+  })
+
+  it('rejects order 20 (not a valid wallpaper group order)', () => {
+    const { ok, warning } = validateGroupOrder(20)
+    expect(ok).toBe(false)
+    expect(warning).toContain('20')
+    expect(warning).toContain('not valid')
+  })
+
+  it('rejects other invalid orders (5, 7, 9, 10, 11, 16)', () => {
+    for (const order of [5, 7, 9, 10, 11, 16]) {
+      const { ok, warning } = validateGroupOrder(order)
+      expect(ok).toBe(false)
+      expect(warning).toContain(String(order))
+    }
+  })
+
+  it('produces a warning for the exact user scenario (reflection with 3/10 translation)', () => {
+    // Generator: reflection [[0,1],[1,0]] with translation [0, 3/10]
+    const g = {
+      a: rat(0), b: rat(1), c: rat(1), d: rat(0),
+      tx: rat(0), ty: rat(3, 10),
+    }
+    const { order } = processGroup([g])
+    expect(order).toBe(20) // The BFS produces 20 cosets
+    const { ok, warning } = validateGroupOrder(order)
+    expect(ok).toBe(false)
+    expect(warning).toContain('20')
   })
 })
