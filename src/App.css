@@ -597,3 +597,21 @@ h1 {
   font-weight: 700;
   color: var(--color-heading);
 }
+
+/* ── Supergroup controls ── */
+.supergroup-panel {
+  margin-top: 16px;
+}
+
+.supergroup-hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0 0 8px;
+}
+
+.supergroup-active-note {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getWallpaperTypeByName,
@@ -11,9 +11,11 @@ import {
   quotientToPhysical,
   rmatToJsonObj,
 } from './math/rationalGroup.js'
+import { getViableSupergroups } from './math/supergroups.js'
 import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
 import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
+import SupergroupControls from './components/SupergroupControls.jsx'
 import {
   latticeToVector,
   getLatticeType,
@@ -83,6 +85,7 @@ export default function App() {
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
   const [gpEquivariant, setGpEquivariant] = useState(false)
+  const [activeSupergroup, setActiveSupergroup] = useState(null)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -114,6 +117,7 @@ export default function App() {
     setWallpaperType(typeName)
     setVariantIndex(0)
     setGpEquivariant(false)
+    setActiveSupergroup(null)
   }
 
   const handleVariantChange = (idx) => {
@@ -175,6 +179,47 @@ export default function App() {
   }, [rationalCosets, latticeVec])
 
   const { result, error, warning } = groupResult
+
+  // Invalidate supergroup when lattice type changes make it unviable
+  useEffect(() => {
+    if (activeSupergroup) {
+      const viable = getViableSupergroups(wallpaperType, latticeType)
+      if (!viable.includes(activeSupergroup)) {
+        setActiveSupergroup(null)
+      }
+    }
+  }, [latticeType, wallpaperType, activeSupergroup])
+
+  // Compute supergroup visualization when a supergroup is active
+  const supergroupResult = useMemo(() => {
+    if (!activeSupergroup) return null
+    try {
+      const stdGen = standardGenerators(activeSupergroup)
+      if (!stdGen) return null
+      const { cosets, isDegenerate, error: groupError } = processGroup(stdGen.generators)
+      if (groupError || isDegenerate) return null
+
+      const cosetReps = quotientToPhysical(cosets, latticeVec)
+      const latticeVectors = { v1: { x: 0, y: 1 }, v2: latticeVec }
+      const bounds = {
+        minX: -SVG_WIDTH / (2 * SCALE) - 1,
+        maxX: SVG_WIDTH / (2 * SCALE) + 1,
+        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
+        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+      }
+      const elements = generateElements(cosets, latticeVec, bounds)
+      return { elements, latticeVectors, cosetReps }
+    } catch {
+      return null
+    }
+  }, [activeSupergroup, latticeVec])
+
+  // Use supergroup result for visualization when active, otherwise base group
+  const displayResult = (activeSupergroup && supergroupResult) ? supergroupResult : result
+
+  const handleSupergroupToggle = useCallback((sgName) => {
+    setActiveSupergroup(prev => prev === sgName ? null : sgName)
+  }, [])
 
   const copyToClipboard = useCallback(() => {
     const json = buildJsonSpec(wallpaperType, variantIndex, latticeVec)
@@ -369,11 +414,11 @@ export default function App() {
       )}
 
       {/* Visualization */}
-      {result && (
+      {displayResult && (
         <GroupVisualization
-          elements={result.elements}
-          latticeVectors={result.latticeVectors}
-          cosetReps={result.cosetReps}
+          elements={displayResult.elements}
+          latticeVectors={displayResult.latticeVectors}
+          cosetReps={displayResult.cosetReps}
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
@@ -387,6 +432,14 @@ export default function App() {
           gpEquivariant={gpEquivariant}
         />
       )}
+
+      {/* Supergroup controls — below the main display */}
+      <SupergroupControls
+        groupName={wallpaperType}
+        latticeType={latticeType}
+        activeSupergroup={activeSupergroup}
+        onToggle={handleSupergroupToggle}
+      />
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
         <Link to="/math">🔢 Math Explorer</Link>
