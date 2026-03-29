@@ -24,8 +24,28 @@ describe('getAllSupergroups', () => {
     expect(getAllSupergroups('p2')).toEqual(['pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p6'])
   })
 
-  it('returns correct supergroups for cm', () => {
-    expect(getAllSupergroups('cm')).toEqual(['cmm', 'p3m1', 'p31m'])
+  it('returns correct supergroups for cm (includes pm peer)', () => {
+    expect(getAllSupergroups('cm')).toEqual(['pm', 'cmm', 'p3m1', 'p31m'])
+  })
+
+  it('returns correct supergroups for pm (includes cm peer)', () => {
+    expect(getAllSupergroups('pm')).toEqual(['pmm', 'pmg', 'cm', 'cmm', 'p4m'])
+  })
+
+  it('returns correct supergroups for p3m1 (includes p31m peer)', () => {
+    expect(getAllSupergroups('p3m1')).toEqual(['p31m', 'p6m'])
+  })
+
+  it('returns correct supergroups for p31m (includes p3m1 peer)', () => {
+    expect(getAllSupergroups('p31m')).toEqual(['p3m1', 'p6m'])
+  })
+
+  it('returns correct supergroups for pmm (includes cmm peer)', () => {
+    expect(getAllSupergroups('pmm')).toEqual(['cmm', 'p4m'])
+  })
+
+  it('returns correct supergroups for cmm (includes pmm peer)', () => {
+    expect(getAllSupergroups('cmm')).toEqual(['pmm', 'p4m'])
   })
 
   it('returns correct supergroups for p3', () => {
@@ -112,24 +132,29 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p1', 'hexagonal')).toEqual(['p2', 'cm', 'p3', 'p6'])
   })
 
-  // cm on centered-rectangular → cmm only (not p3m1/p31m which need hex)
+  // cm on centered-rectangular → pm NOT viable (needs rectangular), cmm only
   it('cm on centered-rectangular → cmm', () => {
     expect(getViableSupergroups('cm', 'centered-rectangular')).toEqual(['cmm'])
   })
 
-  // cm on hexagonal → cmm, p3m1, p31m (all viable)
+  // cm on hexagonal → cmm, p3m1, p31m (pm not viable, needs rectangular)
   it('cm on hexagonal → cmm, p3m1, p31m', () => {
     expect(getViableSupergroups('cm', 'hexagonal')).toEqual(['cmm', 'p3m1', 'p31m'])
   })
 
-  // pm on rectangular → pmm, pmg (not cmm/p4m which need different lattice)
+  // cm on square → pm, cmm (pm viable because square supports rectangular)
+  it('cm on square → pm, cmm', () => {
+    expect(getViableSupergroups('cm', 'square')).toEqual(['pm', 'cmm'])
+  })
+
+  // pm on rectangular → pmm, pmg (cm not viable, needs centered-rect)
   it('pm on rectangular → pmm, pmg', () => {
     expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pmm', 'pmg'])
   })
 
-  // pm on square → pmm, pmg, cmm, p4m (all viable)
-  it('pm on square → pmm, pmg, cmm, p4m', () => {
-    expect(getViableSupergroups('pm', 'square')).toEqual(['pmm', 'pmg', 'cmm', 'p4m'])
+  // pm on square → pmm, pmg, cm, cmm, p4m (cm viable because square supports centered-rect)
+  it('pm on square → pmm, pmg, cm, cmm, p4m', () => {
+    expect(getViableSupergroups('pm', 'square')).toEqual(['pmm', 'pmg', 'cm', 'cmm', 'p4m'])
   })
 
   // p4 on square → p4m, p4g

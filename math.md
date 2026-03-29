@@ -617,33 +617,43 @@ This generates all visible elements with no depth ambiguity.
 
 ## 6. Supergroup inclusions
 
-### 6a. One-step supergroup map
+### 6a. One-step supergroup and peer-group map
 
 For each wallpaper type, the following table lists all types reachable by
-adding one new generator.  These are **type-level** inclusions — some
-require a lattice specialization.
+adding one new generator (**supergroups**, marked with →) or by switching
+to a different generator set at the same order (**peer groups**, marked
+with ↔).  These are **type-level** inclusions — some require a lattice
+specialization.
 
-| Type | |G/T| | One-step supergroups |
+| Type | |G/T| | Supergroups and peers |
 |------|-------|---------------------|
 | p1 | 1 | p2, pm, pg, cm, p4, p3, p6 |
 | p2 | 2 | pmm, pmg, pgg, cmm, p4, p6 |
-| pm | 2 | pmm, pmg, cmm, p4m |
+| pm | 2 | pmm, pmg, **cm** ↔, cmm, p4m |
 | pg | 2 | pgg, pmg, p4g |
-| cm | 2 | cmm, p3m1, p31m |
-| pmm | 4 | p4m |
+| cm | 2 | **pm** ↔, cmm, p3m1, p31m |
+| pmm | 4 | **cmm** ↔, p4m |
 | pmg | 4 | p4g, cmm |
 | pgg | 4 | cmm, p4g |
-| cmm | 4 | p4m |
+| cmm | 4 | **pmm** ↔, p4m |
 | p4 | 4 | p4m, p4g |
 | p4m | 8 | *(maximal)* |
 | p4g | 8 | *(maximal)* |
 | p3 | 3 | p3m1, p31m, p6 |
-| p3m1 | 6 | p6m |
-| p31m | 6 | p6m |
+| p3m1 | 6 | **p31m** ↔, p6m |
+| p31m | 6 | **p3m1** ↔, p6m |
 | p6 | 6 | p6m |
 | p6m | 12 | *(maximal)* |
 
 There are three maximal types: p4m, p4g, and p6m.
+
+**Peer groups** (marked ↔) have the same |G/T| and are related by
+switching to a different set of generators on a lattice that supports
+both types.  On a square lattice, axial mirrors (pm, pmm) can be
+swapped for diagonal mirrors (cm, cmm).  On a hexagonal lattice,
+p3m1 mirrors (through 3-fold centers) can be swapped for p31m mirrors
+(between 3-fold centers).  These peer transitions are only viable when
+the current lattice supports both group types (see §6c).
 
 ### 6b. Lattice requirements per group type
 
@@ -675,14 +685,21 @@ a hexagonal lattice is a special centered-rectangular lattice (60° angle).
 
 ### 6d. Viable supergroups: examples
 
-| Group | Lattice | Viable supergroups |
+| Group | Lattice | Viable supergroups/peers |
 |-------|---------|-------------------|
 | p1 | oblique | p2 |
 | p1 | rectangular | p2, pm, pg |
 | p1 | square | p2, pm, pg, cm, p4 |
 | p1 | hexagonal | p2, cm, p3, p6 |
+| pm | rectangular | pmm, pmg |
+| pm | square | pmm, pmg, **cm**, cmm, p4m |
 | cm | centered-rect | cmm |
+| cm | square | **pm**, cmm |
 | cm | hexagonal | cmm, p3m1, p31m |
+| pmm | square | **cmm**, p4m |
+| cmm | square | **pmm**, p4m |
+| p3m1 | hexagonal | **p31m**, p6m |
+| p31m | hexagonal | **p3m1**, p6m |
 | p4 | square | p4m, p4g |
 | p6m | hexagonal | *(none — maximal)* |
 
@@ -740,6 +757,7 @@ statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
 |-----|-------------|----------------|
 | my (resp. mx) | pmm | rectangular |
 | gy (resp. gx) | pmg | rectangular |
+| *(replace mx with s)* | **cm** ↔ | centered-rectangular |
 | s | cmm | centered-rectangular |
 | r4 | p4m | square |
 
@@ -755,6 +773,7 @@ statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
 
 | Add | → Supergroup | Lattice needed |
 |-----|-------------|----------------|
+| *(replace s with mx)* | **pm** ↔ | rectangular |
 | mx | cmm | centered-rectangular |
 | r3, s0 | p3m1 | hexagonal |
 | r3, s1/3 | p31m | hexagonal |
@@ -763,6 +782,7 @@ statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
 
 | Add | → Supergroup | Lattice needed |
 |-----|-------------|----------------|
+| *(replace mx,my with s,mx)* | **cmm** ↔ | centered-rectangular |
 | r4 | p4m | square |
 
 **From pmg:** (has mx, gy or my, gx)
@@ -783,6 +803,7 @@ statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
 
 | Add | → Supergroup | Lattice needed |
 |-----|-------------|----------------|
+| *(replace s,mx with mx,my)* | **pmm** ↔ | rectangular |
 | r4 | p4m | square |
 
 **From p4:** (has r4)
@@ -804,12 +825,14 @@ statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
 
 | Add | → Supergroup | Lattice needed |
 |-----|-------------|----------------|
+| *(replace s0 with s1/3)* | **p31m** ↔ | hexagonal |
 | r6 | p6m | hexagonal |
 
 **From p31m:** (has r3, s1/3)
 
 | Add | → Supergroup | Lattice needed |
 |-----|-------------|----------------|
+| *(replace s1/3 with s0)* | **p3m1** ↔ | hexagonal |
 | r6 | p6m | hexagonal |
 
 **From p6:** (has r6)
