@@ -9,16 +9,20 @@ document alone.
 
 ## 1. Lattice conventions
 
-### 1a. Normal form
+### 1a. Basis conventions
 
 A **rank-2 lattice** in ℝ² is Λ = ℤ**a** + ℤ**b** for two linearly
-independent vectors **a**, **b**.  We always normalize to:
+independent vectors **a**, **b**.  We always set:
 
-> **a** = (0, 1),  **b** = (x, y)
+> **a** = (0, 1),  **b** = (x, y)  with  x ≥ 0.
 
-with the constraints x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.
+The remaining constraints on (x, y) depend on the wallpaper type:
 
-**Why this is always possible.**  Given an arbitrary lattice:
+**Standard Minkowski-reduced form** (used by all types except cm, cmm):
+
+> 0 ≤ y ≤ ½,  x² + y² ≥ 1.
+
+Any rank-2 lattice can be brought into this form:
 
 1. Scale by 1/‖**a**‖ so that the shortest vector has length 1.
 2. Rotate so that this shortest vector is (0, 1) = **a**.
@@ -30,15 +34,42 @@ with the constraints x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.
 The result is unique up to boundary identifications at special lattices
 (square, hexagonal).
 
+**Well-rounded (rhombic) form** (used by cm, cmm):
+
+> x² + y² = 1,  0 < y < 1.
+
+Here **b** lies on the unit circle, so |**a**| = |**b**| = 1 always.
+The angle θ between **a** and **b** ranges from 10° to 90°
+(corresponding to y = cos θ ranging from ≈ 0.985 down to 0).
+This parameterization **leaves the standard Minkowski-reduced domain**
+when θ < 60° (i.e. y > ½).
+
+**Why cm/cmm need this.**  The cm generators σ+ = [[0,1],[1,0]] and
+σ− = [[0,−1],[−1,0]] swap the two lattice basis vectors.  This swap
+is a lattice isometry if and only if |**a**| = |**b**|.  In the standard
+Minkowski-reduced form, centered-rectangular lattices split into two
+disjoint families (the well-rounded arc x² + y² = 1 with y ≤ ½, and
+the not-well-rounded line y = ½ with x > √3/2) that meet only at the
+hexagonal point, where the cm mirror direction jumps discontinuously.
+Keeping |**a**| = |**b**| = 1 throughout avoids this discontinuity
+and gives a single smooth slider from acute rhombus → hex → square.
+(See `hexcmtransition.md` for the full analysis.)
+
 ### 1b. Bravais lattice types
+
+The code classifies lattice vectors (x, y) by checking (in order):
 
 | Type | Characterization |
 |------|-----------------|
-| Square | (x, y) = (1, 0) |
-| Hexagonal | (x, y) = (√3/2, 1/2) |
-| Centered rectangular | x² + y² = 1 with 0 < y < 1/2, **or** y = 1/2 with x > √3/2 |
-| Rectangular | y = 0 with x > 1 |
+| Square | (x, y) ≈ (1, 0) |
+| Hexagonal | (x, y) ≈ (√3/2, 1/2) |
+| Rectangular | y ≈ 0 (and not square) |
+| Centered rectangular | x² + y² ≈ 1 (and not square or hex), **or** y ≈ 1/2 (and not hex) |
 | Oblique | everything else |
+
+The centered-rectangular check covers both the well-rounded arc
+(x² + y² = 1, including the cm-slider regime with y > ½) and the
+not-well-rounded line (y = ½ with x > √3/2).
 
 Detection uses tolerance ε = 10⁻⁴.
 
@@ -67,6 +98,18 @@ The app uses four lattice-control modes depending on the wallpaper type:
 | `cm-slider` | cm, cmm | Slider t ∈ [0,1] | θ = π/18 + 4πt/9, then x = sin θ, y = cos θ (always |**b**| = 1; t=0 → 10° acute, t=0.625 → hex, t=1 → square) |
 | `none` | p4, p4m, p4g | Fixed square: (1, 0) | — |
 | `none` | p3, p3m1, p31m, p6, p6m | Fixed hexagonal: (√3/2, 1/2) | — |
+
+The `full` and `rect-to-square` modes always produce lattice vectors in the
+standard Minkowski-reduced domain (x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1).
+
+The `cm-slider` traces the unit circle from θ = 10° to θ = 90°.  For
+t < 0.625 (θ < 60°), the lattice vector has y > ½, which is outside the
+Minkowski-reduced domain.  This is intentional: it keeps |**a**| = |**b**|
+at all slider positions, ensuring the cm/cmm generators (which swap the
+two basis vectors) are always valid isometries.  The mirror direction
+along **a** + **b** varies continuously through the hex point, avoiding
+the 30° discontinuity that would occur in the Minkowski-reduced
+parameterization (see §1a and `hexcmtransition.md`).
 
 ---
 
@@ -224,9 +267,18 @@ These use σ+ = [[0,1],[1,0]] (mirror ∥ a+b) and σ− = [[0,−1],[−1,0]]
 > Variant 1 (Mirror ∥ b−a): [[0,-1],[-1,0] | (0,0)]
 > |G/T| = 2
 
-σ+ swaps the basis vectors e₁ ↔ e₂.  This is a lattice automorphism when
-|**a**| = |**b**|, which holds on well-rounded centered-rectangular lattices,
-as well as on the hexagonal and square specializations.
+σ+ swaps the basis vectors e₁ ↔ e₂.  This is a lattice automorphism
+if and only if |**a**| = |**b**|.  On the cm-slider this holds at every
+position (x² + y² = 1), including the regime with y > ½ that is outside
+the standard Minkowski-reduced domain.
+
+**Metric preservation check.**  The lattice metric for any cm-slider
+position is Q = [[1, y], [y, 1]] (since x² + y² = 1).  Then:
+
+> σ+ᵀ Q σ+ = [[0,1],[1,0]] · [[1,y],[y,1]] · [[0,1],[1,0]]
+> = [[y,1],[1,y]] · [[0,1],[1,0]] = [[1,y],[y,1]] = Q. ✓
+
+This holds for all y, not just y ≤ ½.  Similarly σ−ᵀ Q σ− = Q.
 
 **cmm** — Two reflections (centered)
 
@@ -927,10 +979,19 @@ isometry.js.)
 ### 10a. Lattice normalization
 
 **Theorem.**  Any rank-2 lattice in ℝ² can be brought by a similarity
-(possibly orientation-reversing) into the normal form **a** = (0,1),
-**b** = (x,y) with x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.
+(possibly orientation-reversing) into the Minkowski-reduced normal form
+**a** = (0,1), **b** = (x,y) with x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.
 
 *Proof.* See §1a.
+
+**Note on cm/cmm.**  The cm-slider does not use this form.  Instead, it
+parameterizes **b** = (sin θ, cos θ) on the unit circle, allowing y > ½.
+Any such lattice can be Minkowski-reduced (y will end up ≤ ½), but the
+reduced basis would have |**a**| ≠ |**b**|, breaking the cm generators.
+The surjectivity argument below still applies: every cm or cmm group is
+realized, because the cm-slider covers every centered-rectangular lattice
+shape (the angle between **a** and **b** ranges from 10° to 90°, covering
+rhombuses from very acute through hexagonal to square).
 
 ### 10b. Compatibility table
 
@@ -964,11 +1025,18 @@ Therefore the fixed placements in §3 are the unique canonical form.
 
 *Proof.*
 
-1. Normalize G's lattice to (0,1), (x,y) by §10a.
+1. Normalize G's lattice to **a** = (0,1), **b** = (x,y) by §10a
+   (Minkowski-reduced form: x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1).
 2. Identify G's crystallographic type — it appears in the compatibility
    table (§10b) for the lattice type determined by (x,y).
-3. By §10c, the canonical generator placement produces a group conjugate
-   to G.  ∎
+3. **For types other than cm/cmm:** The lattice is already in the UI's
+   parameter domain.  By §10c, the canonical generator placement produces
+   a group conjugate to G.
+4. **For cm/cmm:** The Minkowski-reduced lattice is centered-rectangular.
+   Apply a further similarity to make |**a**| = |**b**| (which changes the
+   basis but not the lattice).  The resulting angle θ between basis vectors
+   falls in [10°, 90°], reachable by the cm-slider.  The cm generators
+   (§3c) then produce the correct group.  ∎
 
 ### 10e. Non-injectivity
 
