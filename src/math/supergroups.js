@@ -122,20 +122,20 @@ const EXTRA_GENERATORS = {
   'p1:p1':   { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=2
   'p2:p2':   { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=4
   'pm:pm':   { variants: [
-    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],     // var 0 (σ_a): t_(0,1/2) |G/T|=4
-    [rimat(1, 0, 0, 1, 1, 2)],            // var 1 (σ_b): t_(1/2,0) |G/T|=4
+    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],  // var 0 (σ_a): t_(0,1/2) |G/T|=4
+    [rimat(1, 0, 0, 1, 1, 2)],         // var 1 (σ_b): t_(1/2,0) |G/T|=4
   ]},
   'pg:pg':   { variants: [
-    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],     // var 0 (glide_a): t_(0,1/2) |G/T|=4
-    [rimat(1, 0, 0, 1, 1, 2)],            // var 1 (glide_b): t_(1/2,0) |G/T|=4
+    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],  // var 0 (glide_a): t_(0,1/2) |G/T|=4
+    [rimat(1, 0, 0, 1, 1, 2)],         // var 1 (glide_b): t_(1/2,0) |G/T|=4
   ]},
   'pmm:pmm': { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=8
 
   // ── same-type: index 3 (rectangular/centered-rectangular) ──
   'pgg:pgg': { generators: [rimat(1, 0, 0, 1, 1, 3)] },          // t_(1/3,0)  |G/T|=12
   'pmg:pmg': { variants: [
-    [rimat(1, 0, 0, 1, 1, 3)],            // var 0: t_(1/3,0) |G/T|=12
-    [rimat(1, 0, 0, 1, 0, 1, 1, 3)],      // var 1: t_(0,1/3) |G/T|=12
+    [rimat(1, 0, 0, 1, 1, 3)],         // var 0: t_(1/3,0) |G/T|=12
+    [rimat(1, 0, 0, 1, 0, 1, 1, 3)],   // var 1: t_(0,1/3) |G/T|=12
   ]},
   'cm:cm':   { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },    // t_(1/3,1/3) |G/T|=6
   'cmm:cmm': { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },    // t_(1/3,1/3) |G/T|=12
