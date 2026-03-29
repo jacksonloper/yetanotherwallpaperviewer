@@ -11,7 +11,7 @@ import {
   quotientToPhysical,
   rmatToJsonObj,
 } from './math/rationalGroup.js'
-import { getViableSupergroups, getPeerGenerators } from './math/supergroups.js'
+import { getViableSupergroups, getExtraGenerators } from './math/supergroups.js'
 import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
 import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
@@ -180,26 +180,27 @@ export default function App() {
 
   const { result, error, warning } = groupResult
 
-  // Invalidate supergroup when lattice type changes make it unviable
+  // Invalidate supergroup when lattice type or variant changes make it unviable
   useEffect(() => {
     if (activeSupergroup) {
-      const viable = getViableSupergroups(wallpaperType, latticeType)
+      const viable = getViableSupergroups(wallpaperType, latticeType, variantIndex)
       if (!viable.includes(activeSupergroup)) {
         setActiveSupergroup(null)
       }
     }
-  }, [latticeType, wallpaperType, activeSupergroup])
+  }, [latticeType, wallpaperType, variantIndex, activeSupergroup])
 
   // Compute supergroup visualization when a supergroup is active
   const supergroupResult = useMemo(() => {
     if (!activeSupergroup) return null
     try {
-      // Use peer generators if available (for cross-lattice peer transitions),
-      // otherwise fall back to standard generators for the target group type.
-      const peerGen = getPeerGenerators(activeSupergroup, latticeType)
-      const generators = peerGen ?? standardGenerators(activeSupergroup)?.generators ?? null
-      if (!generators) return null
-      const { cosets, isDegenerate, error: groupError } = processGroup(generators)
+      // Get the extra generator(s) to ADD to the current group's generators.
+      // This ensures the supergroup is always a proper superset of the current group.
+      const extra = getExtraGenerators(wallpaperType, variantIndex, activeSupergroup)
+      if (!extra) return null
+      const currentGens = standardGenerators(wallpaperType, variantIndex)?.generators ?? []
+      const allGens = [...currentGens, ...extra]
+      const { cosets, isDegenerate, error: groupError } = processGroup(allGens)
       if (groupError || isDegenerate) return null
 
       const cosetReps = quotientToPhysical(cosets, latticeVec)
@@ -215,7 +216,7 @@ export default function App() {
     } catch {
       return null
     }
-  }, [activeSupergroup, latticeType, latticeVec])
+  }, [activeSupergroup, wallpaperType, variantIndex, latticeVec])
 
   // Use supergroup result for visualization when active, otherwise base group
   const displayResult = (activeSupergroup && supergroupResult) ? supergroupResult : result
@@ -440,6 +441,7 @@ export default function App() {
       <SupergroupControls
         groupName={wallpaperType}
         latticeType={latticeType}
+        variantIndex={variantIndex}
         activeSupergroup={activeSupergroup}
         onToggle={handleSupergroupToggle}
       />

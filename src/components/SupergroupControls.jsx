@@ -8,13 +8,14 @@ import { getViableSupergroups } from '../math/supergroups.js'
  * Props:
  *   groupName        – current wallpaper type name (e.g. 'p1', 'pm')
  *   latticeType      – current Bravais lattice type
+ *   variantIndex     – current direction variant index (0 or 1)
  *   activeSupergroup – currently toggled supergroup name, or null
  *   onToggle         – callback: (supergroupName) => void
  */
-export default function SupergroupControls({ groupName, latticeType, activeSupergroup, onToggle }) {
+export default function SupergroupControls({ groupName, latticeType, variantIndex = 0, activeSupergroup, onToggle }) {
   const viable = useMemo(
-    () => getViableSupergroups(groupName, latticeType),
-    [groupName, latticeType]
+    () => getViableSupergroups(groupName, latticeType, variantIndex),
+    [groupName, latticeType, variantIndex]
   )
 
   if (viable.length === 0) return null

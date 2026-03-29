@@ -3,8 +3,10 @@ import {
   getViableSupergroups,
   getAllSupergroups,
   latticeSupportsGroupType,
-  getPeerGenerators,
+  getExtraGenerators,
 } from '../supergroups.js'
+import { processGroup, standardGenerators } from '../rationalGroup.js'
+import { rmatEqual, rmodT } from '../rational.js'
 
 // ───────────────────────────────────────────────────
 //  getAllSupergroups — type-level inclusion map
@@ -21,32 +23,44 @@ describe('getAllSupergroups', () => {
     expect(getAllSupergroups('p6m')).toEqual([])
   })
 
-  it('returns correct supergroups for p2', () => {
-    expect(getAllSupergroups('p2')).toEqual(['pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p6'])
+  it('returns correct supergroups for p2 (no pmg — R₂ not in pmg)', () => {
+    expect(getAllSupergroups('p2')).toEqual(['pmm', 'pgg', 'cmm', 'p4', 'p6'])
   })
 
-  it('returns correct supergroups for cm (includes pm peer)', () => {
-    expect(getAllSupergroups('cm')).toEqual(['pm', 'cmm', 'p3m1', 'p31m'])
+  it('returns correct supergroups for cm (no pm peer)', () => {
+    expect(getAllSupergroups('cm')).toEqual(['cmm', 'p3m1', 'p31m'])
   })
 
-  it('returns correct supergroups for pm (includes cm peer)', () => {
-    expect(getAllSupergroups('pm')).toEqual(['pmm', 'pmg', 'cm', 'cmm', 'p4m'])
+  it('returns correct supergroups for pm (no cm/cmm peers)', () => {
+    expect(getAllSupergroups('pm')).toEqual(['pmm', 'pmg', 'p4m'])
   })
 
-  it('returns correct supergroups for p3m1 (includes p31m peer)', () => {
-    expect(getAllSupergroups('p3m1')).toEqual(['p31m', 'p6m'])
+  it('returns correct supergroups for p3m1 (no p31m peer)', () => {
+    expect(getAllSupergroups('p3m1')).toEqual(['p6m'])
   })
 
-  it('returns correct supergroups for p31m (includes p3m1 peer)', () => {
-    expect(getAllSupergroups('p31m')).toEqual(['p3m1', 'p6m'])
+  it('returns correct supergroups for p31m (no p3m1 peer)', () => {
+    expect(getAllSupergroups('p31m')).toEqual(['p6m'])
   })
 
-  it('returns correct supergroups for pmm (includes cmm peer)', () => {
-    expect(getAllSupergroups('pmm')).toEqual(['cmm', 'p4m'])
+  it('returns correct supergroups for pmm (no cmm peer)', () => {
+    expect(getAllSupergroups('pmm')).toEqual(['p4m'])
   })
 
-  it('returns correct supergroups for cmm (includes pmm peer)', () => {
-    expect(getAllSupergroups('cmm')).toEqual(['pmm', 'p4m'])
+  it('returns correct supergroups for cmm (no pmm peer)', () => {
+    expect(getAllSupergroups('cmm')).toEqual(['p4m'])
+  })
+
+  it('returns correct supergroups for pg (only pmg)', () => {
+    expect(getAllSupergroups('pg')).toEqual(['pmg'])
+  })
+
+  it('returns correct supergroups for pmg (no valid add-only transitions)', () => {
+    expect(getAllSupergroups('pmg')).toEqual([])
+  })
+
+  it('returns correct supergroups for pgg', () => {
+    expect(getAllSupergroups('pgg')).toEqual(['p4g'])
   })
 
   it('returns correct supergroups for p3', () => {
@@ -104,7 +118,55 @@ describe('latticeSupportsGroupType', () => {
 })
 
 // ───────────────────────────────────────────────────
-//  getViableSupergroups — lattice-filtered
+//  getExtraGenerators — extra generators for transitions
+// ───────────────────────────────────────────────────
+
+describe('getExtraGenerators', () => {
+  it('returns generators for all p1 transitions', () => {
+    for (const target of ['p2', 'pm', 'pg', 'cm', 'p4', 'p3', 'p6']) {
+      const extra = getExtraGenerators('p1', 0, target)
+      expect(extra).not.toBeNull()
+      expect(extra.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('returns generators for p2 → pmm', () => {
+    expect(getExtraGenerators('p2', 0, 'pmm')).not.toBeNull()
+  })
+
+  it('returns null for invalid transitions', () => {
+    expect(getExtraGenerators('p2', 0, 'pmg')).toBeNull()
+    expect(getExtraGenerators('pg', 0, 'pgg')).toBeNull()
+    expect(getExtraGenerators('pm', 0, 'cm')).toBeNull()
+  })
+
+  it('returns variant-specific generators for pm → pmm', () => {
+    const extra0 = getExtraGenerators('pm', 0, 'pmm')
+    const extra1 = getExtraGenerators('pm', 1, 'pmm')
+    expect(extra0).not.toBeNull()
+    expect(extra1).not.toBeNull()
+    // Different extra generators for different variants
+    expect(rmatEqual(rmodT(extra0[0]), rmodT(extra1[0]))).toBe(false)
+  })
+
+  it('cm variant 0 → p3m1 valid, variant 1 → p3m1 invalid', () => {
+    expect(getExtraGenerators('cm', 0, 'p3m1')).not.toBeNull()
+    expect(getExtraGenerators('cm', 1, 'p3m1')).toBeNull()
+  })
+
+  it('cm variant 0 → p31m invalid, variant 1 → p31m valid', () => {
+    expect(getExtraGenerators('cm', 0, 'p31m')).toBeNull()
+    expect(getExtraGenerators('cm', 1, 'p31m')).not.toBeNull()
+  })
+
+  it('cm both variants → cmm valid', () => {
+    expect(getExtraGenerators('cm', 0, 'cmm')).not.toBeNull()
+    expect(getExtraGenerators('cm', 1, 'cmm')).not.toBeNull()
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  getViableSupergroups — lattice & variant filtered
 // ───────────────────────────────────────────────────
 
 describe('getViableSupergroups', () => {
@@ -113,49 +175,54 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p1', 'oblique')).toEqual(['p2'])
   })
 
-  // p1 on rectangular → p2, pm, pg, cm (cm via peer generators)
-  it('p1 on rectangular → p2, pm, pg, cm', () => {
-    expect(getViableSupergroups('p1', 'rectangular')).toEqual(['p2', 'pm', 'pg', 'cm'])
+  // p1 on rectangular → p2, pm, pg (cm needs centered-rectangular)
+  it('p1 on rectangular → p2, pm, pg', () => {
+    expect(getViableSupergroups('p1', 'rectangular')).toEqual(['p2', 'pm', 'pg'])
   })
 
-  // p1 on centered-rectangular → p2, cm (not pm/pg/p4/p3/p6)
+  // p1 on centered-rectangular → p2, cm
   it('p1 on centered-rectangular → p2, cm', () => {
     expect(getViableSupergroups('p1', 'centered-rectangular')).toEqual(['p2', 'cm'])
   })
 
-  // p1 on square → p2, pm, pg, cm, p4 (not p3/p6)
+  // p1 on square → p2, pm, pg, cm, p4
   it('p1 on square → p2, pm, pg, cm, p4', () => {
     expect(getViableSupergroups('p1', 'square')).toEqual(['p2', 'pm', 'pg', 'cm', 'p4'])
   })
 
-  // p1 on hexagonal → p2, cm, p3, p6 (not pm/pg/p4)
+  // p1 on hexagonal → p2, cm, p3, p6
   it('p1 on hexagonal → p2, cm, p3, p6', () => {
     expect(getViableSupergroups('p1', 'hexagonal')).toEqual(['p2', 'cm', 'p3', 'p6'])
   })
 
-  // cm on centered-rectangular → pm NOT viable (needs rectangular), cmm only
-  it('cm on centered-rectangular → cmm', () => {
-    expect(getViableSupergroups('cm', 'centered-rectangular')).toEqual(['cmm'])
+  // cm on centered-rectangular → cmm only (p3m1/p31m need hex)
+  it('cm var 0 on centered-rectangular → cmm', () => {
+    expect(getViableSupergroups('cm', 'centered-rectangular', 0)).toEqual(['cmm'])
   })
 
-  // cm on hexagonal → cmm, p3m1, p31m (pm not viable, needs rectangular)
-  it('cm on hexagonal → cmm, p3m1, p31m', () => {
-    expect(getViableSupergroups('cm', 'hexagonal')).toEqual(['cmm', 'p3m1', 'p31m'])
+  // cm variant 0 on hexagonal → cmm, p3m1 (not p31m — invalid for var 0)
+  it('cm var 0 on hexagonal → cmm, p3m1', () => {
+    expect(getViableSupergroups('cm', 'hexagonal', 0)).toEqual(['cmm', 'p3m1'])
   })
 
-  // cm on square → pm, cmm (pm viable because square supports rectangular)
-  it('cm on square → pm, cmm', () => {
-    expect(getViableSupergroups('cm', 'square')).toEqual(['pm', 'cmm'])
+  // cm variant 1 on hexagonal → cmm, p31m (not p3m1 — invalid for var 1)
+  it('cm var 1 on hexagonal → cmm, p31m', () => {
+    expect(getViableSupergroups('cm', 'hexagonal', 1)).toEqual(['cmm', 'p31m'])
   })
 
-  // pm on rectangular → pmm, pmg, cm, cmm (cm and cmm via peer generators)
-  it('pm on rectangular → pmm, pmg, cm, cmm', () => {
-    expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pmm', 'pmg', 'cm', 'cmm'])
+  // pm on rectangular → pmm, pmg
+  it('pm on rectangular → pmm, pmg', () => {
+    expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pmm', 'pmg'])
   })
 
-  // pm on square → pmm, pmg, cm, cmm, p4m (cm viable via both standard and peer)
-  it('pm on square → pmm, pmg, cm, cmm, p4m', () => {
-    expect(getViableSupergroups('pm', 'square')).toEqual(['pmm', 'pmg', 'cm', 'cmm', 'p4m'])
+  // pm on square → pmm, pmg, p4m
+  it('pm on square → pmm, pmg, p4m', () => {
+    expect(getViableSupergroups('pm', 'square')).toEqual(['pmm', 'pmg', 'p4m'])
+  })
+
+  // pg on rectangular → pmg
+  it('pg on rectangular → pmg', () => {
+    expect(getViableSupergroups('pg', 'rectangular')).toEqual(['pmg'])
   })
 
   // p4 on square → p4m, p4g
@@ -172,121 +239,167 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p6m', 'hexagonal')).toEqual([])
   })
 
-  // p2 on square → pmm, pmg, pgg, cmm, p4 (all rect/centered-rect/square compatible)
-  it('p2 on square → pmm, pmg, pgg, cmm, p4', () => {
-    expect(getViableSupergroups('p2', 'square')).toEqual(['pmm', 'pmg', 'pgg', 'cmm', 'p4'])
+  // p2 on square → pmm, pgg, cmm, p4
+  it('p2 on square → pmm, pgg, cmm, p4', () => {
+    expect(getViableSupergroups('p2', 'square')).toEqual(['pmm', 'pgg', 'cmm', 'p4'])
   })
 
-  // p2 on hexagonal → cmm, p6 (pmm/pmg/pgg need rect, p4 needs square)
+  // p2 on hexagonal → cmm, p6
   it('p2 on hexagonal → cmm, p6', () => {
     expect(getViableSupergroups('p2', 'hexagonal')).toEqual(['cmm', 'p6'])
   })
 
-  // pgg on rectangular → cmm is now viable via peer generators
-  it('pgg on rectangular → cmm (via peer generators)', () => {
-    expect(getViableSupergroups('pgg', 'rectangular')).toEqual(['cmm'])
+  // p2 on rectangular → pmm, pgg
+  it('p2 on rectangular → pmm, pgg', () => {
+    expect(getViableSupergroups('p2', 'rectangular')).toEqual(['pmm', 'pgg'])
   })
 
-  // pgg on square → cmm and p4g (both viable)
-  it('pgg on square → cmm, p4g', () => {
-    expect(getViableSupergroups('pgg', 'square')).toEqual(['cmm', 'p4g'])
+  // pgg on rectangular → empty (p4g needs square)
+  it('pgg on rectangular → empty', () => {
+    expect(getViableSupergroups('pgg', 'rectangular')).toEqual([])
   })
 
-  // pmm on rectangular → cmm (via peer generators), p4m needs square
-  it('pmm on rectangular → cmm', () => {
-    expect(getViableSupergroups('pmm', 'rectangular')).toEqual(['cmm'])
+  // pgg on square → p4g
+  it('pgg on square → p4g', () => {
+    expect(getViableSupergroups('pgg', 'square')).toEqual(['p4g'])
   })
 
-  // pmm on square → cmm, p4m (both viable)
-  it('pmm on square → cmm, p4m', () => {
-    expect(getViableSupergroups('pmm', 'square')).toEqual(['cmm', 'p4m'])
+  // pmm on rectangular → empty (p4m needs square)
+  it('pmm on rectangular → empty', () => {
+    expect(getViableSupergroups('pmm', 'rectangular')).toEqual([])
   })
 
-  // cmm on centered-rectangular → pmm NOT viable (no peer generators), p4m needs square
+  // pmm on square → p4m
+  it('pmm on square → p4m', () => {
+    expect(getViableSupergroups('pmm', 'square')).toEqual(['p4m'])
+  })
+
+  // cmm on centered-rectangular → empty (p4m needs square)
   it('cmm on centered-rectangular → empty', () => {
     expect(getViableSupergroups('cmm', 'centered-rectangular')).toEqual([])
   })
 
-  // cmm on square → pmm (square supports rectangular), p4m
-  it('cmm on square → pmm, p4m', () => {
-    expect(getViableSupergroups('cmm', 'square')).toEqual(['pmm', 'p4m'])
+  // cmm on square → p4m
+  it('cmm on square → p4m', () => {
+    expect(getViableSupergroups('cmm', 'square')).toEqual(['p4m'])
   })
 
-  // p3m1 on hexagonal → p31m and p6m (both hexagonal, both viable)
-  it('p3m1 on hexagonal → p31m, p6m', () => {
-    expect(getViableSupergroups('p3m1', 'hexagonal')).toEqual(['p31m', 'p6m'])
+  // p3m1 on hexagonal → p6m
+  it('p3m1 on hexagonal → p6m', () => {
+    expect(getViableSupergroups('p3m1', 'hexagonal')).toEqual(['p6m'])
   })
 
-  // p31m on hexagonal → p3m1 and p6m (both hexagonal, both viable)
-  it('p31m on hexagonal → p3m1, p6m', () => {
-    expect(getViableSupergroups('p31m', 'hexagonal')).toEqual(['p3m1', 'p6m'])
+  // p31m on hexagonal → p6m
+  it('p31m on hexagonal → p6m', () => {
+    expect(getViableSupergroups('p31m', 'hexagonal')).toEqual(['p6m'])
   })
 
-  // p2 on rectangular → pmm, pmg, pgg (rect), cmm (peer generators)
-  it('p2 on rectangular → pmm, pmg, pgg, cmm', () => {
-    expect(getViableSupergroups('p2', 'rectangular')).toEqual(['pmm', 'pmg', 'pgg', 'cmm'])
-  })
-
-  // pmg on rectangular → cmm (via peer generators), p4g needs square
-  it('pmg on rectangular → cmm', () => {
-    expect(getViableSupergroups('pmg', 'rectangular')).toEqual(['cmm'])
+  // pmg on rectangular → empty (no valid transitions)
+  it('pmg on rectangular → empty', () => {
+    expect(getViableSupergroups('pmg', 'rectangular')).toEqual([])
   })
 })
 
 // ───────────────────────────────────────────────────
-//  getPeerGenerators — alternative generators for peer transitions
+//  Extra generators produce correct supergroups
 // ───────────────────────────────────────────────────
+//
+// For every valid transition, verify that combining the source group's
+// current generators with the extra generators produces a finite,
+// non-degenerate group of the expected order.
 
-describe('getPeerGenerators', () => {
-  it('returns generators for cm on rectangular', () => {
-    const gen = getPeerGenerators('cm', 'rectangular')
-    expect(gen).not.toBeNull()
-    expect(gen).toHaveLength(2) // σ_a + centering
-  })
+describe('extra generators produce correct supergroups', () => {
+  // Expected |G/T| for target groups
+  const TARGET_ORDERS = {
+    p1: 1, p2: 2, pm: 2, pg: 2, cm: 2,
+    pmm: 4, pmg: 4, pgg: 4, cmm: 4, p4: 4,
+    p4m: 8, p4g: 8,
+    p3: 3, p3m1: 6, p31m: 6, p6: 6, p6m: 12,
+  }
 
-  it('returns generators for cmm on rectangular', () => {
-    const gen = getPeerGenerators('cmm', 'rectangular')
-    expect(gen).not.toBeNull()
-    expect(gen).toHaveLength(3) // σ_a + σ_b + centering
-  })
+  // All valid transitions to test
+  const transitions = [
+    // p1 → (all variant 0)
+    ['p1', 0, 'p2'], ['p1', 0, 'pm'], ['p1', 0, 'pg'],
+    ['p1', 0, 'cm'], ['p1', 0, 'p4'], ['p1', 0, 'p3'], ['p1', 0, 'p6'],
+    // p2
+    ['p2', 0, 'pmm'], ['p2', 0, 'pgg'], ['p2', 0, 'cmm'],
+    ['p2', 0, 'p4'], ['p2', 0, 'p6'],
+    // pm variants
+    ['pm', 0, 'pmm'], ['pm', 1, 'pmm'],
+    ['pm', 0, 'pmg'], ['pm', 1, 'pmg'],
+    ['pm', 0, 'p4m'], ['pm', 1, 'p4m'],
+    // pg variants
+    ['pg', 0, 'pmg'], ['pg', 1, 'pmg'],
+    // cm variants
+    ['cm', 0, 'cmm'], ['cm', 1, 'cmm'],
+    ['cm', 0, 'p3m1'], ['cm', 1, 'p31m'],
+    // pmm, pgg, cmm
+    ['pmm', 0, 'p4m'], ['pgg', 0, 'p4g'], ['cmm', 0, 'p4m'],
+    // p4
+    ['p4', 0, 'p4m'], ['p4', 0, 'p4g'],
+    // p3
+    ['p3', 0, 'p3m1'], ['p3', 0, 'p31m'], ['p3', 0, 'p6'],
+    // p3m1, p31m, p6
+    ['p3m1', 0, 'p6m'], ['p31m', 0, 'p6m'], ['p6', 0, 'p6m'],
+  ]
 
-  it('returns null for cm on centered-rectangular (standard generators work)', () => {
-    expect(getPeerGenerators('cm', 'centered-rectangular')).toBeNull()
-  })
+  for (const [src, variant, target] of transitions) {
+    it(`${src} var ${variant} + extra → ${target} (|G/T| = ${TARGET_ORDERS[target]})`, () => {
+      const extra = getExtraGenerators(src, variant, target)
+      expect(extra).not.toBeNull()
 
-  it('returns null for pm on rectangular (standard generators work)', () => {
-    expect(getPeerGenerators('pm', 'rectangular')).toBeNull()
-  })
+      const currentGens = standardGenerators(src, variant)?.generators ?? []
+      const allGens = [...currentGens, ...extra]
+      const { cosets, isDegenerate, error, order } = processGroup(allGens)
 
-  it('returns null for pm on centered-rectangular (impossible)', () => {
-    expect(getPeerGenerators('pm', 'centered-rectangular')).toBeNull()
-  })
-
-  it('returns null for p3m1 on hexagonal (standard generators work)', () => {
-    expect(getPeerGenerators('p3m1', 'hexagonal')).toBeNull()
-  })
+      expect(error).toBeFalsy()
+      expect(isDegenerate).toBe(false)
+      expect(order).toBe(TARGET_ORDERS[target])
+    })
+  }
 })
 
 // ───────────────────────────────────────────────────
-//  Peer generators produce valid groups with processGroup
+//  Supergroup inclusion: source generators preserved
 // ───────────────────────────────────────────────────
+//
+// For every valid transition, verify that each coset representative
+// of the source group appears in the supergroup's coset list.
+// This is the core invariant: adding generators never removes old ones.
 
-import { processGroup } from '../rationalGroup.js'
+describe('source generators are preserved in supergroup', () => {
+  const transitions = [
+    ['pm', 0, 'pmm'], ['pm', 1, 'pmm'],
+    ['pm', 0, 'pmg'], ['pm', 1, 'pmg'],
+    ['pg', 0, 'pmg'], ['pg', 1, 'pmg'],
+    ['cm', 0, 'cmm'], ['cm', 1, 'cmm'],
+    ['cm', 0, 'p3m1'], ['cm', 1, 'p31m'],
+    ['p2', 0, 'pmm'], ['p2', 0, 'pgg'], ['p2', 0, 'cmm'],
+    ['p4', 0, 'p4m'], ['p4', 0, 'p4g'],
+    ['p3', 0, 'p3m1'], ['p3', 0, 'p31m'], ['p3', 0, 'p6'],
+    ['p3m1', 0, 'p6m'], ['p31m', 0, 'p6m'],
+    ['p6', 0, 'p6m'],
+  ]
 
-describe('peer generators produce valid groups', () => {
-  it('cm-on-rectangular produces |G/T| = 4 (doubled cell)', () => {
-    const gen = getPeerGenerators('cm', 'rectangular')
-    const { cosets, isDegenerate, error } = processGroup(gen)
-    expect(error).toBeFalsy()
-    expect(isDegenerate).toBeFalsy()
-    expect(cosets).toHaveLength(4)
-  })
+  for (const [src, variant, target] of transitions) {
+    it(`${src} var ${variant} ⊂ ${target}: all source cosets in supergroup`, () => {
+      // Compute source G/T
+      const srcGens = standardGenerators(src, variant)?.generators ?? []
+      const srcResult = processGroup(srcGens)
+      expect(srcResult.error).toBeFalsy()
 
-  it('cmm-on-rectangular produces |G/T| = 8 (doubled cell)', () => {
-    const gen = getPeerGenerators('cmm', 'rectangular')
-    const { cosets, isDegenerate, error } = processGroup(gen)
-    expect(error).toBeFalsy()
-    expect(isDegenerate).toBeFalsy()
-    expect(cosets).toHaveLength(8)
-  })
+      // Compute supergroup G/T
+      const extra = getExtraGenerators(src, variant, target)
+      const allGens = [...srcGens, ...extra]
+      const sgResult = processGroup(allGens)
+      expect(sgResult.error).toBeFalsy()
+
+      // Every source coset must appear in the supergroup
+      for (const srcCoset of srcResult.cosets) {
+        const found = sgResult.cosets.some(sgCoset => rmatEqual(srcCoset, sgCoset))
+        expect(found).toBe(true)
+      }
+    })
+  }
 })
