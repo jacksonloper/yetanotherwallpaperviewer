@@ -6,7 +6,14 @@
  *
  * Viability depends on the current lattice type because some supergroups
  * require a lattice specialization (e.g. square, hexagonal).
+ *
+ * Peer transitions (pm↔cm, pmm↔cmm, p3m1↔p31m) are same-order groups
+ * related by switching generators.  Some peer transitions require
+ * alternative generators that use a doubled conventional cell (e.g.
+ * cm-on-rectangular uses axial mirror + centering translation).
  */
+
+import { rimat } from './rational.js'
 
 // ───────────────────────────────────────────────────
 //  One-step supergroup inclusion map (type-level)
@@ -94,6 +101,50 @@ export function latticeSupportsGroupType(currentLatticeType, requiredLatticeType
 }
 
 // ───────────────────────────────────────────────────
+//  Peer transition generators (doubled conventional cell)
+// ───────────────────────────────────────────────────
+//
+// For certain peer transitions (pm↔cm, pmm↔cmm), the target group's
+// standard generators don't preserve the source lattice's metric.
+// These alternative generators produce the correct symmetry using a
+// doubled conventional cell (|G/T| is doubled).
+//
+// Key idea: cm on a rectangular lattice uses an axial mirror (which
+// preserves the rectangular metric) plus a centering translation
+// (1/2, 1/2) that introduces the half-lattice shift characteristic of
+// the centered groups.
+
+const PEER_GENERATORS = {
+  // cm on rectangular: σ_a + centering → |G/T| = 4
+  'cm:rectangular': [
+    rimat(1, 0, 0, -1),              // σ_a = [[1,0],[0,-1]]
+    rimat(1, 0, 0, 1, 1, 2, 1, 2),   // identity + (1/2, 1/2)
+  ],
+  // cmm on rectangular: σ_a + σ_b + centering → |G/T| = 8
+  'cmm:rectangular': [
+    rimat(1, 0, 0, -1),              // σ_a = [[1,0],[0,-1]]
+    rimat(-1, 0, 0, 1),              // σ_b = [[-1,0],[0,1]]
+    rimat(1, 0, 0, 1, 1, 2, 1, 2),   // identity + (1/2, 1/2)
+  ],
+}
+
+/**
+ * Get alternative generators for a peer transition.
+ *
+ * Returns an array of rational affine matrices if alternative generators
+ * exist for displaying `targetGroup` on `currentLatticeType`, or null
+ * if the standard generators should be used.
+ *
+ * @param {string} targetGroup – IUCr short name of the target group
+ * @param {string} currentLatticeType – current Bravais lattice type
+ * @returns {rmat[]|null}
+ */
+export function getPeerGenerators(targetGroup, currentLatticeType) {
+  const key = `${targetGroup}:${currentLatticeType}`
+  return PEER_GENERATORS[key] || null
+}
+
+// ───────────────────────────────────────────────────
 //  Public API
 // ───────────────────────────────────────────────────
 
@@ -111,9 +162,11 @@ export function getAllSupergroups(groupName) {
 /**
  * Get the viable one-step supergroups for a wallpaper type on a given lattice.
  *
- * A supergroup is viable if the current lattice type is compatible with the
- * supergroup's lattice requirement (i.e. the standard generators for the
- * supergroup preserve the lattice metric).
+ * A supergroup is viable if either:
+ *   1. The current lattice type is compatible with the supergroup's
+ *      standard generators (lattice hierarchy check), OR
+ *   2. Alternative peer generators exist for the supergroup on the
+ *      current lattice type (doubled conventional cell).
  *
  * @param {string} groupName – IUCr short name (p1, pm, p4m, etc.)
  * @param {string} currentLatticeType – one of: oblique, rectangular, centered-rectangular, square, hexagonal
@@ -123,6 +176,8 @@ export function getViableSupergroups(groupName, currentLatticeType) {
   const allSupergroups = SUPERGROUP_MAP[groupName] || []
   return allSupergroups.filter(sg => {
     const req = GROUP_LATTICE_REQ[sg]
-    return latticeSupportsGroupType(currentLatticeType, req)
+    if (latticeSupportsGroupType(currentLatticeType, req)) return true
+    // Check if peer generators exist for this transition
+    return getPeerGenerators(sg, currentLatticeType) !== null
   })
 }

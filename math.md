@@ -652,8 +652,19 @@ switching to a different set of generators on a lattice that supports
 both types.  On a square lattice, axial mirrors (pm, pmm) can be
 swapped for diagonal mirrors (cm, cmm).  On a hexagonal lattice,
 p3m1 mirrors (through 3-fold centers) can be swapped for p31m mirrors
-(between 3-fold centers).  These peer transitions are only viable when
-the current lattice supports both group types (see §6c).
+(between 3-fold centers).
+
+**Peer transitions on non-shared lattices:** For pm→cm and pmm→cmm,
+the standard cm/cmm generators don't preserve the rectangular metric.
+Instead, the app uses **alternative generators** with a doubled
+conventional cell: the source group's mirrors plus a centering
+translation (½,½).  This produces the correct physical symmetry with
+|G/T| doubled (4 for cm-on-rectangular, 8 for cmm-on-rectangular).
+The reverse transitions (cm→pm, cmm→pmm) on centered-rectangular are
+not possible because axial mirrors cannot preserve the rhombic metric;
+they only appear on square lattice where both metrics coincide.
+For p3m1↔p31m, both types share the hexagonal lattice so standard
+generators work directly in both directions.
 
 ### 6b. Lattice requirements per group type
 
@@ -688,29 +699,51 @@ a hexagonal lattice is a special centered-rectangular lattice (60° angle).
 | Group | Lattice | Viable supergroups/peers |
 |-------|---------|-------------------|
 | p1 | oblique | p2 |
-| p1 | rectangular | p2, pm, pg |
+| p1 | rectangular | p2, pm, pg, **cm**† |
 | p1 | square | p2, pm, pg, cm, p4 |
 | p1 | hexagonal | p2, cm, p3, p6 |
-| pm | rectangular | pmm, pmg |
+| pm | rectangular | pmm, pmg, **cm**†, **cmm**† |
 | pm | square | pmm, pmg, **cm**, cmm, p4m |
 | cm | centered-rect | cmm |
 | cm | square | **pm**, cmm |
 | cm | hexagonal | cmm, p3m1, p31m |
+| pmm | rectangular | **cmm**† |
 | pmm | square | **cmm**, p4m |
+| cmm | centered-rect | *(none — pm/pmm need rect)* |
 | cmm | square | **pmm**, p4m |
 | p3m1 | hexagonal | **p31m**, p6m |
 | p31m | hexagonal | **p3m1**, p6m |
 | p4 | square | p4m, p4g |
 | p6m | hexagonal | *(none — maximal)* |
 
+†Peer transition using doubled conventional cell (see §6e).
+
 ### 6e. Supergroup preview algorithm
 
 When the user clicks a supergroup button:
 
-1. Load the **standard generators** of the supergroup type (from §3).
+1. Check if **peer generators** exist for the target group on the current
+   lattice type (e.g. cm on rectangular).  If so, use those generators.
+   Otherwise, load the **standard generators** of the supergroup type (§3).
 2. Enumerate G/T for the supergroup using the BFS algorithm (§4).
 3. Convert cosets to physical isometries using the **current** lattice vector.
 4. Generate visible elements and display them.
+
+**Peer generators** (doubled conventional cell):
+
+When the standard generators of the target group don't preserve the
+current lattice metric, we use alternative generators that produce the
+same physical symmetry via a doubled unit cell:
+
+| Transition | On lattice | Alternative generators | |G/T| |
+|------------|------------|----------------------|-------|
+| cm on rectangular | rectangular | σ_a + t_(½,½) | 4 |
+| cmm on rectangular | rectangular | σ_a + σ_b + t_(½,½) | 8 |
+
+Here σ_a = [[1,0],[0,−1]] is the axial mirror (which preserves the
+rectangular metric) and t_(½,½) = identity + (½,½) is the centering
+translation.  The combination produces cm/cmm symmetry with the
+conventional rectangular cell having twice the area of the primitive cell.
 
 The main group selection does **not** change — this is a preview only.
 Clicking again dismisses the preview.  If the user changes the lattice in

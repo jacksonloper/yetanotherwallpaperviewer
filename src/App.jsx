@@ -11,7 +11,7 @@ import {
   quotientToPhysical,
   rmatToJsonObj,
 } from './math/rationalGroup.js'
-import { getViableSupergroups } from './math/supergroups.js'
+import { getViableSupergroups, getPeerGenerators } from './math/supergroups.js'
 import GroupVisualization, { SCALE, SVG_WIDTH, SVG_HEIGHT } from './components/GroupVisualization.jsx'
 import LatticeControls from './components/LatticeControls.jsx'
 import WallpaperGroupSelector from './components/WallpaperGroupSelector.jsx'
@@ -194,9 +194,12 @@ export default function App() {
   const supergroupResult = useMemo(() => {
     if (!activeSupergroup) return null
     try {
-      const stdGen = standardGenerators(activeSupergroup)
-      if (!stdGen) return null
-      const { cosets, isDegenerate, error: groupError } = processGroup(stdGen.generators)
+      // Use peer generators if available (for cross-lattice peer transitions),
+      // otherwise fall back to standard generators for the target group type.
+      const peerGen = getPeerGenerators(activeSupergroup, latticeType)
+      const generators = peerGen ?? standardGenerators(activeSupergroup)?.generators ?? null
+      if (!generators) return null
+      const { cosets, isDegenerate, error: groupError } = processGroup(generators)
       if (groupError || isDegenerate) return null
 
       const cosetReps = quotientToPhysical(cosets, latticeVec)
@@ -212,7 +215,7 @@ export default function App() {
     } catch {
       return null
     }
-  }, [activeSupergroup, latticeVec])
+  }, [activeSupergroup, latticeType, latticeVec])
 
   // Use supergroup result for visualization when active, otherwise base group
   const displayResult = (activeSupergroup && supergroupResult) ? supergroupResult : result

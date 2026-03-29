@@ -3,6 +3,7 @@ import {
   getViableSupergroups,
   getAllSupergroups,
   latticeSupportsGroupType,
+  getPeerGenerators,
 } from '../supergroups.js'
 
 // ───────────────────────────────────────────────────
@@ -112,9 +113,9 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p1', 'oblique')).toEqual(['p2'])
   })
 
-  // p1 on rectangular → p2, pm, pg (not cm/p4/p3/p6)
-  it('p1 on rectangular → p2, pm, pg', () => {
-    expect(getViableSupergroups('p1', 'rectangular')).toEqual(['p2', 'pm', 'pg'])
+  // p1 on rectangular → p2, pm, pg, cm (cm via peer generators)
+  it('p1 on rectangular → p2, pm, pg, cm', () => {
+    expect(getViableSupergroups('p1', 'rectangular')).toEqual(['p2', 'pm', 'pg', 'cm'])
   })
 
   // p1 on centered-rectangular → p2, cm (not pm/pg/p4/p3/p6)
@@ -147,12 +148,12 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('cm', 'square')).toEqual(['pm', 'cmm'])
   })
 
-  // pm on rectangular → pmm, pmg (cm not viable, needs centered-rect)
-  it('pm on rectangular → pmm, pmg', () => {
-    expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pmm', 'pmg'])
+  // pm on rectangular → pmm, pmg, cm, cmm (cm and cmm via peer generators)
+  it('pm on rectangular → pmm, pmg, cm, cmm', () => {
+    expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pmm', 'pmg', 'cm', 'cmm'])
   })
 
-  // pm on square → pmm, pmg, cm, cmm, p4m (cm viable because square supports centered-rect)
+  // pm on square → pmm, pmg, cm, cmm, p4m (cm viable via both standard and peer)
   it('pm on square → pmm, pmg, cm, cmm, p4m', () => {
     expect(getViableSupergroups('pm', 'square')).toEqual(['pmm', 'pmg', 'cm', 'cmm', 'p4m'])
   })
@@ -181,13 +182,111 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p2', 'hexagonal')).toEqual(['cmm', 'p6'])
   })
 
-  // pgg on rectangular → cmm is NOT viable (needs centered-rectangular)
-  it('pgg on rectangular → empty (cmm needs centered-rect, p4g needs square)', () => {
-    expect(getViableSupergroups('pgg', 'rectangular')).toEqual([])
+  // pgg on rectangular → cmm is now viable via peer generators
+  it('pgg on rectangular → cmm (via peer generators)', () => {
+    expect(getViableSupergroups('pgg', 'rectangular')).toEqual(['cmm'])
   })
 
   // pgg on square → cmm and p4g (both viable)
   it('pgg on square → cmm, p4g', () => {
     expect(getViableSupergroups('pgg', 'square')).toEqual(['cmm', 'p4g'])
+  })
+
+  // pmm on rectangular → cmm (via peer generators), p4m needs square
+  it('pmm on rectangular → cmm', () => {
+    expect(getViableSupergroups('pmm', 'rectangular')).toEqual(['cmm'])
+  })
+
+  // pmm on square → cmm, p4m (both viable)
+  it('pmm on square → cmm, p4m', () => {
+    expect(getViableSupergroups('pmm', 'square')).toEqual(['cmm', 'p4m'])
+  })
+
+  // cmm on centered-rectangular → pmm NOT viable (no peer generators), p4m needs square
+  it('cmm on centered-rectangular → empty', () => {
+    expect(getViableSupergroups('cmm', 'centered-rectangular')).toEqual([])
+  })
+
+  // cmm on square → pmm (square supports rectangular), p4m
+  it('cmm on square → pmm, p4m', () => {
+    expect(getViableSupergroups('cmm', 'square')).toEqual(['pmm', 'p4m'])
+  })
+
+  // p3m1 on hexagonal → p31m and p6m (both hexagonal, both viable)
+  it('p3m1 on hexagonal → p31m, p6m', () => {
+    expect(getViableSupergroups('p3m1', 'hexagonal')).toEqual(['p31m', 'p6m'])
+  })
+
+  // p31m on hexagonal → p3m1 and p6m (both hexagonal, both viable)
+  it('p31m on hexagonal → p3m1, p6m', () => {
+    expect(getViableSupergroups('p31m', 'hexagonal')).toEqual(['p3m1', 'p6m'])
+  })
+
+  // p2 on rectangular → pmm, pmg, pgg (rect), cmm (peer generators)
+  it('p2 on rectangular → pmm, pmg, pgg, cmm', () => {
+    expect(getViableSupergroups('p2', 'rectangular')).toEqual(['pmm', 'pmg', 'pgg', 'cmm'])
+  })
+
+  // pmg on rectangular → cmm (via peer generators), p4g needs square
+  it('pmg on rectangular → cmm', () => {
+    expect(getViableSupergroups('pmg', 'rectangular')).toEqual(['cmm'])
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  getPeerGenerators — alternative generators for peer transitions
+// ───────────────────────────────────────────────────
+
+describe('getPeerGenerators', () => {
+  it('returns generators for cm on rectangular', () => {
+    const gen = getPeerGenerators('cm', 'rectangular')
+    expect(gen).not.toBeNull()
+    expect(gen).toHaveLength(2) // σ_a + centering
+  })
+
+  it('returns generators for cmm on rectangular', () => {
+    const gen = getPeerGenerators('cmm', 'rectangular')
+    expect(gen).not.toBeNull()
+    expect(gen).toHaveLength(3) // σ_a + σ_b + centering
+  })
+
+  it('returns null for cm on centered-rectangular (standard generators work)', () => {
+    expect(getPeerGenerators('cm', 'centered-rectangular')).toBeNull()
+  })
+
+  it('returns null for pm on rectangular (standard generators work)', () => {
+    expect(getPeerGenerators('pm', 'rectangular')).toBeNull()
+  })
+
+  it('returns null for pm on centered-rectangular (impossible)', () => {
+    expect(getPeerGenerators('pm', 'centered-rectangular')).toBeNull()
+  })
+
+  it('returns null for p3m1 on hexagonal (standard generators work)', () => {
+    expect(getPeerGenerators('p3m1', 'hexagonal')).toBeNull()
+  })
+})
+
+// ───────────────────────────────────────────────────
+//  Peer generators produce valid groups with processGroup
+// ───────────────────────────────────────────────────
+
+import { processGroup } from '../rationalGroup.js'
+
+describe('peer generators produce valid groups', () => {
+  it('cm-on-rectangular produces |G/T| = 4 (doubled cell)', () => {
+    const gen = getPeerGenerators('cm', 'rectangular')
+    const { cosets, isDegenerate, error } = processGroup(gen)
+    expect(error).toBeFalsy()
+    expect(isDegenerate).toBeFalsy()
+    expect(cosets).toHaveLength(4)
+  })
+
+  it('cmm-on-rectangular produces |G/T| = 8 (doubled cell)', () => {
+    const gen = getPeerGenerators('cmm', 'rectangular')
+    const { cosets, isDegenerate, error } = processGroup(gen)
+    expect(error).toBeFalsy()
+    expect(isDegenerate).toBeFalsy()
+    expect(cosets).toHaveLength(8)
   })
 })
