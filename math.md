@@ -1,837 +1,1107 @@
-# Completeness of the UI Parameterization
+# Mathematical Reference
 
-This document argues that the UI of the wallpaper group viewer can reach
-**every wallpaper group up to similarity** (isometry + uniform scaling,
-including orientation-reversing similarities such as reflections).
-
-The key result: once the lattice shape is fixed, the wallpaper type
-determines the group **up to similarity** — there are no continuous
-degrees of freedom for generator placement.  The only genuine continuous
-freedom is lattice shape (x, y).  The UI map is therefore **surjective**:
-every similarity class of wallpaper groups is realized.
+Complete mathematical specification of the wallpaper group viewer.
+Every algorithm, generator matrix, and group-theoretic choice is recorded
+here so that the entire page can be checked for correctness from this
+document alone.
 
 ---
 
-## 0. The UI: a complete inventory
+## 1. Lattice conventions
 
-### 0a. Lattice selection
+### 1a. Basis conventions
 
-The lattice is always **a** = (0, 1) and **b** = (x, y) with
-x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.  The UI offers two top-level modes.
+A **rank-2 lattice** in ℝ² is Λ = ℤ**a** + ℤ**b** for two linearly
+independent vectors **a**, **b**.  We always set:
 
-**Well-rounded** (both basis vectors have equal length, x² + y² = 1):
+> **a** = (0, 1),  **b** = (x, y)  with  x ≥ 0.
 
-| Control | Range | Effect |
-|---|---|---|
-| Shape slider | 0 → 1 | Sweeps along the unit-circle arc from (1, 0) to (√3/2, ½). Left end = **square** lattice, right end = **hexagonal**, interior = **centered rectangular**. |
+The remaining constraints on (x, y) depend on the wallpaper type:
 
-Mapping: sliderValue *s* ∈ [0, 1] gives y = s/2, x = √(1 − y²).
+**Standard Minkowski-reduced form** (used by all types except cm, cmm):
 
-**Not well-rounded** (x² + y² > 1): a radio button selects one of three
-sub-shapes, each with its own sliders:
+> 0 ≤ y ≤ ½,  x² + y² ≥ 1.
 
-| Sub-shape | y | x range | Sliders | Bravais type |
-|---|---|---|---|---|
-| Rectangular | 0 | (1, 3] | x | Rectangular |
-| Centered rectangular | 0.5 | (√3/2, 3] | x | Centered rectangular |
-| Oblique | (0.01, 0.49) | (√(1 − y²), 3] | x, y | Oblique |
+Any rank-2 lattice can be brought into this form:
 
-The five **Bravais lattice types** recognized by the viewer:
+1. Scale by 1/‖**a**‖ so that the shortest vector has length 1.
+2. Rotate so that this shortest vector is (0, 1) = **a**.
+3. Choose the second vector to be the shortest lattice vector not parallel
+   to **a** (Minkowski-reduced).  Reduce modulo **a** so 0 ≤ y ≤ ½.
+   If x < 0, reflect via (x, y) → (−x, y).  The condition
+   ‖**b**‖ ≥ ‖**a**‖ = 1 gives x² + y² ≥ 1.
 
-| Type | Characterization in (x, y) space |
-|---|---|
-| Square | (x, y) = (1, 0) |
-| Hexagonal | (x, y) = (√3/2, ½) |
-| Centered rectangular | x² + y² = 1, 0 < y < ½  (well-rounded, not square/hex) *or*  y = ½, x > √3/2 |
-| Rectangular | y = 0, x > 1 |
-| Oblique | everything else (0 < y < ½, x² + y² > 1) |
+The result is unique up to boundary identifications at special lattices
+(square, hexagonal).
 
-### 0b. Wallpaper type selection
+**Well-rounded (rhombic) form** (used by cm, cmm):
 
-Once the lattice type is determined, a **dropdown** lists the compatible
-wallpaper group types (see §2 for the full compatibility table).  Selecting
-a type sets the generators to their fixed placements — all generator
-parameters (rotation centers, axis offsets) are determined by the type
-template with no adjustable sliders (see §3 for why).
+> x² + y² = 1,  0 < y < 1.
 
-Some types have multiple **direction variants** when the lattice admits
-several inequivalent reflection/glide directions.  In these cases, a set
-of **radio buttons** appears below the dropdown, letting the user choose
-which direction class to use (see §3e for the full inventory).
+Here **b** lies on the unit circle, so |**a**| = |**b**| = 1 always.
+The angle θ between **a** and **b** ranges from 10° to 90°
+(corresponding to y = cos θ ranging from ≈ 0.985 down to 0).
+This parameterization **leaves the standard Minkowski-reduced domain**
+when θ < 60° (i.e. y > ½).
 
-### 0c. Directions available per lattice type
+**Why cm/cmm need this.**  The cm generators σ+ = [[0,1],[1,0]] and
+σ− = [[0,−1],[−1,0]] swap the two lattice basis vectors.  This swap
+is a lattice isometry if and only if |**a**| = |**b**|.  In the standard
+Minkowski-reduced form, centered-rectangular lattices split into two
+disjoint families (the well-rounded arc x² + y² = 1 with y ≤ ½, and
+the not-well-rounded line y = ½ with x > √3/2) that meet only at the
+hexagonal point, where the cm mirror direction jumps discontinuously.
+Keeping |**a**| = |**b**| = 1 throughout avoids this discontinuity
+and gives a single smooth slider from acute rhombus → hex → square.
+(See `hexcmtransition.md` for the full analysis.)
 
-The direction indices (dirIndex) used by reflections and glides reference the
-following arrays.  These are produced by `getAllowedIsometries()` in
-latticeUtils.js; numbering here matches the 0-based array index.
+### 1b. Bravais lattice types
 
-**Rectangular** (2 reflections, 2 glides):
+The code classifies lattice vectors (x, y) by checking (in order):
 
-| Index | Direction | Reflection angle | Glide distance |
-|---|---|---|---|
-| 0 | along **a** (vertical) | π/2 | ½ |
-| 1 | along **b** (horizontal) | 0 | x/2 |
+| Type | Characterization |
+|------|-----------------|
+| Square | (x, y) ≈ (1, 0) |
+| Hexagonal | (x, y) ≈ (√3/2, 1/2) |
+| Rectangular | y ≈ 0 (and not square) |
+| Centered rectangular | x² + y² ≈ 1 (and not square or hex), **or** y ≈ 1/2 (and not hex) |
+| Oblique | everything else |
 
-**Centered rectangular — well-rounded** (2 reflections, 2 glides):
+The centered-rectangular check covers both the well-rounded arc
+(x² + y² = 1, including the cm-slider regime with y > ½) and the
+not-well-rounded line (y = ½ with x > √3/2).
 
-| Index | Direction | Reflection angle | Glide distance |
-|---|---|---|---|
-| 0 | along **a** + **b** | atan2(1 + y, x) | ‖**a** + **b**‖/2 |
-| 1 | along **b** − **a** | atan2(y − 1, x) | ‖**b** − **a**‖/2 |
+Detection uses tolerance ε = 10⁻⁴.
 
-**Centered rectangular — not-well-rounded** (y = ½, 2 reflections, 2 glides):
+### 1c. Lattice metric
 
-| Index | Direction | Reflection angle | Glide distance |
-|---|---|---|---|
-| 0 | vertical (along **a**) | π/2 | ½ |
-| 1 | horizontal | 0 | x |
+The change-of-basis matrix mapping lattice coordinates to physical
+coordinates is:
 
-**Square** (4 reflections, 4 glides):
+> C = [[0, x], [1, y]]
 
-| Index | Direction | Reflection angle | Glide distance |
-|---|---|---|---|
-| 0 | along **a** + **b** (diagonal ↗) | π/4 | √2/2 |
-| 1 | along **b** − **a** (diagonal ↘) | −π/4 | √2/2 |
-| 2 | along **a** (vertical) | π/2 | ½ |
-| 3 | along **b** (horizontal) | 0 | ½ |
+where the columns are **a** = (0,1) and **b** = (x,y).  The metric
+tensor in lattice coordinates is:
 
-**Hexagonal** (6 reflections, 6 glides):
+> Q = Cᵀ C = [[1, y], [y, x² + y²]]
 
-| Index | Direction | Reflection angle | Glide distance |
-|---|---|---|---|
-| 0 | along **a** + **b** | π/3 | √3/2 |
-| 1 | along **b** − **a** | −π/6 | ½ |
-| 2 | along **a** (vertical) | π/2 | ½ |
-| 3 | along **b** | π/6 | ½ |
-| 4 | along 2**b** − **a** (horizontal) | 0 | √3/2 |
-| 5 | along **b** − 2**a** | −π/3 | √3/2 |
+This matrix is used for generator validation (§8a).
 
-(The oblique lattice has no reflection or glide directions.)
+### 1d. UI lattice controls
 
-### 0d. Wallpaper types and their generators — complete list
+The app uses four lattice-control modes depending on the wallpaper type:
 
-For every lattice type, the table below lists each wallpaper type and its
-generators.  Direction indices refer to §0c.  All generator placement
-parameters are fixed by the type template (see §3).  Types marked with
-**(V)** have direction variants selectable via radio buttons.
+| Mode | Types | Parameter | Mapping |
+|------|-------|-----------|---------|
+| `full` | p1, p2 | Full 2D freedom | Well-rounded slider or shape sub-modes |
+| `rect-to-square` | pm, pg, pmm, pmg, pgg | Slider t ∈ [0,1] | x = 3 − 2t, y = 0 (t=0 → wide rectangle, t=1 → square) |
+| `cm-slider` | cm, cmm | Slider t ∈ [0,1] | θ = π/18 + 4πt/9, then x = sin θ, y = cos θ (always |**b**| = 1; t=0 → 10° acute, t=0.625 → hex, t=1 → square) |
+| `none` | p4, p4m, p4g | Fixed square: (1, 0) | — |
+| `none` | p3, p3m1, p31m, p6, p6m | Fixed hexagonal: (√3/2, 1/2) | — |
 
-**Oblique lattice:**
+The `full` and `rect-to-square` modes always produce lattice vectors in the
+standard Minkowski-reduced domain (x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1).
 
-| Type | Generators |
-|---|---|
-| p1 | *(none)* |
-| p2 | rotation order 2, center (0, 0) |
-
-**Rectangular lattice:**
-
-| Type | Generators | Variants |
-|---|---|---|
-| p1 | *(none)* | — |
-| p2 | rotation order 2, center (0, 0) | — |
-| pm **(V)** | reflection dir 0 *or* dir 1 | ∥ a (vertical) / ∥ b (horizontal) |
-| pg **(V)** | glide dir 0 *or* dir 1 | ∥ a (vertical) / ∥ b (horizontal) |
-| pmm | reflection dir 0 + reflection dir 1 | — |
-| pmg **(V)** | reflection dir 1 + glide dir 0, *or* dir 0 + dir 1 | Mirror ∥ b + glide ∥ a / Mirror ∥ a + glide ∥ b |
-| pgg | glide dir 1 (axisOffset 0.25) + glide dir 0 (axisOffset 0.25) | — |
-
-**Centered rectangular lattice:**
-
-| Type | Generators | Variants |
-|---|---|---|
-| p1 | *(none)* | — |
-| p2 | rotation order 2, center (0, 0) | — |
-| cm **(V)** | reflection dir 0 *or* dir 1 | Mirror ∥ a+b / Mirror ∥ b−a |
-| cmm | reflection dir 0 + reflection dir 1 | — |
-
-**Square lattice:**
-
-| Type | Generators (default variant) | Variants |
-|---|---|---|
-| p1 | *(none)* | — |
-| p2 | rotation order 2, center (0, 0) | — |
-| pm **(V)** | reflection dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
-| pg **(V)** | glide dir 2 *or* dir 3 | ∥ a (vertical) / ∥ b (horizontal) |
-| cm **(V)** | reflection dir 0 *or* dir 1 | ∥ a+b (↗) / ∥ b−a (↘) |
-| pmm | refl dir 2 + dir 3 | — |
-| pmg **(V)** | refl dir 3 + glide dir 2, *or* dir 2 + dir 3 | Mirror ∥ b + glide ∥ a / Mirror ∥ a + glide ∥ b |
-| pgg | glide dir 3 + dir 2 (offset 0.25) | — |
-| cmm | refl dir 0 + dir 1 | — |
-| p4 | rotation order 4, center (0, 0) | — |
-| p4m | rotation order 4, center (0, 0) + reflection dir 3 | — |
-| p4g | rotation order 4, center (0, 0) + reflection dir 1 (axisOffset 0.5) | — |
-
-**Hexagonal lattice:**
-
-| Type | Generators | Variants |
-|---|---|---|
-| p1 | *(none)* | — |
-| p2 | rotation order 2, center (0, 0) | — |
-| cm **(V)** | reflection dir 0 *or* dir 1 | Mirror ∥ a+b / Mirror ∥ b−a |
-| cmm | reflection dir 0 + reflection dir 1 | — |
-| p3 | rotation order 3, center (0, 0) | — |
-| p3m1 | rotation order 3, center (0, 0) + reflection dir 4 | — |
-| p31m | rotation order 3, center (0, 0) + reflection dir 2 | — |
-| p6 | rotation order 6, center (0, 0) | — |
-| p6m | rotation order 6, center (0, 0) + reflection dir 4 | — |
-
-### 0e. Auxiliary controls
-
-| Control | Range | Purpose |
-|---|---|---|
-| Direction variant (radio) | depends on type | Selects among inequivalent direction classes for the chosen wallpaper type (appears only when multiple variants exist) |
-| Max word length | 1 – 20 | Limits the length of generator words explored during group generation |
-| Max elements | 100 – 5000 | Caps the number of group elements stored |
-| Show F | checkbox | Toggles display of a reference "F" glyph |
-| F offset x | [0, 1] | Horizontal display offset of the F glyph (purely cosmetic) |
-| F offset y | [0, 1] | Vertical display offset of the F glyph (purely cosmetic) |
-| Copy JSON | button | Copies the current group specification to the clipboard |
+The `cm-slider` traces the unit circle from θ = 10° to θ = 90°.  For
+t < 0.625 (θ < 60°), the lattice vector has y > ½, which is outside the
+Minkowski-reduced domain.  This is intentional: it keeps |**a**| = |**b**|
+at all slider positions, ensuring the cm/cmm generators (which swap the
+two basis vectors) are always valid isometries.  The mirror direction
+along **a** + **b** varies continuously through the hex point, avoiding
+the 30° discontinuity that would occur in the Minkowski-reduced
+parameterization (see §1a and `hexcmtransition.md`).
 
 ---
 
-## 1. Normalizing the lattice
+## 2. Rational arithmetic
 
-**Claim.** Any rank-2 lattice in ℝ² can be brought by a similarity
-(possibly orientation-reversing) into the normal form
+### 2a. Rational numbers
 
-> **a** = (0, 1),  **b** = (x, y)  with  x ≥ 0,  0 ≤ y ≤ ½,  x² + y² ≥ 1.
+A rational number is an exact pair [n, d] with integer n, integer d > 0,
+gcd(|n|, d) = 1.  Zero is [0, 1].  All arithmetic (add, subtract,
+multiply, divide, negate) preserves this canonical form.
 
-*Proof.*
-Let Λ = ℤ**v** + ℤ**w** be an arbitrary rank-2 lattice.
+Operations (`rational.js`):
 
-1. **Scale.**  Multiply ℝ² by 1/‖**v**‖ so that the shortest basis vector has
-   length 1.
-2. **Rotate.**  Rotate so that shortest vector is (0, 1) = **a**.
-3. **Choose second vector.**  Among all lattice vectors not parallel to **a**,
-   pick **b** with minimal length ‖**b**‖ ≥ 1 (Minkowski-reduced).
-   Reduce modulo **a** so 0 ≤ y ≤ ½.  If x < 0, apply the reflection
-   (x, y) → (−x, y) to the entire plane; this is an orientation-reversing
-   similarity that makes x ≥ 0.  The condition ‖**b**‖ ≥ ‖**a**‖ = 1
-   gives x² + y² ≥ 1.
+| Operation | Definition |
+|-----------|-----------|
+| rat(n, d) | Normalize to lowest terms |
+| radd(a, b) | a + b |
+| rsub(a, b) | a − b |
+| rmul(a, b) | a × b |
+| rdiv(a, b) | a / b |
+| rneg(a) | −a |
+| req(a, b) | Exact equality |
+| rmod1(a) | Reduce to [0, 1) |
 
-The result is unique up to boundary identifications and lattice symmetries:
-in the strict interior of the domain, distinct (x, y) correspond to
-non-similar lattices.  On the boundary (e.g. x² + y² = 1 at y = 0 or
-y = ½), the square and
-hexagonal lattices have extra automorphisms that identify some parameter
-values; and lattices with y = 0 or y = ½ sit on the boundary of the
-fundamental domain for the modular group.  These boundary identifications
-mean uniqueness holds generically (almost everywhere) but not at every
-boundary point.
+### 2b. Rational affine matrices
 
-The UI offers exactly this parameterization:
+An affine isometry of ℤ² is represented as a 3×3 matrix with rational
+entries:
 
-| UI control | (x, y) range | Lattice type |
-|---|---|---|
-| Well-rounded slider (0 → 1) | x² + y² = 1, y ∈ [0, 0.5] | Square → centered-rectangular → hexagonal |
-| Not-well-rounded: rectangular slider | y = 0, x > 1 | Rectangular |
-| Not-well-rounded: centered-rectangular slider | y = 0.5, x > √3/2 | Centered rectangular |
-| Not-well-rounded: oblique sliders | 0 < y < 0.5, x² + y² > 1 | Oblique |
+```
+[ a   b   tx ]
+[ c   d   ty ]
+[ 0   0    1 ]
+```
 
-Together these cover the full closed domain {(x, y) : x ≥ 0, 0 ≤ y ≤ ½,
-x² + y² ≥ 1}. ∎
+The top-left 2×2 block [[a, b], [c, d]] is the **linear part** L.
+The vector (tx, ty) is the **translation part**.  The matrix acts on
+a point p by: p ↦ L·p + (tx, ty).
+
+Stored as `{ a, b, c, d, tx, ty }` where each entry is a rational [n, d].
+Created by `rimat(a, b, c, d, txn, txd, tyn, tyd)` — linear entries as
+plain integers, translation as numerator/denominator pairs.
+
+Operations (`rational.js`):
+
+| Operation | Definition |
+|-----------|-----------|
+| rcompose(A, B) | A ∘ B (apply B first). Linear: A_L · B_L. Translation: A_L · B_t + A_t |
+| rinverse(A) | Inverse via 2×2 determinant |
+| rmatEqual(A, B) | Exact componentwise comparison |
+| rmodT(A) | Keep linear part, reduce tx, ty mod 1 to [0, 1) |
+
+### 2c. Key linear parts (lattice coordinates)
+
+The following integer matrices appear as the linear parts of generators.
+Each is in GL(2, ℤ) (integer entries, determinant ±1) and preserves the
+appropriate lattice metric Q.
+
+| Symbol | Matrix [[a,b],[c,d]] | det | Meaning | Used by |
+|--------|---------------------|-----|---------|---------|
+| R₂ | [[-1,0],[0,-1]] | +1 | 180° rotation | p2, etc. |
+| σ_a | [[1,0],[0,-1]] | −1 | Reflection fixing e₁ | pm(a), pg(a) |
+| σ_b | [[-1,0],[0,1]] | −1 | Reflection fixing e₂ | pm(b), pg(b) |
+| σ+ | [[0,1],[1,0]] | −1 | Swap e₁ ↔ e₂ (mirror ∥ a+b) | cm(a+b) |
+| σ− | [[0,-1],[-1,0]] | −1 | Swap & negate (mirror ∥ b−a) | cm(b−a) |
+| R₄ | [[0,1],[-1,0]] | +1 | 90° rotation (square) | p4 |
+| R₃ | [[0,1],[-1,-1]] | +1 | 120° rotation (hex) | p3 |
+| R₆ | [[1,1],[-1,0]] | +1 | 60° rotation (hex) | p6 |
+| σ_h | [[-1,-1],[0,1]] | −1 | Hex reflection (horizontal) | p3m1, p6m |
+| σ_v | [[1,1],[0,-1]] | −1 | Hex reflection (vertical) | p31m |
+
+**Verification of R₆ and R₃:**  R₆² = [[1,1],[-1,0]]² = [[0,1],[-1,-1]] = R₃.
+R₃² = [[0,1],[-1,-1]]² = [[-1,-1],[1,0]].  R₆³ = [[-1,0],[0,-1]] = R₂.
+R₆⁶ = I. ✓
+
+**Verification of σ_h:**  σ_h = [[-1,-1],[0,1]].  det = −1·1 − (−1)·0 = −1. ✓
+σ_h² = [[-1,-1],[0,1]]² = [[1,0],[0,1]] = I. ✓
 
 ---
 
-## 2. The 17 wallpaper types and their compatibility with lattices
+## 3. Standard generators for all 17 wallpaper types
 
-By the crystallographic restriction theorem, every wallpaper group's point
-group (its image in O(2) after quotienting out translations) is one of 10
-finite subgroups of O(2): {1, 2, 3, 4, 6, m, 2mm, 3m, 4mm, 6mm}.  Combined
-with the possible translation subgroups and extension choices, this gives
-exactly 17 crystallographic wallpaper types.  These 17 types are a
-*geometric* classification (by affine conjugacy), not merely an algebraic
-one: groups of the same type share the same pattern of symmetry operations
-relative to their lattice, but different lattice shapes within the same type
-yield infinitely many distinct similarity classes.
+Each type is defined by its **lattice type** and a list of **generators**
+(rational affine matrices in lattice coordinates).  The translation
+subgroup T = ℤ² (generated by [I|(1,0)] and [I|(0,1)]) is always implicit.
 
-Each type constrains the lattice:
+All generator placements are canonical: rotation centers at the origin,
+reflection axes through the origin (except where a nonzero translation
+is structurally necessary, as in pg, pmg, pgg, and p4g).
+
+### 3a. Types on any lattice
+
+**p1** — Translations only
+
+> Generators: *(none)*
+> |G/T| = 1
+
+**p2** — 180° rotation
+
+> Generator: [[-1,0],[0,-1] | (0,0)]
+> |G/T| = 2
+
+### 3b. Types on rectangular lattice (including square specialization)
+
+These types use σ_a = [[1,0],[0,-1]] (reflection fixing e₁-axis, mirror ∥ a)
+and σ_b = [[-1,0],[0,1]] (reflection fixing e₂-axis, mirror ∥ b).
+
+**pm** — One reflection
+
+> Variant 0 (Mirrors ∥ a): [[1,0],[0,-1] | (0,0)]
+> Variant 1 (Mirrors ∥ b): [[-1,0],[0,1] | (0,0)]
+> |G/T| = 2
+
+**pg** — One glide reflection
+
+> Variant 0 (Glide ∥ a): [[1,0],[0,-1] | (1/2,0)]
+> Variant 1 (Glide ∥ b): [[-1,0],[0,1] | (0,1/2)]
+> |G/T| = 2
+
+The translation (1/2, 0) (resp. (0, 1/2)) is the half-lattice glide along
+the mirror direction.  The square of this generator is translation by (1, 0)
+(resp. (0, 1)), which is a lattice translation, confirming |G/T| = 2.
+
+**pmm** — Two perpendicular reflections
+
+> Generators: [[1,0],[0,-1] | (0,0)] and [[-1,0],[0,1] | (0,0)]
+> |G/T| = 4.  Cosets: {I, σ_a, σ_b, R₂} where R₂ = σ_a · σ_b.
+
+**pmg** — Reflection + perpendicular glide
+
+> Variant 0 (Mirror ∥ b, glide ∥ a):
+>   [[-1,0],[0,1] | (0,0)]  and  [[1,0],[0,-1] | (1/2,0)]
+> Variant 1 (Mirror ∥ a, glide ∥ b):
+>   [[1,0],[0,-1] | (0,0)]  and  [[-1,0],[0,1] | (0,1/2)]
+> |G/T| = 4
+
+**pgg** — Two perpendicular glide reflections
+
+> Generators:
+>   [[-1,0],[0,1] | (1/2,1/2)]  and  [[1,0],[0,-1] | (1/2,1/2)]
+> |G/T| = 4
+
+Both glides have translation (1/2, 1/2).  Their product is
+[[−1,0],[0,−1] | (0,0)] + (1,0) mod T = R₂, confirming the product of two
+perpendicular glides is a rotation.
+
+### 3c. Types on centered-rectangular lattice (including hex/square specialization)
+
+These use σ+ = [[0,1],[1,0]] (mirror ∥ a+b) and σ− = [[0,−1],[−1,0]]
+(mirror ∥ b−a) in the primitive centered-rectangular basis.
+
+**cm** — One reflection (centered)
+
+> Variant 0 (Mirror ∥ a+b): [[0,1],[1,0] | (0,0)]
+> Variant 1 (Mirror ∥ b−a): [[0,-1],[-1,0] | (0,0)]
+> |G/T| = 2
+
+σ+ swaps the basis vectors e₁ ↔ e₂.  This is a lattice automorphism
+if and only if |**a**| = |**b**|.  On the cm-slider this holds at every
+position (x² + y² = 1), including the regime with y > ½ that is outside
+the standard Minkowski-reduced domain.
+
+**Metric preservation check.**  The lattice metric for any cm-slider
+position is Q = [[1, y], [y, 1]] (since x² + y² = 1).  Then:
+
+> σ+ᵀ Q σ+ = [[0,1],[1,0]] · [[1,y],[y,1]] · [[0,1],[1,0]]
+> = [[y,1],[1,y]] · [[0,1],[1,0]] = [[1,y],[y,1]] = Q. ✓
+
+This holds for all y, not just y ≤ ½.  Similarly σ−ᵀ Q σ− = Q.
+
+**cmm** — Two reflections (centered)
+
+> Generators: [[0,1],[1,0] | (0,0)] and [[0,-1],[-1,0] | (0,0)]
+> |G/T| = 4.  Cosets: {I, σ+, σ−, R₂} where R₂ = σ+ · σ−.
+
+Verification: σ+ · σ− = [[0,1],[1,0]] · [[0,−1],[−1,0]]
+= [[−1,0],[0,−1]] = R₂.  ✓
+
+### 3d. Types on square lattice
+
+These use R₄ = [[0,1],[−1,0]] (90° rotation).
+
+On the square lattice, (x,y) = (1,0), so C = [[0,1],[1,0]], and
+CᵀC = I.  The metric Q = I means every orthogonal matrix with integer
+entries preserves the lattice.
+
+**p4** — 90° rotation
+
+> Generator: [[0,1],[-1,0] | (0,0)]
+> |G/T| = 4.  Cosets: {I, R₄, R₂, R₄³}
+
+Verification: R₄² = [[0,1],[−1,0]]² = [[−1,0],[0,−1]] = R₂.
+R₄⁴ = I. ✓
+
+**p4m** — 90° rotation + axial reflection
+
+> Generators: [[0,1],[-1,0] | (0,0)] and [[-1,0],[0,1] | (0,0)]
+> |G/T| = 8
+
+The second generator σ_b reflects across the e₂-axis.  Combined with
+R₄, this generates all eight cosets of the dihedral group D₄ acting on ℤ².
+The four rotations {I, R₄, R₂, R₄³} and four reflections {σ_b, R₄σ_b,
+R₂σ_b, R₄³σ_b} produce mirrors in all four lattice directions (axial and
+diagonal).
+
+**p4g** — 90° rotation + off-center diagonal glide-reflection
+
+> Generators: [[0,1],[-1,0] | (0,0)] and [[0,-1],[-1,0] | (1/2,1/2)]
+> |G/T| = 8
+
+The second generator is σ− (the b−a mirror) shifted by (1/2, 1/2).
+This is a **glide reflection** — the mirror part is diagonal, and the
+translation (1/2, 1/2) projects to a nonzero component along the mirror
+axis, making it a true glide.  Combining with R₄:
+- R₄ · [σ− | (½,½)] has linear part R₄σ− = [[0,1],[−1,0]]·[[0,−1],[−1,0]]
+  = [[−1,0],[0,1]] = σ_b, with translation R₄·(½,½) = (½,−½) ≡ (½,½) mod T.
+  This is σ_b with glide (½,½), i.e. an **axial glide**.
+
+p4g has diagonal mirrors but only axial glides — the classic distinction
+from p4m.
+
+### 3e. Types on hexagonal lattice
+
+These use R₃ = [[0,1],[−1,−1]] (120° rotation) and R₆ = [[1,1],[−1,0]]
+(60° rotation), and two reflection matrices:
+
+- σ_h = [[-1,-1],[0,1]] — mirror through the 2**b**−**a** direction
+  (horizontal in standard hex orientation)
+- σ_v = [[1,1],[0,-1]] — mirror through the **a** direction (vertical)
+
+On the hex lattice, (x,y) = (√3/2, 1/2), so C = [[0, √3/2], [1, 1/2]].
+The metric Q = [[1, 1/2], [1/2, 1]].
+
+**Verification of metric preservation for R₃:**
+R₃ᵀ = [[0,−1],[1,−1]].
+R₃ᵀ · Q = [[0,−1],[1,−1]] · [[1,½],[½,1]] = [[−½,−1],[½,−½]].
+(R₃ᵀQ) · R₃ = [[−½,−1],[½,−½]] · [[0,1],[−1,−1]] = [[1,½],[½,1]] = Q. ✓
+
+**p3** — 120° rotation
+
+> Generator: [[0,1],[-1,-1] | (0,0)]
+> |G/T| = 3.  Cosets: {I, R₃, R₃²}
+
+R₃² = [[-1,-1],[1,0]].  R₃³ = I. ✓
+
+**p3m1** — 120° rotation + reflection (mirrors through all 3-fold centers)
+
+> Generators: [[0,1],[-1,-1] | (0,0)] and [[-1,-1],[0,1] | (0,0)]
+> |G/T| = 6
+
+The reflection σ_h has mirror along 2**b**−**a** (the horizontal direction
+in physical coordinates).  At the three 3-fold centers (0,0), (1/3,1/3),
+(2/3,2/3), this mirror and its R₃-conjugates pass through all of them.
+This is the defining property of p3m1.
+
+**p31m** — 120° rotation + reflection (mirrors avoid some 3-fold centers)
+
+> Generators: [[0,1],[-1,-1] | (0,0)] and [[1,1],[0,-1] | (0,0)]
+> |G/T| = 6
+
+The reflection σ_v has mirror along **a** (the vertical direction in
+physical coordinates).  The vertical mirror passes through the origin
+(0,0) but not through (1/3,1/3) or (2/3,2/3).  This is the defining
+property of p31m — some 3-fold centers have site symmetry 3 (not 3m).
+
+**p6** — 60° rotation
+
+> Generator: [[1,1],[-1,0] | (0,0)]
+> |G/T| = 6.  Cosets: {I, R₆, R₃, R₂, R₃², R₆⁵}
+
+where R₆² = R₃, R₆³ = R₂, R₆⁶ = I.
+
+**p6m** — 60° rotation + reflection
+
+> Generators: [[1,1],[-1,0] | (0,0)] and [[-1,-1],[0,1] | (0,0)]
+> |G/T| = 12
+
+This is the largest wallpaper group.  The 12 cosets consist of 6 rotations
+{I, R₆, R₃, R₂, R₃², R₆⁵} and 6 reflections {σ_h, R₆σ_h, R₃σ_h,
+R₂σ_h, R₃²σ_h, R₆⁵σ_h}, giving mirrors in 6 directions spaced 30° apart.
+
+### 3f. Summary table of all generators
+
+| Type | Lattice | |G/T| | Generator 1 | Generator 2 |
+|------|---------|-------|-------------|-------------|
+| p1 | any | 1 | *(none)* | |
+| p2 | any | 2 | [[-1,0],[0,-1] \| (0,0)] | |
+| pm(a) | rect | 2 | [[1,0],[0,-1] \| (0,0)] | |
+| pm(b) | rect | 2 | [[-1,0],[0,1] \| (0,0)] | |
+| pg(a) | rect | 2 | [[1,0],[0,-1] \| (1/2,0)] | |
+| pg(b) | rect | 2 | [[-1,0],[0,1] \| (0,1/2)] | |
+| pmm | rect | 4 | [[1,0],[0,-1] \| (0,0)] | [[-1,0],[0,1] \| (0,0)] |
+| pmg(0) | rect | 4 | [[-1,0],[0,1] \| (0,0)] | [[1,0],[0,-1] \| (1/2,0)] |
+| pmg(1) | rect | 4 | [[1,0],[0,-1] \| (0,0)] | [[-1,0],[0,1] \| (0,1/2)] |
+| pgg | rect | 4 | [[-1,0],[0,1] \| (1/2,1/2)] | [[1,0],[0,-1] \| (1/2,1/2)] |
+| cm(a+b) | c-rect | 2 | [[0,1],[1,0] \| (0,0)] | |
+| cm(b−a) | c-rect | 2 | [[0,-1],[-1,0] \| (0,0)] | |
+| cmm | c-rect | 4 | [[0,1],[1,0] \| (0,0)] | [[0,-1],[-1,0] \| (0,0)] |
+| p4 | square | 4 | [[0,1],[-1,0] \| (0,0)] | |
+| p4m | square | 8 | [[0,1],[-1,0] \| (0,0)] | [[-1,0],[0,1] \| (0,0)] |
+| p4g | square | 8 | [[0,1],[-1,0] \| (0,0)] | [[0,-1],[-1,0] \| (1/2,1/2)] |
+| p3 | hex | 3 | [[0,1],[-1,-1] \| (0,0)] | |
+| p3m1 | hex | 6 | [[0,1],[-1,-1] \| (0,0)] | [[-1,-1],[0,1] \| (0,0)] |
+| p31m | hex | 6 | [[0,1],[-1,-1] \| (0,0)] | [[1,1],[0,-1] \| (0,0)] |
+| p6 | hex | 6 | [[1,1],[-1,0] \| (0,0)] | |
+| p6m | hex | 12 | [[1,1],[-1,0] \| (0,0)] | [[-1,-1],[0,1] \| (0,0)] |
+
+Notation: [L | t] means linear part L, translation t.  Variant labels
+in parentheses (e.g. pm(a)) correspond to direction variant 0 and 1.
+
+### 3g. Direction variants
+
+Some types have two variants, selectable via radio buttons:
+
+| Type | Variant 0 | Variant 1 |
+|------|-----------|-----------|
+| pm | Mirrors ∥ **a** | Mirrors ∥ **b** |
+| pg | Glide ∥ **a** | Glide ∥ **b** |
+| pmg | Mirror ∥ **b** + glide ∥ **a** | Mirror ∥ **a** + glide ∥ **b** |
+| cm | Mirror ∥ **a**+**b** | Mirror ∥ **b**−**a** |
+
+On a **square** lattice, both pm variants are conjugate by the 90° lattice
+rotation and give the same group up to isometry.  Similarly for pg, pmg, cm.
+On a **hexagonal** lattice, both cm variants are conjugate by the 60°
+rotation.  Both are offered so the user can slide through centered-rectangular
+(resp. rectangular) lattices where they are genuinely inequivalent.
+
+---
+
+## 4. G/T enumeration algorithm
+
+### 4a. The quotient G/T
+
+The translation subgroup T = ℤ² acts freely and properly on ℝ².  Two group
+elements g, h are in the **same coset** of T iff:
+
+1. They have the **same linear part** (identical 2×2 blocks).
+2. Their translations **differ by integers**: tx(g) − tx(h) ∈ ℤ and
+   ty(g) − ty(h) ∈ ℤ.
+
+Equivalently, g ∼ h iff rmodT(g) = rmodT(h).
+
+### 4b. BFS algorithm
+
+**Input:** generators g₁, …, gₘ (rational affine matrices, not including
+lattice translations).
+
+**Output:** coset representatives — one reduced rational matrix per coset.
+
+```
+function processGroup(generators, maxOrder = 24):
+    // Step 1: Close generators under inverse
+    allGens ← []
+    for each g in generators:
+        allGens.append(g)
+        g⁻¹ ← rinverse(g)
+        if rmodT(g⁻¹) is not already in allGens:
+            allGens.append(g⁻¹)
+
+    // Step 2: BFS from the identity
+    cosets ← [identity]
+    frontier ← [identity]
+
+    while frontier is not empty:
+        nextFrontier ← []
+        for each rep in frontier:
+            for each gen in allGens:
+                product ← rcompose(gen, rep)   // left-multiply
+                reduced ← rmodT(product)        // reduce tx, ty to [0,1)
+
+                if reduced ∉ cosets:            // exact rational comparison
+                    cosets.append(reduced)
+                    nextFrontier.append(reduced)
+
+                    if |cosets| > maxOrder:
+                        return (cosets truncated, DEGENERATE)
+
+        frontier ← nextFrontier
+
+    return cosets
+```
+
+**Key properties:**
+
+- **Exact:** All comparisons use exact rational arithmetic.  No floating-point
+  tolerance needed.
+- **Complete:** Left-multiplication by every generator and its inverse
+  generates the full Cayley graph of G/T.
+- **Terminates:** For a valid wallpaper group, |G/T| ≤ 12.  The maxOrder
+  bound (24 = 2 × 12) catches degenerate inputs.
+- **Canonical:** Each coset is stored with tx, ty ∈ [0, 1).  The identity
+  coset is always first.
+
+### 4c. Worked example: pg (glide ∥ a)
+
+Generator: g = [[1,0],[0,-1] | (1/2, 0)]
+
+**Close under inverses.**
+g⁻¹ has linear part [[1,0],[0,−1]]⁻¹ = [[1,0],[0,−1]] and translation
+−[[1,0],[0,−1]]·(1/2, 0) = (−1/2, 0).  After rmodT: tx = 1/2, ty = 0.
+So rmodT(g⁻¹) = g — the generator is its own inverse mod T.
+
+**BFS.**
+- Start: cosets = {I}, frontier = {I}.
+- Iteration 1: g ∘ I = g = [[1,0],[0,−1] | (1/2,0)].  Not in cosets → add.
+  cosets = {I, g}.
+- Iteration 2: g ∘ g: linear part [[1,0],[0,1]] = I, translation
+  [[1,0],[0,−1]]·(1/2,0) + (1/2,0) = (1, 0).  rmodT → (0, 0) = I.
+  Already in cosets → skip.
+
+Result: |G/T| = 2.  Coset reps: identity and [[1,0],[0,−1] | (1/2, 0)].
+
+### 4d. Worked example: p4m
+
+Generators: R₄ = [[0,1],[−1,0] | (0,0)] and σ_b = [[-1,0],[0,1] | (0,0)].
+
+Closing under inverses adds R₄⁻¹ = R₄³ = [[0,−1],[1,0] | (0,0)] (since
+σ_b is an involution, σ_b⁻¹ = σ_b).
+
+BFS produces 8 cosets:
+
+| Coset | Linear part | Translation | Classification |
+|-------|-------------|-------------|----------------|
+| I | [[1,0],[0,1]] | (0,0) | identity |
+| R₄ | [[0,1],[−1,0]] | (0,0) | 90° rotation |
+| R₂ | [[−1,0],[0,−1]] | (0,0) | 180° rotation |
+| R₄³ | [[0,−1],[1,0]] | (0,0) | 270° rotation |
+| σ_b | [[−1,0],[0,1]] | (0,0) | reflection |
+| R₄σ_b | [[0,1],[1,0]] | (0,0) | reflection |
+| R₂σ_b | [[1,0],[0,−1]] | (0,0) | reflection |
+| R₄³σ_b | [[0,−1],[−1,0]] | (0,0) | reflection |
+
+All translations are (0,0) because p4m has all generators with zero translation.
+|G/T| = 8. ✓
+
+---
+
+## 5. Conversion to physical coordinates
+
+### 5a. The change-of-basis
+
+Generators and coset representatives are in **lattice coordinates**.  For
+rendering and GP evaluation, we convert to **physical coordinates**.
+
+The change-of-basis matrix is:
+
+> C = [[0, x], [1, y]]     (columns = a, b)
+
+A rational affine matrix A with linear part L and translation t maps to:
+
+> M_linear = C · L · C⁻¹
+> M_translation = C · t
+
+Since det C = −x:
+
+> C⁻¹ = [[-y/x, 1], [1/x, 0]]
+
+### 5b. Explicit formulas
+
+Let A have (float) entries a, b, c, d, tx, ty.
+
+Intermediate product P = C · L:
+
+```
+P = [[xc, xd], [a+yc, b+yd]]
+```
+
+Physical linear part M_linear = P · C⁻¹:
+
+```
+M_linear = [[ d − cy,              xc          ],
+            [ (b + yd − ay − y²c)/x,  a + yc   ]]
+```
+
+Physical translation:
+
+```
+M_trans = (x · ty,  tx + y · ty)
+```
+
+(`toPhysical()` in rationalGroup.js.)
+
+### 5c. Generating visible elements
+
+For rendering, we need every group element whose image of the origin falls
+within the viewport.  Using the G/T decomposition:
+
+> G = ⊔ᵢ (T · gᵢ)
+
+Every element is uniquely τ · gᵢ for some τ ∈ T, gᵢ a coset rep.
+
+Algorithm:
+
+1. Convert each coset rep gᵢ to a physical isometry.
+2. For each integer pair (m, n) with −20 ≤ m, n ≤ 20:
+3. Form τ_{m,n} ∘ gᵢ where τ_{m,n} = translation(m·v₁ + n·v₂).
+4. Keep the element if its origin-image falls within viewport bounds
+   (plus 1-unit margin).
+
+This generates all visible elements with no depth ambiguity.
+
+(`generateElements()` in rationalGroup.js.)
+
+---
+
+## 6. Supergroup inclusions
+
+### 6a. One-step supergroup and peer-group map
+
+For each wallpaper type, the following table lists all types reachable by
+adding one new generator (**supergroups**, marked with →) or by switching
+to a different generator set at the same order (**peer groups**, marked
+with ↔).  These are **type-level** inclusions — some require a lattice
+specialization.
+
+| Type | |G/T| | Supergroups and peers |
+|------|-------|---------------------|
+| p1 | 1 | p2, pm, pg, cm, p4, p3, p6 |
+| p2 | 2 | pmm, pmg, pgg, cmm, p4, p6 |
+| pm | 2 | pmm, pmg, **cm** ↔, cmm, p4m |
+| pg | 2 | pgg, pmg, p4g |
+| cm | 2 | **pm** ↔, cmm, p3m1, p31m |
+| pmm | 4 | **cmm** ↔, p4m |
+| pmg | 4 | p4g, cmm |
+| pgg | 4 | cmm, p4g |
+| cmm | 4 | **pmm** ↔, p4m |
+| p4 | 4 | p4m, p4g |
+| p4m | 8 | *(maximal)* |
+| p4g | 8 | *(maximal)* |
+| p3 | 3 | p3m1, p31m, p6 |
+| p3m1 | 6 | **p31m** ↔, p6m |
+| p31m | 6 | **p3m1** ↔, p6m |
+| p6 | 6 | p6m |
+| p6m | 12 | *(maximal)* |
+
+There are three maximal types: p4m, p4g, and p6m.
+
+**Peer groups** (marked ↔) have the same |G/T| and are related by
+switching to a different set of generators on a lattice that supports
+both types.  On a square lattice, axial mirrors (pm, pmm) can be
+swapped for diagonal mirrors (cm, cmm).  On a hexagonal lattice,
+p3m1 mirrors (through 3-fold centers) can be swapped for p31m mirrors
+(between 3-fold centers).
+
+**Peer transitions on non-shared lattices:** For pm→cm and pmm→cmm,
+the standard cm/cmm generators don't preserve the rectangular metric.
+Instead, the app uses **alternative generators** with a doubled
+conventional cell: the source group's mirrors plus a centering
+translation (½,½).  This produces the correct physical symmetry with
+|G/T| doubled (4 for cm-on-rectangular, 8 for cmm-on-rectangular).
+The reverse transitions (cm→pm, cmm→pmm) on centered-rectangular are
+not possible because axial mirrors cannot preserve the rhombic metric;
+they only appear on square lattice where both metrics coincide.
+For p3m1↔p31m, both types share the hexagonal lattice so standard
+generators work directly in both directions.
+
+### 6b. Lattice requirements per group type
+
+| Lattice requirement | Group types |
+|---------------------|-------------|
+| any | p1, p2 |
+| rectangular | pm, pg, pmm, pmg, pgg |
+| centered-rectangular | cm, cmm |
+| square | p4, p4m, p4g |
+| hexagonal | p3, p3m1, p31m, p6, p6m |
+
+### 6c. Lattice specialization hierarchy
+
+A supergroup is **viable** on a given lattice if the lattice supports the
+supergroup's lattice requirement:
+
+| Current lattice | Can support requirements |
+|-----------------|------------------------|
+| square | square, rectangular, centered-rectangular, any |
+| hexagonal | hexagonal, centered-rectangular, any |
+| rectangular | rectangular, any |
+| centered-rectangular | centered-rectangular, any |
+| oblique | any (only) |
+
+This hierarchy reflects the geometric fact that a square lattice is
+simultaneously rectangular (a = b in length, y = 0) and centered-rectangular
+(equal-length basis vectors with the diagonal providing centering), while
+a hexagonal lattice is a special centered-rectangular lattice (60° angle).
+
+### 6d. Viable supergroups: examples
+
+| Group | Lattice | Viable supergroups/peers |
+|-------|---------|-------------------|
+| p1 | oblique | p2 |
+| p1 | rectangular | p2, pm, pg, **cm**† |
+| p1 | square | p2, pm, pg, cm, p4 |
+| p1 | hexagonal | p2, cm, p3, p6 |
+| pm | rectangular | pmm, pmg, **cm**†, **cmm**† |
+| pm | square | pmm, pmg, **cm**, cmm, p4m |
+| cm | centered-rect | cmm |
+| cm | square | **pm**, cmm |
+| cm | hexagonal | cmm, p3m1, p31m |
+| pmm | rectangular | **cmm**† |
+| pmm | square | **cmm**, p4m |
+| cmm | centered-rect | *(none — pm/pmm need rect)* |
+| cmm | square | **pmm**, p4m |
+| p3m1 | hexagonal | **p31m**, p6m |
+| p31m | hexagonal | **p3m1**, p6m |
+| p4 | square | p4m, p4g |
+| p6m | hexagonal | *(none — maximal)* |
+
+†Peer transition using doubled conventional cell (see §6e).
+
+### 6e. Supergroup preview algorithm
+
+When the user clicks a supergroup button:
+
+1. Check if **peer generators** exist for the target group on the current
+   lattice type (e.g. cm on rectangular).  If so, use those generators.
+   Otherwise, load the **standard generators** of the supergroup type (§3).
+2. Enumerate G/T for the supergroup using the BFS algorithm (§4).
+3. Convert cosets to physical isometries using the **current** lattice vector.
+4. Generate visible elements and display them.
+
+**Peer generators** (doubled conventional cell):
+
+When the standard generators of the target group don't preserve the
+current lattice metric, we use alternative generators that produce the
+same physical symmetry via a doubled unit cell:
+
+| Transition | On lattice | Alternative generators | |G/T| |
+|------------|------------|----------------------|-------|
+| cm on rectangular | rectangular | σ_a + t_(½,½) | 4 |
+| cmm on rectangular | rectangular | σ_a + σ_b + t_(½,½) | 8 |
+
+Here σ_a = [[1,0],[0,−1]] is the axial mirror (which preserves the
+rectangular metric) and t_(½,½) = identity + (½,½) is the centering
+translation.  The combination produces cm/cmm symmetry with the
+conventional rectangular cell having twice the area of the primitive cell.
+
+The main group selection does **not** change — this is a preview only.
+Clicking again dismisses the preview.  If the user changes the lattice in
+a way that makes the supergroup unviable (e.g., sliding from hexagonal to
+centered-rectangular while previewing p3m1), the preview is automatically
+dismissed.
+
+### 6f. What generators are added for each supergroup transition
+
+The following describes the generator(s) that, when added to the base
+group's generators, produce the supergroup.  These use the problem
+statement's conventions:  **r2** = R₂,  **mx** = σ_a,  **my** = σ_b,
+**gx** = pg(a) glide,  **gy** = pg(b) glide,  **r4** = R₄,  **r3** = R₃,
+**r6** = R₆,  **s** = σ+ (swap, centered-rect basis),
+**s0** = σ_h (hex mirror through 3-fold centers),
+**s1/3** = σ_v (hex mirror between 3-fold centers).
+
+**From p1:**
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| r2 | p2 | any |
+| mx | pm | rectangular |
+| gx | pg | rectangular |
+| s | cm | centered-rectangular |
+| r4 | p4 | square |
+| r3 | p3 | hexagonal |
+| r6 | p6 | hexagonal |
+
+**From p2:** (already has r2)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| mx, my | pmm | rectangular |
+| mx, gy | pmg | rectangular |
+| gx, gy | pgg | rectangular |
+| s | cmm | centered-rectangular |
+| r4 | p4 | square |
+| r6 | p6 | hexagonal |
+
+**From pm:** (has mx or my)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| my (resp. mx) | pmm | rectangular |
+| gy (resp. gx) | pmg | rectangular |
+| *(replace mx with s)* | **cm** ↔ | centered-rectangular |
+| s | cmm | centered-rectangular |
+| r4 | p4m | square |
+
+**From pg:** (has gx or gy)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| gy (resp. gx) | pgg | rectangular |
+| mx, gy (resp. my, gx) | pmg | rectangular |
+| r4 | p4g | square |
+
+**From cm:** (has s)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| *(replace s with mx)* | **pm** ↔ | rectangular |
+| mx | cmm | centered-rectangular |
+| r3, s0 | p3m1 | hexagonal |
+| r3, s1/3 | p31m | hexagonal |
+
+**From pmm:** (has mx, my)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| *(replace mx,my with s,mx)* | **cmm** ↔ | centered-rectangular |
+| r4 | p4m | square |
+
+**From pmg:** (has mx, gy or my, gx)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| r4 | p4g | square |
+| s | cmm | centered-rectangular |
+
+**From pgg:** (has gx, gy)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| s | cmm | centered-rectangular |
+| r4 | p4g | square |
+
+**From cmm:** (has s, mx)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| *(replace s,mx with mx,my)* | **pmm** ↔ | rectangular |
+| r4 | p4m | square |
+
+**From p4:** (has r4)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| mx | p4m | square |
+| gx | p4g | square |
+
+**From p3:** (has r3)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| s0 | p3m1 | hexagonal |
+| s1/3 | p31m | hexagonal |
+| r6 | p6 | hexagonal |
+
+**From p3m1:** (has r3, s0)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| *(replace s0 with s1/3)* | **p31m** ↔ | hexagonal |
+| r6 | p6m | hexagonal |
+
+**From p31m:** (has r3, s1/3)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| *(replace s1/3 with s0)* | **p3m1** ↔ | hexagonal |
+| r6 | p6m | hexagonal |
+
+**From p6:** (has r6)
+
+| Add | → Supergroup | Lattice needed |
+|-----|-------------|----------------|
+| s0 | p6m | hexagonal |
+
+p4m, p4g, p6m are **maximal** — no supergroups exist.
+
+---
+
+## 7. Gaussian process symmetrization
+
+### 7a. Dual lattice
+
+The dual lattice consists of wave-vectors **k** such that **k** · **v** ∈ 2πℤ
+for all lattice translations **v**.  Given V = [**v₁** | **v₂**]:
+
+> K = 2π (Vᵀ)⁻¹
+
+Concretely, with det V = v₁ₓ v₂ᵧ − v₁ᵧ v₂ₓ:
+
+> **k₁** = (2π / det V)(v₂ᵧ, −v₂ₓ)
+> **k₂** = (2π / det V)(−v₁ᵧ, v₁ₓ)
+
+### 7b. Fourier expansion
+
+A smooth T-periodic function is expanded over the dual lattice:
+
+> f(**r**) = dc + Σ_{**k** in half-plane} [ aₖ cos(**k** · **r**) + bₖ sin(**k** · **r**) ]
+
+where the half-plane is {(n₁, n₂) : n₁ > 0} ∪ {(0, n₂) : n₂ > 0}, and
+**k** = n₁**k₁** + n₂**k₂** with |n₁|, |n₂| ≤ N (truncation parameter,
+default N = 5).
+
+### 7c. Spectral envelope
+
+For a squared-exponential (RBF) kernel with length scale ℓ:
+
+> C(**r**, **r′**) = exp(−‖**r** − **r′**‖² / (2ℓ²))
+
+the spectral density is proportional to exp(−‖**k**‖²ℓ²/2).  Each
+half-plane coefficient is drawn as:
+
+> envelope(**k**) = exp(−‖**k**‖²ℓ² / 4)
+> aₖ = envelope(**k**) · ξ_a,  bₖ = envelope(**k**) · ξ_b
+
+where ξ_a, ξ_b ~ N(0,1) (Box-Muller from a seedable PRNG, mulberry32).
+The DC offset is drawn from N(0, 0.01).
+
+The ℓ²/4 exponent (rather than ℓ²/2) accounts for splitting each complex
+mode into two real coefficients, each contributing variance ½.
+
+### 7d. Symmetrization
+
+Given coset representatives P = {g₁, …, g_N} from the G/T enumeration:
+
+> f_sym(**r**) = (1/|P|) Σ_{gᵢ ∈ P} f(gᵢ(**r**))
+
+**Proof of G-invariance.**  For h ∈ G, write h = τ · gⱼ (τ ∈ T).  Then:
+
+> f_sym(h(**r**)) = (1/|P|) Σᵢ f(gᵢ τ gⱼ(**r**))
+
+gᵢ τ gⱼ = τ′ gₖ for some τ′ ∈ T and gₖ ∈ P (since G/T is a group and T
+is normal).  Since f is T-periodic, f(τ′ gₖ(**r**)) = f(gₖ(**r**)).  As
+i ranges over P, gᵢ ↦ gₖ is a bijection, so the sum is unchanged. ∎
+
+### 7e. Animation: stochastic harmonic oscillator
+
+Each Fourier coefficient (aₖ, bₖ) evolves as an independent damped
+oscillator driven by noise (Langevin dynamics):
+
+> dX = V dt
+> dV = −ω² X dt − 2ζω V dt + σ dW
+
+where ω is the natural frequency (animation speed), ζ is the damping ratio,
+and σ is chosen so the stationary marginal for X is N(0, envelope²).
+
+The exact discrete-time solution uses the matrix exponential:
+
+> [X(t+Δt), V(t+Δt)] = M · [X(t), V(t)] + noise
+
+where M = exp(A·Δt) for A = [[0, 1], [−ω², −2ζω]], computed analytically
+for the underdamped (ζ < 1), critically damped (ζ ≈ 1), and overdamped
+(ζ > 1) cases.
+
+The noise covariance is Q = Σ_∞ − M Σ_∞ Mᵀ where Σ_∞ = diag(envelope², ω²·envelope²), applied via Cholesky decomposition.
+
+### 7f. Equivariant mode
+
+When |G/T| = 2 (groups p2, pm, pg, cm), an alternative **equivariant**
+function can be constructed:
+
+> f_eq(**r**) = ½ [f(**r**) − f(g(**r**))]
+
+where g is the non-identity coset representative.  This function changes
+sign under the group action rather than being invariant.
+
+### 7g. Wind map mode
+
+The wind map uses two independent GPs (f₁, f₂) to construct an equivariant
+vector field:
+
+> **V**_sym(**r**) = (1/|P|) Σ_{g ∈ P} Rᵍᵀ · **V**_raw(g(**r**))
+
+where **V**_raw = (f₁, f₂) and Rᵍ is the linear (rotation/reflection) part
+of g.  This field transforms correctly under the point group.
+
+---
+
+## 8. Validation
+
+### 8a. Generator validation
+
+For each generator g = (A, t), three checks are performed:
+
+1. **Integer linear part:** all entries of A must be integers (so A maps
+   ℤ² to ℤ²).
+2. **det(A) = ±1:** A must be in GL(2,ℤ), ensuring A maps ℤ² bijectively
+   to itself.
+3. **Metric preservation:** AᵀQA = Q (up to tolerance ε = 10⁻⁶), where
+   Q = CᵀC is the lattice metric.  This ensures the map is an isometry.
+
+(`validateGenerators()` in rationalGroup.js.)
+
+### 8b. Coset translation validation
+
+After G/T enumeration, any coset with identity linear part should have
+translation (0,0) mod ℤ².  A non-zero translation with identity linear part
+means the group contains translations not in ℤ² — the chosen lattice doesn't
+capture the full translation subgroup.
+
+(`validateCosetTranslations()` in rationalGroup.js.)
+
+### 8c. Degenerate group detection
+
+If |G/T| exceeds 24 during BFS, the group is declared degenerate (likely
+caused by generators that don't preserve any lattice).  For valid wallpaper
+groups, |G/T| ∈ {1, 2, 3, 4, 6, 8, 12}.
+
+---
+
+## 9. Isometry classification
+
+Each physical isometry is classified by examining its 2×2 linear part
+and translation:
+
+| det(L) | Condition | Type | Extra info |
+|--------|-----------|------|-----------|
+| +1 | L = I, t = 0 | identity | |
+| +1 | L = I, t ≠ 0 | translation | |
+| +1 | L ≠ I | rotation | angle = atan2(c, a); center from fixed-point equation |
+| −1 | along-axis component of t ≈ 0 | reflection | axis angle = atan2(c, a)/2 |
+| −1 | along-axis component of t ≠ 0 | glide-reflection | axis angle + glide distance |
+
+The rotation order is determined by comparing the angle to 2π/n for
+n ∈ {2, 3, 4, 6} (tolerance 10⁻⁴).
+
+(`classify()`, `rotationOrder()`, `rotationInfo()`, `reflectionInfo()` in
+isometry.js.)
+
+---
+
+## 10. Completeness of the parameterization
+
+### 10a. Lattice normalization
+
+**Theorem.**  Any rank-2 lattice in ℝ² can be brought by a similarity
+(possibly orientation-reversing) into the Minkowski-reduced normal form
+**a** = (0,1), **b** = (x,y) with x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1.
+
+*Proof.* See §1a.
+
+**Note on cm/cmm.**  The cm-slider does not use this form.  Instead, it
+parameterizes **b** = (sin θ, cos θ) on the unit circle, allowing y > ½.
+Any such lattice can be Minkowski-reduced (y will end up ≤ ½), but the
+reduced basis would have |**a**| ≠ |**b**|, breaking the cm generators.
+The surjectivity argument below still applies: every cm or cmm group is
+realized, because the cm-slider covers every centered-rectangular lattice
+shape (the angle between **a** and **b** ranges from 10° to 90°, covering
+rhombuses from very acute through hexagonal to square).
+
+### 10b. Compatibility table
 
 | Lattice type | Compatible wallpaper types |
 |---|---|
 | Oblique | p1, p2 |
 | Rectangular | p1, p2, pm, pg, pmm, pmg, pgg |
 | Centered rectangular | p1, p2, cm, cmm |
-| Square | p1, p2, pm, pg, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g |
+| Square | all of rectangular + centered-rect + p4, p4m, p4g |
 | Hexagonal | p1, p2, cm, cmm, p3, p3m1, p31m, p6, p6m |
 
-(When a type appears under a more-symmetric lattice, it means the group uses
-only a sub-symmetry of that lattice.  For instance, pm on a square lattice
-uses only one of the two reflection directions, yielding a group isomorphic
-to pm on a rectangular lattice but with the particular constraint that
-the rectangle is a square.)
+### 10c. Uniqueness up to gauge
 
-The UI's wallpaper-type dropdown, populated per lattice type, lists exactly
-these compatible types.  Every one of the 17 types appears in at least one
-lattice category.
+Once the lattice and wallpaper type are fixed, the group is determined
+**up to conjugation by a translation** (which is a similarity).
 
----
-
-## 3. Why there are no continuous degrees of freedom
-
-### 3a. The main observation
-
-Once the lattice Λ is fixed and the wallpaper type is chosen, the group
-is determined **up to similarity**.  There are no continuous degrees of
-freedom for generator placement.
-
-For each wallpaper type, the generators involve:
-- **Rotation centers** — specified as a point mod Λ.
-- **Reflection/glide axis offsets** — the perpendicular distance of the axis
-  from the origin, modulo the axis periodicity.
-- **Glide distances** — forced by the lattice (half the shortest lattice
+- **Rotation centers** can be translated to the origin without changing
+  the group (conjugation by lattice translation).
+- **Axis offsets** can be shifted to 0 (conjugation by perpendicular
+  translation), except where the type requires a specific relative offset
+  (pgg: 1/4-period; p4g: 1/2-period).
+- **Glide distances** are forced by the lattice (half the shortest lattice
   translation along the glide direction).
 
-In the old code, the UI exposed continuous sliders (centerS, centerT,
-axisOffset) for these quantities.  However, all of these are **gauge
-choices** — different origin conventions for the same group.
+Therefore the fixed placements in §3 are the unique canonical form.
 
-### 3b. Why placement parameters are gauge
+### 10d. Surjectivity theorem
 
-**Rotation center.**  A rotation of order *n* about center *p* generates
-the same wallpaper group as a rotation about *p* + **v** for any lattice
-vector **v** (since the group already contains translation by **v**).
-Furthermore, translating the *origin* by any vector *w* conjugates
-rotation(*p*) to rotation(*p* − *w*), producing the same group.  So the
-center mod Λ is a gauge choice (an origin convention), not a distinct group.
-
-**Axis offset.**  Similarly, a reflection or glide axis at perpendicular
-offset *d* generates the same group as one at offset *d* + *kP* (for integer
-*k* and period *P*).  And a global translation perpendicular to the axis
-shifts *d* without changing the group.  So the offset is also gauge.
-
-**Multiple generators.**  When a type has two generators (e.g. pmm with two
-perpendicular reflections), the relative placement between them *could*
-matter.  But the crystallographic constraints of each type force the
-generators into a discrete set of valid configurations modulo Λ.  For
-example, in pmm the two mirror families intersect at half-lattice points,
-and all valid intersection patterns are related by lattice translations.
-
-### 3c. Consequence for the UI
-
-The app uses fixed default placements in its generator templates: rotation
-center at (0, 0) and axisOffset = 0 (except pgg at 0.25 and p4g at 0.5,
-which are the unique correct relative offsets for those types).  No sliders
-are exposed for these parameters.
-
-### 3d. Degrees of freedom summary
-
-The only genuine continuous freedom is **lattice shape** (x, y):
-
-| Category | Continuous freedom |
-|---|---|
-| Types on oblique/rectangular/centered-rectangular lattices | Lattice shape (x, y) — 1 or 2 real parameters depending on lattice sub-mode |
-| Types on fixed lattices (p4, p4m, p4g on square; p3, p3m1, p31m, p6, p6m on hexagonal) | **Zero** — the lattice is uniquely determined |
-
-### 3e. Discrete direction variants
-
-Although there are no *continuous* degrees of freedom, some wallpaper types
-have multiple **discrete direction choices** when the lattice admits
-several inequivalent reflection/glide directions.  These arise mainly on
-the rectangular and square lattices.
-
-The UI presents these as radio buttons.  The following table summarizes:
-
-| Type | Lattice | Variant count | Description |
-|---|---|---|---|
-| pm | Rectangular | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) |
-| pm | Square | 2 | Mirror ∥ a (vertical) or ∥ b (horizontal) — *equivalent on square; see note below* |
-| pg | Rectangular | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) |
-| pg | Square | 2 | Glide ∥ a (vertical) or ∥ b (horizontal) — *equivalent on square; see note below* |
-| cm | Centered rect | 2 | Mirror ∥ a+b or ∥ b−a |
-| cm | Square | 2 | Mirror ∥ a+b (↗) or ∥ b−a (↘) — *equivalent on square; see note below* |
-| cm | Hexagonal | 2 | Mirror ∥ a+b or ∥ b−a — *equivalent on hex; see note below* |
-| pmg | Rectangular | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b |
-| pmg | Square | 2 | Mirror ∥ b + glide ∥ a, or mirror ∥ a + glide ∥ b — *equivalent on square; see note below* |
-
-All other types × lattice combinations have exactly 1 option (no radio).
-
-**Variant equivalences on high-symmetry lattices.**  On the square lattice,
-the two direction variants for pm, pg, and pmg are related by the lattice's
-90° rotation symmetry, so they produce the *same* group up to isometry.
-Similarly, the two cm variants are equivalent on both the square and hexagonal
-lattices (related by the 90° resp. 60° rotation symmetry of those lattices).
-We keep both variants selectable so the user can slide the lattice slider
-continuously through centered-rectangular (for cm) or rectangular (for
-pm/pg/pmg) shapes, where the two variants are *genuinely inequivalent*,
-without the selected variant disappearing at the boundary.
-
-**Why pmm, pgg, and cmm have no direction variants on the square lattice:**
-On the square lattice, pmm with axial reflections (dirs 2, 3) and cmm with
-axial reflections (dirs 2, 3) produce the *same* group, and similarly pmm
-with diagonal reflections (dirs 0, 1) = cmm with diagonal reflections.
-Likewise, pgg with diagonal glides (dirs 0, 1) produces a group containing
-reflections, so it is actually cmm, not pgg.  Therefore, each of pmm, pgg,
-and cmm on the square lattice has exactly one correct generator configuration:
-- **pmm**: axial reflections (dirs 2, 3)
-- **pgg**: axial glides (dirs 3, 2 with offset 0.25)
-- **cmm**: diagonal reflections (dirs 0, 1)
-
-### 3f. The F offset is purely cosmetic
-
-The F offset controls (fOffsetX, fOffsetY) shift the display position of
-the reference "F" glyph.  They do not affect the mathematical group in any
-way — the same set of isometries is generated regardless of the F position.
-
----
-
-## 4. Main theorem (surjectivity)
-
-**Theorem.** *Let G be any wallpaper group.  Then there exist UI parameter
-values — a lattice (x, y) and a wallpaper type — such that the group
-produced by the viewer is conjugate to G by a similarity (possibly
-orientation-reversing).*
+**Theorem.**  Every wallpaper group G has a set of UI parameter values
+(lattice + type + variant) producing a group conjugate to G by a similarity.
 
 *Proof.*
 
-1. **Normalize the lattice.**  By §1, apply a similarity to bring G's
-   translation lattice into normal form **a** = (0, 1), **b** = (x, y).
-   The UI can set this (x, y).
-
-2. **Identify the wallpaper type.**  The normalized G has one of the 17
-   crystallographic types.  By §2, this type is listed in the dropdown for
-   the lattice type determined by (x, y).
-
-3. **Generator placement is determined.**  By §3, the wallpaper type
-   together with the lattice determines the group up to similarity.
-   The fixed generator placements in the type template produce a group
-   conjugate to G by a translation (which is itself a similarity).
-
-Therefore every wallpaper group is reachable. ∎
-
----
-
-## 5. Non-injectivity
-
-Two wallpaper groups G₁ and G₂ are equivalent if there exists a similarity
-T such that G₂ = T G₁ T⁻¹.
-
-The normalization in §1 uses scaling + rotation to fix **a** = (0, 1), and
-a reflection (if needed) to ensure x ≥ 0.  This absorbs most similarity
-freedom, but two sources of non-injectivity remain:
-
-1. **Lattice automorphisms.**  Special lattices have automorphism groups
-   larger than {±1}.  The square lattice has a 90° rotation symmetry; the
-   hexagonal lattice has a 60° rotation symmetry.  These automorphisms can
-   relate different (x, y) values on the boundary of the fundamental domain,
-   so the same group may correspond to multiple lattice parameter values.
-
-2. **Boundary identifications.**  On the boundary of the (x, y) domain
-   (e.g. x² + y² = 1 at y = 0 or y = ½), distinct parameter values may
-   become equivalent due to extra lattice symmetry.
-
-The UI thus provides a **surjective, mildly non-injective** parameterization
-of wallpaper groups up to similarity.  The non-injectivity is confined to
-boundary cases in the lattice parameter space.
-
-**Why orientation-reversing similarities are included.**  The constraint
-x ≥ 0 is the key: a lattice with second vector (x, y) and its mirror image
-with second vector (−x, y) are identified by the reflection (x, y) → (−x, y).
-If we classified only up to orientation-preserving similarity, we would
-need to allow x to range over all of ℝ to distinguish a group from its
-mirror image.
-
----
-
-## 6. Generator formulas: the UI → isometry pipeline
-
-### 6a. Isometry representation
-
-Every isometry is stored as a 3×3 affine matrix:
-
-```
-[a  b  tx]
-[c  d  ty]
-[0  0   1]
-```
-
-where the top-left 2×2 block is orthogonal (det = ±1) and (tx, ty) is the
-translation component.
-
-### 6b. Translation generators
-
-Always two, determined entirely by the lattice:
-
-- **t₁** = translation(0, 1)  — the normalized first basis vector **a**.
-- **t₂** = translation(x, y)  — the second basis vector **b** from the UI.
-
-### 6c. `parseGenerator`: template → isometry
-
-The function `parseGenerator(gen, allowedIso, latticeVec)` in `App.jsx`
-converts each generator template into an isometry.  All placement parameters
-are fixed in the template (center = (0, 0) for rotations; axisOffset = 0
-for most reflections/glides, with specific values for pgg and p4g).
-
-**Rotation** (gen.type = `'rotation'`):
-
-> θ = 2π / gen.order;  center = (0, 0)
->
-> Return rotation(θ, 0, 0)
-
-**Reflection** (gen.type = `'reflection'`):
-
-> dir = allowedIso.reflections[gen.dirIndex]
->
-> (px, py) = axisOffsetToPoint(gen.axisOffset, dir.angle, latticeVec)
->
-> Return reflection(dir.angle, px, py)
-
-**Glide reflection** (gen.type = `'glide-reflection'`):
-
-> dir = allowedIso.glides[gen.dirIndex]
->
-> (px, py) = axisOffsetToPoint(gen.axisOffset, dir.angle, latticeVec)
->
-> Return glideReflection(dir.angle, dir.dist, px, py)
-
-### 6d. Coordinate conversion formulas
-
-**axisOffsetToPoint(offset, angle, latticeVec)**:
-
-> P = computeAxisPeriod(angle, latticeVec)
->
-> d = offset · P
->
-> (px, py) = d · (−sin(angle), cos(angle))
-
-The point (px, py) lies on the axis line at perpendicular distance d from
-the origin, measured in the direction normal to the axis.
-
-**computeAxisPeriod(angle, {x, y})**:
-
-> n = (−sin(angle), cos(angle))    *(unit normal to axis)*
->
-> p₁ = |n · (0, 1)| = |cos(angle)|    *(perpendicular period from* ***a****)*
->
-> p₂ = |n · (x, y)| = |−x·sin(angle) + y·cos(angle)|    *(perpendicular period from* ***b****)*
->
-> period = gcd(p₁, p₂)    *(real-valued Euclidean GCD with tolerance)*
-
-### 6e. Isometry construction formulas
-
-**rotation(θ, cx, cy)** — rotation by θ about (cx, cy):
-
-> a = cos θ,  b = −sin θ,  c = sin θ,  d = cos θ
->
-> tx = cx(1 − cos θ) + cy·sin θ
->
-> ty = cy(1 − cos θ) − cx·sin θ
-
-**reflection(α, px, py)** — reflection across the line through (px, py)
-with direction angle α:
-
-> a = cos 2α,  b = sin 2α,  c = sin 2α,  d = −cos 2α
->
-> tx = px − px·cos 2α − py·sin 2α
->
-> ty = py − px·sin 2α + py·cos 2α
-
-**glideReflection(α, dist, px, py)** — reflect across the line through
-(px, py) with direction α, then translate by dist along the axis:
-
-> result = compose( translation(dist·cos α, dist·sin α),  reflection(α, px, py) )
-
-### 6f. Parameter summary
-
-| Parameter | Type | Source |
-|---|---|---|
-| Lattice (x, y) | Continuous | Lattice sliders — the only genuine continuous freedom |
-| Wallpaper type | Discrete (17 choices) | Dropdown, constrained by lattice type |
-| Direction variant | Discrete (1 or 2) | Radio buttons when type has variants (see §3e) |
-| Rotation order | Discrete (2, 3, 4, 6) | Fixed per wallpaper type |
-| Rotation center | Fixed at (0, 0) | Template default (gauge choice — see §3) |
-| dirIndex | Discrete (index into direction list) | Selected by variant radio or fixed per type |
-| axisOffset | Fixed (0, 0.25, or 0.5) | Template default (gauge choice — see §3) |
-| Glide distance | Fixed per direction | Computed from lattice by `getAllowedIsometries` |
-
----
-
-## 7. Case-by-case surjectivity analysis
-
-For each of the 17 types, this section gives the lattice restriction,
-generator formula (with fixed parameters), and a brief surjectivity
-argument.  Throughout, **a** = (0, 1), **b** = (x, y), and
-Λ = ℤ**a** + ℤ**b**.
-
----
-
-### p1 — Translations only
-
-**Lattice:** Any.  **Generators:** None beyond translations.
-
-**Surjectivity.**  Every p1 group is determined entirely by its lattice.
-After normalization (§1), the UI covers the full domain. ✔
-
----
-
-### p2 — 180° rotation
-
-**Lattice:** Any.  **Generator:** rotation(π, 0, 0).
-
-**Surjectivity.**  A p2 group is determined by its lattice and a 2-fold
-center mod Λ.  Any center can be translated to the origin without changing
-the group (§3b), so the fixed center (0, 0) suffices. ✔
-
----
-
-### pm — One reflection
-
-**Lattice:** Rectangular or Square.
-**Generator:** reflection at angle from dirIndex, through origin.
-**Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
-square lattices (see §3e).  On the square lattice the two variants are
-conjugate by the 90° lattice rotation (so they give the same group up to
-isometry); both are offered so the user can slide continuously through
-rectangular lattices where they are genuinely inequivalent.
-
-**Surjectivity.**  A pm group has parallel mirrors.  The direction is
-selected by the variant radio.  Any mirror position can be translated to
-pass through the origin. ✔
-
----
-
-### pg — One glide reflection
-
-**Lattice:** Rectangular or Square.
-**Generator:** glideReflection at angle from dirIndex, distance from lattice.
-**Direction variants:** 2 direction choices (∥ a or ∥ b) on both rectangular and
-square lattices (see §3e).  On the square lattice the two variants are
-conjugate by the 90° lattice rotation; both are offered for continuity with
-rectangular lattices where they are genuinely inequivalent.
-
-**Surjectivity.**  The glide distance is forced by the lattice.  The
-direction is selected by the variant radio.  Any glide axis can be
-translated to pass through the origin. ✔
-
----
-
-### cm — Reflection on centered lattice
-
-**Lattice:** Centered rectangular, Square, or Hexagonal.
-**Generator:** reflection(α, 0, 0), where α is the direction angle for
-the chosen dirIndex (see §0c).
-**Direction variants:** 2 choices on all three lattice types (∥ a+b or ∥ b−a).
-On the square and hexagonal lattices the two variants are conjugate by the
-lattice's rotational symmetry (90° resp. 60°), so they give the same group
-up to isometry; both are offered so the user can slide continuously through
-centered-rectangular lattices where they are genuinely inequivalent.
-
-**Surjectivity.**  The mirror direction is selected by the lattice type
-and variant radio; any axis position can be translated to the origin. ✔
-
----
-
-### pmm — Two perpendicular reflections
-
-**Lattice:** Rectangular or Square.
-**Generators:** Two perpendicular reflections through origin.
-**Direction variants:** None.  On rectangular: dirs 0, 1 (axial).  On square:
-dirs 2, 3 (axial).  Diagonal reflections on a square lattice produce cmm,
-not pmm (see §3e).
-
-**Surjectivity.**  The two mirror families are perpendicular.  Their
-intersection point can be translated to the origin. ✔
-
----
-
-### pmg — Reflection + glide in perpendicular directions
-
-**Lattice:** Rectangular or Square.
-**Generators:** One reflection + one perpendicular glide, both through origin.
-**Direction variants:** 2 on each lattice — which direction gets the mirror
-and which gets the glide.  On the square lattice the two variants are
-conjugate by the 90° lattice rotation; both are offered for continuity with
-rectangular lattices where they are genuinely inequivalent.
-
-**Surjectivity.**  The mirror and glide can be translated so both pass
-through the origin. ✔
-
----
-
-### pgg — Two perpendicular glide reflections
-
-**Lattice:** Rectangular or Square.
-**Generators:** Two perpendicular glide reflections with axisOffset = 0.25.
-**Direction variants:** None.  On rectangular: glide dirs 1, 0.  On square:
-glide dirs 3, 2 (axial).  Diagonal glides on a square lattice produce cmm,
-not pgg (see §3e).
-
-The fixed axisOffset = 0.25 places the two glide axes at a quarter-period
-offset from the origin, which is the unique correct relative displacement.
-
-**Surjectivity.**  The pgg group requires two perpendicular glide axes
-offset by a quarter-period.  The fixed template value 0.25 produces this
-configuration; any other valid placement is related by translation. ✔
-
----
-
-### cmm — Two reflections on centered lattice
-
-**Lattice:** Centered rectangular, Square, or Hexagonal.
-**Generators:** Two perpendicular reflections through origin (dirs 0, 1).
-**Direction variants:** None.  On all lattices the generator pair is dirs 0, 1.
-Axial reflections on a square lattice produce pmm, not cmm (see §3e).
-
-**Surjectivity.**  The two mirror families' intersection point can be
-translated to the origin. ✔
-
----
-
-### p4 — 90° rotation
-
-**Lattice:** Square only (x = 1, y = 0).
-**Generator:** rotation(π/2, 0, 0).
-
-**Surjectivity.**  On the square lattice, a p4 group is determined up to
-similarity — there is exactly one square lattice up to similarity, and any
-4-fold center can be translated to the origin.  Zero continuous degrees of
-freedom. ✔
-
----
-
-### p4m — 90° rotation + axial reflection
-
-**Lattice:** Square only.
-**Generators:** rotation(π/2, 0, 0) + reflection(0, 0, 0).
-**Dir:** rotation order 4 + reflection dir 3 (angle 0, horizontal).
-
-With R₀ = rotation(π/2, 0, 0) and σ = reflection(0, 0, 0):
-- σ is a horizontal mirror through the origin.
-- R₀∘σ: diagonal mirror at π/4 through origin.
-- R₀²∘σ: vertical mirror through origin.
-- R₀³∘σ: diagonal mirror at −π/4 through origin.
-
-All four are **pure reflections** through the 4-fold center.  This is the
-defining characteristic of **p4m**. ✔
-
----
-
-### p4g — 90° rotation + diagonal reflection
-
-**Lattice:** Square only.
-**Generators:** rotation(π/2, 0, 0) + reflection(−π/4, ¼, ¼).
-**Dir:** rotation order 4 + reflection dir 1 (angle −π/4), axisOffset = 0.5.
-
-The axisOffset = 0.5 places the diagonal mirror through (¼, ¼), offset from
-the 4-fold center at the origin.
-
-With R₀ = rotation(π/2, 0, 0) and σ' = reflection(−π/4, ¼, ¼):
-- σ': pure **reflection** at −π/4. ✔
-- R₀∘σ': horizontal **glide** (distance ½). ✔
-- R₀²∘σ': diagonal **glide** at π/4 (distance 1/√2). ✔
-- R₀³∘σ': vertical **glide** (distance ½). ✔
-
-The group has **diagonal mirrors only** and **axial glides only** — textbook
-**p4g**, confirming it is genuinely different from p4m.
-
-**Key distinction: p4m vs p4g.**
-- **p4m** uses an **axial** mirror (dir 3, angle 0°) through the 4-fold
-  center.  Conjugation produces mirrors in all 4 directions.
-- **p4g** uses a **diagonal** mirror (dir 1, angle −45°) **offset from the
-  4-fold center** (axisOffset = 0.5).  Conjugation produces diagonal mirrors
-  but only axial *glides*.
-
-**Surjectivity.**  Every p4g group on a square lattice has this structure.
-Up to translation, the 4-fold center goes to the origin and the diagonal
-mirror to axisOffset = 0.5. ✔
-
----
-
-### p3 — 120° rotation
-
-**Lattice:** Hexagonal only (x = √3/2, y = ½).
-**Generator:** rotation(2π/3, 0, 0).
-
-**Surjectivity.**  On the hexagonal lattice, any 3-fold center can be
-translated to the origin.  Zero continuous degrees of freedom. ✔
-
----
-
-### p3m1 — 120° rotation + reflection (mirrors through rotation centers)
-
-**Lattice:** Hexagonal only.
-**Generators:** rotation(2π/3, 0, 0) + reflection(0, 0, 0).
-**Dir:** rotation order 3 + reflection dir 4 (angle 0, along 2**b**−**a**).
-
-**p3m1 vs p31m.**  These are the two distinct ways to combine 3-fold
-rotations with mirrors on a hexagonal lattice:
-- **p3m1**: mirrors along 2**b**−**a** (dirIndex 4, angle 0) pass *through*
-  all three inequivalent 3-fold centers (all centers have site symmetry 3m).
-- **p31m**: mirrors along **a** (dirIndex 2, angle π/2) pass *through* only
-  the origin center; the other two 3-fold centers are free (site symmetry 3).
-
-The three inequivalent 3-fold rotation centers are at fractional coordinates
-(0,0), (1/3,1/3), and (2/3,2/3).  For p3m1 the horizontal mirrors at
-y = n/2 pass through all three; for p31m the vertical mirrors at x = k√3/2
-pass through the origin only.
-
-The UI distinguishes them by using different dirIndex values. ✔
-
----
-
-### p31m — 120° rotation + reflection (mirrors between rotation centers)
-
-**Lattice:** Hexagonal only.
-**Generators:** rotation(2π/3, 0, 0) + reflection(π/2, 0, 0).
-**Dir:** rotation order 3 + reflection dir 2 (angle π/2, along **a**).
-
-**Surjectivity.**  The p31m group has two 3-fold centers at positions *not*
-on any mirror line (site symmetry 3); only the origin center lies on a
-mirror.  The fixed placement (both at origin) produces the correct relative
-configuration; any other valid placement is related by translation. ✔
-
----
-
-### p6 — 60° rotation
-
-**Lattice:** Hexagonal only.
-**Generator:** rotation(π/3, 0, 0).
-
-**Surjectivity.**  Same argument as p3: the center can be translated to the
-origin.  Zero continuous degrees of freedom. ✔
-
----
-
-### p6m — 60° rotation + reflection
-
-**Lattice:** Hexagonal only.
-**Generators:** rotation(π/3, 0, 0) + reflection(0, 0, 0).
-**Dir:** rotation order 6 + reflection dir 4 (angle 0, along 2**b**−**a**).
-
-**Surjectivity.**  A p6m group has full hexagonal symmetry.  The 6-fold
-center and one mirror determine the full group; both can be placed at the
-origin. ✔
-
----
-
-### Summary table
-
-| Type | Lattice | Generators | Direction variants |
-|---|---|---|---|
-| p1 | Any | *(none)* | — |
-| p2 | Any | rot(π) at origin | — |
-| pm | Rect/Sq | refl at origin | 2 dirs on Rect; 2 on Sq† |
-| pg | Rect/Sq | glide at origin | 2 dirs on Rect; 2 on Sq† |
-| cm | CRect/Sq/Hex | refl at origin | 2 on CRect; 2 on Sq†; 2 on Hex† |
-| pmm | Rect/Sq | refl + refl at origin | 1 on Rect; 1 on Sq |
-| pmg | Rect/Sq | refl + glide at origin | 2 on Rect; 2 on Sq† |
-| pgg | Rect/Sq | glide + glide, offset ¼ | 1 on Rect; 1 on Sq |
-| cmm | CRect/Sq/Hex | refl + refl at origin | 1 on CRect/Hex; 1 on Sq |
-| p4 | Square | rot(π/2) at origin | — |
-| p4m | Square | rot(π/2) + refl at origin | — |
-| p4g | Square | rot(π/2) + refl offset ½ | — |
-| p3 | Hexagonal | rot(2π/3) at origin | — |
-| p3m1 | Hexagonal | rot(2π/3) + refl at origin | — |
-| p31m | Hexagonal | rot(2π/3) + refl at origin | — |
-| p6 | Hexagonal | rot(π/3) at origin | — |
-| p6m | Hexagonal | rot(π/3) + refl at origin | — |
-
-**Notation:** "Rect" = rectangular, "Sq" = square, "CRect" = centered rectangular, "Hex" = hexagonal.
-**†** = variants are conjugate by the lattice's rotational symmetry on this
-lattice, so they give the same group up to isometry; both are offered for
-continuity when sliding the lattice slider (see §3e).
-
-All generator placements are fixed (center at origin, axisOffset = 0 except
-pgg at 0.25 and p4g at 0.5).  The only continuous freedom is lattice shape
-(x, y), which is zero for types requiring square or hexagonal lattices.
-Direction variants are discrete (radio buttons) — see §3e for the complete
-inventory.
+1. Normalize G's lattice to **a** = (0,1), **b** = (x,y) by §10a
+   (Minkowski-reduced form: x ≥ 0, 0 ≤ y ≤ ½, x² + y² ≥ 1).
+2. Identify G's crystallographic type — it appears in the compatibility
+   table (§10b) for the lattice type determined by (x,y).
+3. **For types other than cm/cmm:** The lattice is already in the UI's
+   parameter domain.  By §10c, the canonical generator placement produces
+   a group conjugate to G.
+4. **For cm/cmm:** The Minkowski-reduced lattice is centered-rectangular.
+   Apply a further similarity to make |**a**| = |**b**| (which changes the
+   basis but not the lattice).  The resulting angle θ between basis vectors
+   falls in [10°, 90°], reachable by the cm-slider.  The cm generators
+   (§3c) then produce the correct group.  ∎
+
+### 10e. Non-injectivity
+
+The parameterization is mildly non-injective at boundary cases:
+
+- **Lattice automorphisms** on square (90° rotation) and hexagonal (60°
+  rotation) lattices relate different direction variants that produce
+  isometric groups.
+- **Boundary identifications** in the (x,y) domain at x² + y² = 1 with
+  y = 0 or y = ½.
+
+The UI is surjective but not injective on these boundaries.
