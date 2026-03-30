@@ -11,9 +11,8 @@ import { getViableSupergroups } from '../math/supergroups.js'
  *   variantIndex     – current direction variant index (0 or 1)
  *   activeSupergroup – currently toggled supergroup name, or null
  *   onToggle         – callback: (supergroupName) => void
- *   disabled         – if true, buttons are disabled (e.g. GP equivariant mode)
  */
-export default function SupergroupControls({ groupName, latticeType, variantIndex = 0, activeSupergroup, onToggle, disabled = false }) {
+export default function SupergroupControls({ groupName, latticeType, variantIndex = 0, activeSupergroup, onToggle }) {
   const viable = useMemo(
     () => getViableSupergroups(groupName, latticeType, variantIndex),
     [groupName, latticeType, variantIndex]
@@ -36,19 +35,13 @@ export default function SupergroupControls({ groupName, latticeType, variantInde
               (activeSupergroup === sg ? ' group-btn--selected' : '')
             }
             onClick={() => onToggle(sg)}
-            title={disabled ? 'Supergroups unavailable during equivariant GP mode' : `Preview ${sg} supergroup`}
-            disabled={disabled}
+            title={`Preview ${sg} supergroup`}
           >
             {sg}
           </button>
         ))}
       </div>
-      {disabled && (
-        <div className="supergroup-active-note">
-          Supergroups are unavailable while equivariant GP mode is active.
-        </div>
-      )}
-      {activeSupergroup && !disabled && (
+      {activeSupergroup && (
         <div className="supergroup-active-note">
           Previewing <strong>{activeSupergroup}</strong> — click again to dismiss.
         </div>

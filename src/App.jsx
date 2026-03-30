@@ -223,6 +223,7 @@ export default function App() {
 
   const handleSupergroupToggle = useCallback((sgName) => {
     setActiveSupergroup(prev => prev === sgName ? null : sgName)
+    setGpEquivariant(false)
   }, [])
 
   const copyToClipboard = useCallback(() => {
@@ -444,7 +445,6 @@ export default function App() {
         variantIndex={variantIndex}
         activeSupergroup={activeSupergroup}
         onToggle={handleSupergroupToggle}
-        disabled={showGP && gpEquivariant}
       />
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
