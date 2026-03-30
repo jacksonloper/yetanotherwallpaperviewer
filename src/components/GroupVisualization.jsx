@@ -217,12 +217,26 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     return drawGPCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
   }, [showGP, latticeVectors, gpSeed, gpEll, gpN]);
 
+  // Second GP for vector-field equivariance (p3/p4/p6: |G/T| > 2)
+  const needsVectorField = showGP && gpEquivariant && cosetReps && cosetReps.length > 2;
+  const initialCoeffs2 = useMemo(() => {
+    if (!needsVectorField || !latticeVectors) return null;
+    return drawGPCoefficients(latticeVectors, (gpSeed ?? 0) + 1000, gpN ?? 5, gpEll ?? 0.1);
+  }, [needsVectorField, latticeVectors, gpSeed, gpEll, gpN]);
+
   const [gpCoeffs, setGpCoeffs] = useState(null);
   const [prevInitialCoeffs, setPrevInitialCoeffs] = useState(null);
+  const [gpCoeffs2, setGpCoeffs2] = useState(null);
+  const [prevInitialCoeffs2, setPrevInitialCoeffs2] = useState(null);
 
   if (initialCoeffs !== prevInitialCoeffs) {
     setPrevInitialCoeffs(initialCoeffs);
     setGpCoeffs(initialCoeffs);
+  }
+
+  if (initialCoeffs2 !== prevInitialCoeffs2) {
+    setPrevInitialCoeffs2(initialCoeffs2);
+    setGpCoeffs2(initialCoeffs2);
   }
 
   // GP animation loop
@@ -237,6 +251,9 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
       if (lastTime !== null) {
         const dt = (timestamp - lastTime) / 1000;
         setGpCoeffs((prev) =>
+          prev ? shoStepGPCoefficients(prev, dt, gpSpeed, damping) : prev
+        );
+        setGpCoeffs2((prev) =>
           prev ? shoStepGPCoefficients(prev, dt, gpSpeed, damping) : prev
         );
       }
@@ -373,6 +390,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         {showGP && gpCoeffs && cosetReps && (
           <GPShaderCanvas
             gpCoeffs={gpCoeffs}
+            gpCoeffs2={needsVectorField ? gpCoeffs2 : null}
             cosetReps={cosetReps}
             bounds={gpBounds}
             width={width}
