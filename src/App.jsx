@@ -223,6 +223,7 @@ export default function App() {
 
   const handleSupergroupToggle = useCallback((sgName) => {
     setActiveSupergroup(prev => prev === sgName ? null : sgName)
+    setGpEquivariant(false)
   }, [])
 
   const copyToClipboard = useCallback(() => {
@@ -391,7 +392,7 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={gpEquivariant}
-                  onChange={(e) => setGpEquivariant(e.target.checked)}
+                  onChange={(e) => { setGpEquivariant(e.target.checked); if (e.target.checked) setActiveSupergroup(null); }}
                 />
                 Equivariant
               </label>
