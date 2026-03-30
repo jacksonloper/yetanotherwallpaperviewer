@@ -70,7 +70,7 @@ void main() {
   // ── Compute equivariant vector field ──────────────────────
   vec2 V = vec2(0.0);
 
-  for (int g = 0; g < 12; g++) {
+  for (int g = 0; g < 24; g++) {           // MAX_COSETS = 24 (supergroups)
     if (g >= u_numCosets) break;
 
     float cu = (float(g) + 0.5) / u_cosetsTexWidth;

@@ -49,7 +49,7 @@ void main() {
 
   float sum = 0.0;
 
-  for (int g = 0; g < 12; g++) {           // MAX_COSETS = 12 (p6m)
+  for (int g = 0; g < 24; g++) {           // MAX_COSETS = 24 (supergroups)
     if (g >= u_numCosets) break;
 
     // Read coset data
