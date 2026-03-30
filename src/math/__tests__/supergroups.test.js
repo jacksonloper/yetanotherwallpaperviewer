@@ -26,28 +26,28 @@ describe('getAllSupergroups', () => {
     expect(getAllSupergroups('p2')).toEqual(['p2', 'pmm', 'pgg', 'cmm', 'p4', 'p6'])
   })
 
-  it('returns correct supergroups for cm (includes self, no pm peer)', () => {
-    expect(getAllSupergroups('cm')).toEqual(['cm', 'cmm', 'p3m1', 'p31m'])
+  it('returns correct supergroups for cm (includes self and pm peer)', () => {
+    expect(getAllSupergroups('cm')).toEqual(['cm', 'pm', 'cmm', 'p3m1', 'p31m'])
   })
 
-  it('returns correct supergroups for pm (includes self, no cm/cmm peers)', () => {
-    expect(getAllSupergroups('pm')).toEqual(['pm', 'pmm', 'pmg', 'p4m'])
+  it('returns correct supergroups for pm (includes self and cm peer)', () => {
+    expect(getAllSupergroups('pm')).toEqual(['pm', 'cm', 'pmm', 'pmg', 'p4m'])
   })
 
-  it('returns correct supergroups for p3m1 (includes self)', () => {
-    expect(getAllSupergroups('p3m1')).toEqual(['p3m1', 'p6m'])
+  it('returns correct supergroups for p3m1 (includes self and p31m peer)', () => {
+    expect(getAllSupergroups('p3m1')).toEqual(['p3m1', 'p31m', 'p6m'])
   })
 
-  it('returns correct supergroups for p31m (includes self)', () => {
-    expect(getAllSupergroups('p31m')).toEqual(['p31m', 'p6m'])
+  it('returns correct supergroups for p31m (includes self and p3m1 peer)', () => {
+    expect(getAllSupergroups('p31m')).toEqual(['p31m', 'p3m1', 'p6m'])
   })
 
-  it('returns correct supergroups for pmm (includes self)', () => {
-    expect(getAllSupergroups('pmm')).toEqual(['pmm', 'p4m'])
+  it('returns correct supergroups for pmm (includes self and cmm peer)', () => {
+    expect(getAllSupergroups('pmm')).toEqual(['pmm', 'cmm', 'p4m'])
   })
 
-  it('returns correct supergroups for cmm (includes self)', () => {
-    expect(getAllSupergroups('cmm')).toEqual(['cmm', 'p4m'])
+  it('returns correct supergroups for cmm (includes self and pmm peer)', () => {
+    expect(getAllSupergroups('cmm')).toEqual(['cmm', 'pmm', 'p4m'])
   })
 
   it('returns correct supergroups for pg (includes self)', () => {
@@ -148,7 +148,17 @@ describe('getExtraGenerators', () => {
   it('returns null for invalid cross-type transitions', () => {
     expect(getExtraGenerators('p2', 0, 'pmg')).toBeNull()
     expect(getExtraGenerators('pg', 0, 'pgg')).toBeNull()
-    expect(getExtraGenerators('pm', 0, 'cm')).toBeNull()
+  })
+
+  it('returns generators for peer transitions', () => {
+    expect(getExtraGenerators('pm', 0, 'cm')).not.toBeNull()
+    expect(getExtraGenerators('pm', 1, 'cm')).not.toBeNull()
+    expect(getExtraGenerators('cm', 0, 'pm')).not.toBeNull()
+    expect(getExtraGenerators('cm', 1, 'pm')).not.toBeNull()
+    expect(getExtraGenerators('pmm', 0, 'cmm')).not.toBeNull()
+    expect(getExtraGenerators('cmm', 0, 'pmm')).not.toBeNull()
+    expect(getExtraGenerators('p3m1', 0, 'p31m')).not.toBeNull()
+    expect(getExtraGenerators('p31m', 0, 'p3m1')).not.toBeNull()
   })
 
   it('returns generators for same-type transitions', () => {
@@ -224,17 +234,22 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('p1', 'hexagonal')).toEqual(['p1', 'p2', 'cm', 'p3', 'p6'])
   })
 
-  // cm on centered-rectangular → cm, cmm (p3m1/p31m need hex)
+  // cm on centered-rectangular → cm, cmm (pm needs rectangular, p3m1/p31m need hex)
   it('cm var 0 on centered-rectangular → cm, cmm', () => {
     expect(getViableSupergroups('cm', 'centered-rectangular', 0)).toEqual(['cm', 'cmm'])
   })
 
-  // cm variant 0 on hexagonal → cm, cmm, p3m1 (not p31m — invalid for var 0)
+  // cm on square → cm, pm, cmm (peer pm available; p3m1/p31m need hex)
+  it('cm var 0 on square → cm, pm, cmm', () => {
+    expect(getViableSupergroups('cm', 'square', 0)).toEqual(['cm', 'pm', 'cmm'])
+  })
+
+  // cm variant 0 on hexagonal → cm, cmm, p3m1 (not p31m — invalid for var 0; pm needs rectangular)
   it('cm var 0 on hexagonal → cm, cmm, p3m1', () => {
     expect(getViableSupergroups('cm', 'hexagonal', 0)).toEqual(['cm', 'cmm', 'p3m1'])
   })
 
-  // cm variant 1 on hexagonal → cm, cmm, p31m (not p3m1 — invalid for var 1)
+  // cm variant 1 on hexagonal → cm, cmm, p31m (not p3m1 — invalid for var 1; pm needs rectangular)
   it('cm var 1 on hexagonal → cm, cmm, p31m', () => {
     expect(getViableSupergroups('cm', 'hexagonal', 1)).toEqual(['cm', 'cmm', 'p31m'])
   })
@@ -244,9 +259,9 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('pm', 'rectangular')).toEqual(['pm', 'pmm', 'pmg'])
   })
 
-  // pm on square → pm, pmm, pmg, p4m
-  it('pm on square → pm, pmm, pmg, p4m', () => {
-    expect(getViableSupergroups('pm', 'square')).toEqual(['pm', 'pmm', 'pmg', 'p4m'])
+  // pm on square → pm, cm, pmm, pmg, p4m (cm peer available on square)
+  it('pm on square → pm, cm, pmm, pmg, p4m', () => {
+    expect(getViableSupergroups('pm', 'square')).toEqual(['pm', 'cm', 'pmm', 'pmg', 'p4m'])
   })
 
   // pg on rectangular → pg, pmg
@@ -299,9 +314,9 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('pmm', 'rectangular')).toEqual(['pmm'])
   })
 
-  // pmm on square → pmm, p4m
-  it('pmm on square → pmm, p4m', () => {
-    expect(getViableSupergroups('pmm', 'square')).toEqual(['pmm', 'p4m'])
+  // pmm on square → pmm, cmm, p4m (cmm peer available on square)
+  it('pmm on square → pmm, cmm, p4m', () => {
+    expect(getViableSupergroups('pmm', 'square')).toEqual(['pmm', 'cmm', 'p4m'])
   })
 
   // cmm on centered-rectangular → cmm (same-type)
@@ -309,19 +324,19 @@ describe('getViableSupergroups', () => {
     expect(getViableSupergroups('cmm', 'centered-rectangular')).toEqual(['cmm'])
   })
 
-  // cmm on square → cmm, p4m
-  it('cmm on square → cmm, p4m', () => {
-    expect(getViableSupergroups('cmm', 'square')).toEqual(['cmm', 'p4m'])
+  // cmm on square → cmm, pmm, p4m (pmm peer available on square)
+  it('cmm on square → cmm, pmm, p4m', () => {
+    expect(getViableSupergroups('cmm', 'square')).toEqual(['cmm', 'pmm', 'p4m'])
   })
 
-  // p3m1 on hexagonal → p3m1, p6m
-  it('p3m1 on hexagonal → p3m1, p6m', () => {
-    expect(getViableSupergroups('p3m1', 'hexagonal')).toEqual(['p3m1', 'p6m'])
+  // p3m1 on hexagonal → p3m1, p31m, p6m (p31m peer available)
+  it('p3m1 on hexagonal → p3m1, p31m, p6m', () => {
+    expect(getViableSupergroups('p3m1', 'hexagonal')).toEqual(['p3m1', 'p31m', 'p6m'])
   })
 
-  // p31m on hexagonal → p31m, p6m
-  it('p31m on hexagonal → p31m, p6m', () => {
-    expect(getViableSupergroups('p31m', 'hexagonal')).toEqual(['p31m', 'p6m'])
+  // p31m on hexagonal → p31m, p3m1, p6m (p3m1 peer available)
+  it('p31m on hexagonal → p31m, p3m1, p6m', () => {
+    expect(getViableSupergroups('p31m', 'hexagonal')).toEqual(['p31m', 'p3m1', 'p6m'])
   })
 
   // pmg on rectangular → pmg (same-type)
@@ -364,6 +379,13 @@ describe('extra generators produce correct supergroups', () => {
     'cm:cm': 6, 'pgg:pgg': 12, 'pmg:pmg': 12, 'pmm:pmm': 8,
     'cmm:cmm': 12, 'p4:p4': 8, 'p4m:p4m': 16,
     'p3:p3': 9, 'p3m1:p3m1': 24, 'p31m:p31m': 24, 'p6:p6': 24,
+  }
+
+  // Expected |G/T| for peer transitions (centering doublings/triplings)
+  const PEER_ORDERS = {
+    'pm:cm': 4, 'cm:pm': 4,
+    'pmm:cmm': 8, 'cmm:pmm': 8,
+    'p3m1:p31m': 18, 'p31m:p3m1': 18,
   }
 
   // All valid cross-type transitions to test
@@ -431,6 +453,30 @@ describe('extra generators produce correct supergroups', () => {
       expect(order).toBe(expectedOrder)
     })
   }
+
+  // Peer transitions: centering translations that make the peer type
+  const peerTransitions = [
+    ['pm', 0, 'cm'], ['pm', 1, 'cm'],
+    ['cm', 0, 'pm'], ['cm', 1, 'pm'],
+    ['pmm', 0, 'cmm'], ['cmm', 0, 'pmm'],
+    ['p3m1', 0, 'p31m'], ['p31m', 0, 'p3m1'],
+  ]
+
+  for (const [src, variant, target] of peerTransitions) {
+    const expectedOrder = PEER_ORDERS[`${src}:${target}`]
+    it(`${src} var ${variant} + extra → ${target} (peer, |G/T| = ${expectedOrder})`, () => {
+      const extra = getExtraGenerators(src, variant, target)
+      expect(extra).not.toBeNull()
+
+      const currentGens = standardGenerators(src, variant)?.generators ?? []
+      const allGens = [...currentGens, ...extra]
+      const { cosets, isDegenerate, error, order } = processGroup(allGens)
+
+      expect(error).toBeFalsy()
+      expect(isDegenerate).toBe(false)
+      expect(order).toBe(expectedOrder)
+    })
+  }
 })
 
 // ───────────────────────────────────────────────────
@@ -466,7 +512,15 @@ describe('source generators are preserved in supergroup', () => {
     ['p6', 0, 'p6'],
   ]
 
-  const allTransitions = [...crossTypeTransitions, ...sameTypeTransitions]
+  // Peer transitions
+  const peerTransitions = [
+    ['pm', 0, 'cm'], ['pm', 1, 'cm'],
+    ['cm', 0, 'pm'], ['cm', 1, 'pm'],
+    ['pmm', 0, 'cmm'], ['cmm', 0, 'pmm'],
+    ['p3m1', 0, 'p31m'], ['p31m', 0, 'p3m1'],
+  ]
+
+  const allTransitions = [...crossTypeTransitions, ...sameTypeTransitions, ...peerTransitions]
 
   for (const [src, variant, target] of allTransitions) {
     it(`${src} var ${variant} ⊂ ${target}: all source cosets in supergroup`, () => {

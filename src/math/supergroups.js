@@ -41,12 +41,18 @@ import { rimat } from './rational.js'
 //   pg→pgg:      pg's glide ∉ pgg (different translation offset)
 //   pg→p4g:      pg's glide ∉ p4g (same issue)
 //   pmg→p4g:     pmg's R₂ ∉ p4g
-//   pm↔cm:       peer swap (generators switch, not add)
 //   pm→cmm:      σ_a/σ_b ∉ cmm (different reflection axes)
-//   pmm↔cmm:     peer swap
 //   pmg→cmm:     incompatible rotation centers
 //   pgg→cmm:     incompatible reflection axes
-//   p3m1↔p31m:   peer swap
+//
+// Peer transitions (same order, different mirror type) via centering:
+//   pm↔cm:       add t_(1/2,1/2) on square lattice → |G/T| doubles
+//   pmm↔cmm:     add t_(1/2,1/2) on square lattice → |G/T| doubles
+//   p3m1↔p31m:   add t_(1/3,1/3) on hexagonal lattice → |G/T| triples
+//   In each case the centering translation is invariant (as a set) under the
+//   source point group, so the result is a valid supergroup.  Viewed in the
+//   natural basis for the finer lattice, the mirror becomes the peer type
+//   (e.g. σ+ becomes σ_a in centered coords, making cm look like pm).
 //
 // Excluded same-type transitions (|G/T| exceeds maxOrder=24):
 //   p4g→p4g:     index 9 → |G/T| = 72
@@ -55,19 +61,19 @@ import { rimat } from './rational.js'
 const SUPERGROUP_MAP = {
   p1:   ['p1', 'p2', 'pm', 'pg', 'cm', 'p4', 'p3', 'p6'],
   p2:   ['p2', 'pmm', 'pgg', 'cmm', 'p4', 'p6'],
-  pm:   ['pm', 'pmm', 'pmg', 'p4m'],
+  pm:   ['pm', 'cm', 'pmm', 'pmg', 'p4m'],
   pg:   ['pg', 'pmg'],
-  cm:   ['cm', 'cmm', 'p3m1', 'p31m'],
-  pmm:  ['pmm', 'p4m'],
+  cm:   ['cm', 'pm', 'cmm', 'p3m1', 'p31m'],
+  pmm:  ['pmm', 'cmm', 'p4m'],
   pmg:  ['pmg'],
   pgg:  ['pgg', 'p4g'],
-  cmm:  ['cmm', 'p4m'],
+  cmm:  ['cmm', 'pmm', 'p4m'],
   p4:   ['p4', 'p4m', 'p4g'],
   p4m:  ['p4m'],
   p4g:  [],
   p3:   ['p3', 'p3m1', 'p31m', 'p6'],
-  p3m1: ['p3m1', 'p6m'],
-  p31m: ['p31m', 'p6m'],
+  p3m1: ['p3m1', 'p31m', 'p6m'],
+  p31m: ['p31m', 'p3m1', 'p6m'],
   p6:   ['p6', 'p6m'],
   p6m:  [],
 }
@@ -149,6 +155,32 @@ const EXTRA_GENERATORS = {
   'p3m1:p3m1': { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
   'p31m:p31m': { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
   'p6:p6':     { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
+
+  // ═══════════════════════════════════════════════════
+  //  Peer transitions (centering translations)
+  // ═══════════════════════════════════════════════════
+  //
+  // On a square lattice, pm and cm are "peers": same |G/T| but different
+  // mirror types (axial vs diagonal).  Adding t_(1/2,1/2) doubles the
+  // coset count.  In the natural basis for the centered sublattice the
+  // mirror switches type (σ+ ↔ σ_a), so the supergroup is abstractly
+  // the peer type on a finer lattice.  Likewise for pmm↔cmm.
+  //
+  // On a hexagonal lattice, p3m1 and p31m are peers.  Adding t_(1/3,1/3)
+  // triples |G/T|; in the index-3 sublattice basis the mirror switches
+  // between σ_h and σ_v.
+
+  // ── pm ↔ cm (square lattice, t_(1/2,1/2)) ──
+  'pm:cm':   { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=4
+  'cm:pm':   { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=4
+
+  // ── pmm ↔ cmm (square lattice, t_(1/2,1/2)) ──
+  'pmm:cmm': { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=8
+  'cmm:pmm': { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=8
+
+  // ── p3m1 ↔ p31m (hexagonal lattice, t_(1/3,1/3)) ──
+  'p3m1:p31m': { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },  // t_(1/3,1/3) |G/T|=18
+  'p31m:p3m1': { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },  // t_(1/3,1/3) |G/T|=18
 
   // ═══════════════════════════════════════════════════
   //  Cross-type transitions (add rotation/reflection)
