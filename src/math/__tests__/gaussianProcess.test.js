@@ -7,6 +7,8 @@ import {
   generateGPHeatmap,
   ouStepGPCoefficients,
   shoStepGPCoefficients,
+  drawEquivariantCoefficients,
+  shoStepEquivariantCoefficients,
 } from '../gaussianProcess.js';
 import { identity, rotation, reflection, translation } from '../isometry.js';
 
@@ -417,6 +419,99 @@ describe('generateGPHeatmap', () => {
     for (let j = 0; j < 20; j++) {
       for (let i = 0; i < 20; i++) {
         expect(hmExplicit.data[j][i]).toBe(hmDefault.data[j][i]);
+      }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Equivariant 3-GP coefficients                                      */
+/* ------------------------------------------------------------------ */
+
+describe('drawEquivariantCoefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+
+  it('returns three independent GPs', () => {
+    const eq = drawEquivariantCoefficients(lv, 42);
+    expect(eq.gp1).toBeDefined();
+    expect(eq.gp2).toBeDefined();
+    expect(eq.gp3).toBeDefined();
+    expect(eq.gp1.modes.length).toBeGreaterThan(0);
+    expect(eq.gp2.modes.length).toBe(eq.gp1.modes.length);
+    expect(eq.gp3.modes.length).toBe(eq.gp1.modes.length);
+  });
+
+  it('GPs are independent (different coefficients)', () => {
+    const eq = drawEquivariantCoefficients(lv, 42);
+    const same12 = eq.gp1.modes.every(
+      (m, i) => m.a === eq.gp2.modes[i].a && m.b === eq.gp2.modes[i].b
+    );
+    const same13 = eq.gp1.modes.every(
+      (m, i) => m.a === eq.gp3.modes[i].a && m.b === eq.gp3.modes[i].b
+    );
+    expect(same12).toBe(false);
+    expect(same13).toBe(false);
+  });
+
+  it('is reproducible with the same seed', () => {
+    const a = drawEquivariantCoefficients(lv, 42);
+    const b = drawEquivariantCoefficients(lv, 42);
+    expect(a.gp1.dc).toBe(b.gp1.dc);
+    expect(a.gp2.dc).toBe(b.gp2.dc);
+    expect(a.gp3.dc).toBe(b.gp3.dc);
+    for (let i = 0; i < a.gp1.modes.length; i++) {
+      expect(a.gp1.modes[i].a).toBe(b.gp1.modes[i].a);
+      expect(a.gp3.modes[i].b).toBe(b.gp3.modes[i].b);
+    }
+  });
+
+  it('all GPs share the same kx, ky values', () => {
+    const eq = drawEquivariantCoefficients(lv, 42);
+    for (let i = 0; i < eq.gp1.modes.length; i++) {
+      expect(eq.gp1.modes[i].kx).toBe(eq.gp2.modes[i].kx);
+      expect(eq.gp1.modes[i].ky).toBe(eq.gp2.modes[i].ky);
+      expect(eq.gp1.modes[i].kx).toBe(eq.gp3.modes[i].kx);
+      expect(eq.gp1.modes[i].ky).toBe(eq.gp3.modes[i].ky);
+    }
+  });
+});
+
+describe('shoStepEquivariantCoefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+
+  it('preserves mode structure across all three GPs', () => {
+    const initial = drawEquivariantCoefficients(lv, 42, 3);
+    const stepped = shoStepEquivariantCoefficients(initial, 0.016, 2, 0.5);
+    for (const key of ['gp1', 'gp2', 'gp3']) {
+      expect(stepped[key].modes.length).toBe(initial[key].modes.length);
+      for (let i = 0; i < initial[key].modes.length; i++) {
+        expect(stepped[key].modes[i].kx).toBe(initial[key].modes[i].kx);
+        expect(stepped[key].modes[i].ky).toBe(initial[key].modes[i].ky);
+        expect(stepped[key].modes[i].envelope).toBe(initial[key].modes[i].envelope);
+      }
+    }
+  });
+
+  it('adds velocity fields to all three GPs', () => {
+    const initial = drawEquivariantCoefficients(lv, 42, 3);
+    const stepped = shoStepEquivariantCoefficients(initial, 0.016, 2, 0.5);
+    for (const key of ['gp1', 'gp2', 'gp3']) {
+      for (const m of stepped[key].modes) {
+        expect(typeof m.va).toBe('number');
+        expect(typeof m.vb).toBe('number');
+      }
+      expect(typeof stepped[key].vdc).toBe('number');
+    }
+  });
+
+  it('preserves coefficients when dt=0', () => {
+    const initial = drawEquivariantCoefficients(lv, 42, 3);
+    const stepped = shoStepEquivariantCoefficients(initial, 0, 2, 0.5);
+    for (const key of ['gp1', 'gp2', 'gp3']) {
+      expect(stepped[key].dc).toBe(initial[key].dc);
+      for (let i = 0; i < initial[key].modes.length; i++) {
+        expect(stepped[key].modes[i].a).toBe(initial[key].modes[i].a);
+        expect(stepped[key].modes[i].b).toBe(initial[key].modes[i].b);
       }
     }
   });

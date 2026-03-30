@@ -284,6 +284,40 @@ export function shoStepWindCoefficients(windCoeffs, dt, omega, damping) {
   };
 }
 
+/* ---------- Equivariant (3-GP) coefficients ------------------------------ */
+
+/**
+ * Draw random Fourier coefficients for three independent GPs, used to build
+ * a P-equivariant vector field for the GP equivariant mode when |G/T| > 2.
+ *
+ * The three GPs form a map f: R² → R³ = (u₁, u₂, w) where (u₁, u₂) is the
+ * in-plane part and w is the out-of-plane part.  The symmetrized field
+ *
+ *   F(x) = (1/|P|) Σ_{p ∈ P} ρ(p) f(p⁻¹ x)
+ *
+ * uses the representation ρ: P → O(3) that acts by the linear part R_p on
+ * the in-plane coordinates and by det(R_p) on the out-of-plane coordinate,
+ * so that reflections flip the sign of w.
+ */
+export function drawEquivariantCoefficients(latticeVectors, seed, maxFreq = 5, lengthScale = 0.1) {
+  return {
+    gp1: drawGPCoefficients(latticeVectors, seed, maxFreq, lengthScale),
+    gp2: drawGPCoefficients(latticeVectors, seed + 1000, maxFreq, lengthScale),
+    gp3: drawGPCoefficients(latticeVectors, seed + 2000, maxFreq, lengthScale),
+  };
+}
+
+/**
+ * Advance all three GP components of an equivariant field by one SHO step.
+ */
+export function shoStepEquivariantCoefficients(eqCoeffs, dt, omega, damping) {
+  return {
+    gp1: shoStepGPCoefficients(eqCoeffs.gp1, dt, omega, damping),
+    gp2: shoStepGPCoefficients(eqCoeffs.gp2, dt, omega, damping),
+    gp3: shoStepGPCoefficients(eqCoeffs.gp3, dt, omega, damping),
+  };
+}
+
 /* ---------- GP evaluation ------------------------------------------------ */
 
 /**

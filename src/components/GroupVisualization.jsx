@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawEquivariantCoefficients, shoStepEquivariantCoefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 import WindShaderCanvas from './WindShaderCanvas.jsx';
 
@@ -248,6 +248,43 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     return () => cancelAnimationFrame(animId);
   }, [gpSpeed, gpDamping]);
 
+  // ── Equivariant 3-GP coefficients (|P| > 2) ─────────────
+  const eqInitialCoeffs = useMemo(() => {
+    if (!showGP || !gpEquivariant || !latticeVectors) return null;
+    return drawEquivariantCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+  }, [showGP, gpEquivariant, latticeVectors, gpSeed, gpEll, gpN]);
+
+  const [eqCoeffs, setEqCoeffs] = useState(null);
+  const [prevEqInitialCoeffs, setPrevEqInitialCoeffs] = useState(null);
+
+  if (eqInitialCoeffs !== prevEqInitialCoeffs) {
+    setPrevEqInitialCoeffs(eqInitialCoeffs);
+    setEqCoeffs(eqInitialCoeffs);
+  }
+
+  // Equivariant 3-GP animation loop
+  useEffect(() => {
+    if (!gpEquivariant || !gpSpeed || gpSpeed <= 0) return;
+
+    let animId;
+    let lastTime = null;
+    const damping = gpDamping;
+
+    const animate = (timestamp) => {
+      if (lastTime !== null) {
+        const dt = (timestamp - lastTime) / 1000;
+        setEqCoeffs((prev) =>
+          prev ? shoStepEquivariantCoefficients(prev, dt, gpSpeed, damping) : prev
+        );
+      }
+      lastTime = timestamp;
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [gpEquivariant, gpSpeed, gpDamping]);
+
   // ── Wind coefficients ────────────────────────────────────
   const windInitialCoeffs = useMemo(() => {
     if (!showWind || !latticeVectors) return null;
@@ -373,6 +410,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         {showGP && gpCoeffs && cosetReps && (
           <GPShaderCanvas
             gpCoeffs={gpCoeffs}
+            equivariantCoeffs={eqCoeffs}
             cosetReps={cosetReps}
             bounds={gpBounds}
             width={width}
