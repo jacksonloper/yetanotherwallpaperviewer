@@ -543,3 +543,60 @@ describe('source generators are preserved in supergroup', () => {
     })
   }
 })
+
+// ───────────────────────────────────────────────────
+//  Supergroup coset counts fit within shader limits
+// ───────────────────────────────────────────────────
+//
+// The GPU shaders loop over coset reps with a compile-time max of 24.
+// This test ensures no valid supergroup transition exceeds that limit.
+
+describe('supergroup coset counts within shader MAX_COSETS (24)', () => {
+  const SHADER_MAX_COSETS = 24
+
+  const allTransitions = [
+    // Peer transitions
+    ['pm', 0, 'cm'], ['pm', 1, 'cm'],
+    ['cm', 0, 'pm'], ['cm', 1, 'pm'],
+    ['pmm', 0, 'cmm'], ['cmm', 0, 'pmm'],
+    ['p3m1', 0, 'p31m'], ['p31m', 0, 'p3m1'],
+    // Same-type transitions
+    ['p1', 0, 'p1'], ['p2', 0, 'p2'], ['pm', 0, 'pm'], ['pm', 1, 'pm'],
+    ['pg', 0, 'pg'], ['pg', 1, 'pg'], ['cm', 0, 'cm'], ['cm', 1, 'cm'],
+    ['pgg', 0, 'pgg'], ['pmg', 0, 'pmg'], ['pmg', 1, 'pmg'],
+    ['pmm', 0, 'pmm'], ['cmm', 0, 'cmm'],
+    ['p4', 0, 'p4'], ['p4m', 0, 'p4m'],
+    ['p3', 0, 'p3'], ['p3m1', 0, 'p3m1'], ['p31m', 0, 'p31m'],
+    ['p6', 0, 'p6'],
+    // Cross-type transitions
+    ['p1', 0, 'p2'], ['p1', 0, 'pm'], ['p1', 0, 'pg'],
+    ['p1', 0, 'cm'], ['p1', 0, 'p4'], ['p1', 0, 'p3'], ['p1', 0, 'p6'],
+    ['p2', 0, 'pmm'], ['p2', 0, 'pgg'], ['p2', 0, 'cmm'],
+    ['p2', 0, 'p4'], ['p2', 0, 'p6'],
+    ['pm', 0, 'pmm'], ['pm', 1, 'pmm'],
+    ['pm', 0, 'pmg'], ['pm', 1, 'pmg'],
+    ['pm', 0, 'p4m'], ['pm', 1, 'p4m'],
+    ['pg', 0, 'pmg'], ['pg', 1, 'pmg'],
+    ['cm', 0, 'cmm'], ['cm', 1, 'cmm'],
+    ['cm', 0, 'p3m1'], ['cm', 1, 'p31m'],
+    ['pmm', 0, 'p4m'], ['pgg', 0, 'p4g'], ['cmm', 0, 'p4m'],
+    ['p4', 0, 'p4m'], ['p4', 0, 'p4g'],
+    ['p3', 0, 'p3m1'], ['p3', 0, 'p31m'], ['p3', 0, 'p6'],
+    ['p3m1', 0, 'p6m'], ['p31m', 0, 'p6m'], ['p6', 0, 'p6m'],
+  ]
+
+  for (const [src, variant, target] of allTransitions) {
+    it(`${src} var ${variant} → ${target}: |G/T| ≤ ${SHADER_MAX_COSETS}`, () => {
+      const extra = getExtraGenerators(src, variant, target)
+      expect(extra).not.toBeNull()
+
+      const currentGens = standardGenerators(src, variant)?.generators ?? []
+      const allGens = [...currentGens, ...extra]
+      const { order, isDegenerate, error } = processGroup(allGens)
+
+      expect(error).toBeFalsy()
+      expect(isDegenerate).toBe(false)
+      expect(order).toBeLessThanOrEqual(SHADER_MAX_COSETS)
+    })
+  }
+})
