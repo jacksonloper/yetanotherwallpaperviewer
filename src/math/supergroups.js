@@ -6,10 +6,22 @@
  * removed.  This ensures the supergroup buttons always produce a proper
  * supergroup of the current group.
  *
- * Each transition source→target was verified by checking that every
+ * Two kinds of transitions:
+ *   1. Cross-type: add a rotation/reflection generator to reach a group
+ *      with a larger point group (e.g. p1→p2 adds R₂).
+ *   2. Same-type: add a fractional translation to reach a denser copy
+ *      of the same wallpaper type (e.g. p1→p1 adds t_(1/2,0), giving
+ *      a p1 supergroup with twice the translation density).
+ *
+ * Cross-type transitions were verified by checking that every
  * coset representative of the source group (with its standard generators
  * for the current variant) appears in the target group's G/T.  Transitions
  * where this fails (e.g. p2→pmg, pg→pgg) are excluded.
+ *
+ * Same-type transitions add a centering translation that is invariant
+ * (mod Z²) under the point group, producing a valid supergroup of the
+ * same abstract type on a finer translation lattice.  The resulting
+ * |G/T| = (standard order) × (sublattice index).
  *
  * Viability depends on lattice type (some targets need square/hexagonal)
  * and on variant index (e.g. cm variant 0 → p3m1 but not p31m).
@@ -21,11 +33,10 @@ import { rimat } from './rational.js'
 //  One-step supergroup inclusion map (type-level)
 // ───────────────────────────────────────────────────
 //
-// Only transitions where the source group's standard generators
-// embed in the target group's G/T (i.e. adding generators without
-// removing any) are included.
+// Cross-type transitions: adding generators without removing any.
+// Same-type transitions: adding a centering translation for a finer lattice.
 //
-// Removed transitions (vs. prior version):
+// Excluded cross-type transitions (source gens don't embed in target G/T):
 //   p2→pmg:      R₂(0,0) ∉ pmg (pmg has R₂ at (1/2,0))
 //   pg→pgg:      pg's glide ∉ pgg (different translation offset)
 //   pg→p4g:      pg's glide ∉ p4g (same issue)
@@ -36,24 +47,28 @@ import { rimat } from './rational.js'
 //   pmg→cmm:     incompatible rotation centers
 //   pgg→cmm:     incompatible reflection axes
 //   p3m1↔p31m:   peer swap
+//
+// Excluded same-type transitions (|G/T| exceeds maxOrder=24):
+//   p4g→p4g:     index 9 → |G/T| = 72
+//   p6m→p6m:     index 3 → |G/T| = 36
 
 const SUPERGROUP_MAP = {
-  p1:   ['p2', 'pm', 'pg', 'cm', 'p4', 'p3', 'p6'],
-  p2:   ['pmm', 'pgg', 'cmm', 'p4', 'p6'],
-  pm:   ['pmm', 'pmg', 'p4m'],
-  pg:   ['pmg'],
-  cm:   ['cmm', 'p3m1', 'p31m'],
-  pmm:  ['p4m'],
-  pmg:  [],
-  pgg:  ['p4g'],
-  cmm:  ['p4m'],
-  p4:   ['p4m', 'p4g'],
-  p4m:  [],
+  p1:   ['p1', 'p2', 'pm', 'pg', 'cm', 'p4', 'p3', 'p6'],
+  p2:   ['p2', 'pmm', 'pgg', 'cmm', 'p4', 'p6'],
+  pm:   ['pm', 'pmm', 'pmg', 'p4m'],
+  pg:   ['pg', 'pmg'],
+  cm:   ['cm', 'cmm', 'p3m1', 'p31m'],
+  pmm:  ['pmm', 'p4m'],
+  pmg:  ['pmg'],
+  pgg:  ['pgg', 'p4g'],
+  cmm:  ['cmm', 'p4m'],
+  p4:   ['p4', 'p4m', 'p4g'],
+  p4m:  ['p4m'],
   p4g:  [],
-  p3:   ['p3m1', 'p31m', 'p6'],
-  p3m1: ['p6m'],
-  p31m: ['p6m'],
-  p6:   ['p6m'],
+  p3:   ['p3', 'p3m1', 'p31m', 'p6'],
+  p3m1: ['p3m1', 'p6m'],
+  p31m: ['p31m', 'p6m'],
+  p6:   ['p6', 'p6m'],
   p6m:  [],
 }
 
@@ -95,6 +110,50 @@ const GROUP_LATTICE_REQ = {
 //   σ_v = [[1,1],[0,-1]]      p31m reflection
 
 const EXTRA_GENERATORS = {
+  // ═══════════════════════════════════════════════════
+  //  Same-type transitions (centering translations)
+  // ═══════════════════════════════════════════════════
+  //
+  // Add a fractional translation invariant under the point group
+  // to reach a denser copy of the same wallpaper type.
+  // Resulting |G/T| = (standard order) × (sublattice index).
+
+  // ── same-type: index 2 (any/rectangular lattice) ──
+  'p1:p1':   { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=2
+  'p2:p2':   { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=4
+  'pm:pm':   { variants: [
+    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],  // var 0 (σ_a): t_(0,1/2) |G/T|=4
+    [rimat(1, 0, 0, 1, 1, 2)],         // var 1 (σ_b): t_(1/2,0) |G/T|=4
+  ]},
+  'pg:pg':   { variants: [
+    [rimat(1, 0, 0, 1, 0, 1, 1, 2)],  // var 0 (glide_a): t_(0,1/2) |G/T|=4
+    [rimat(1, 0, 0, 1, 1, 2)],         // var 1 (glide_b): t_(1/2,0) |G/T|=4
+  ]},
+  'pmm:pmm': { generators: [rimat(1, 0, 0, 1, 1, 2)] },          // t_(1/2,0)  |G/T|=8
+
+  // ── same-type: index 3 (rectangular/centered-rectangular) ──
+  'pgg:pgg': { generators: [rimat(1, 0, 0, 1, 1, 3)] },          // t_(1/3,0)  |G/T|=12
+  'pmg:pmg': { variants: [
+    [rimat(1, 0, 0, 1, 1, 3)],         // var 0: t_(1/3,0) |G/T|=12
+    [rimat(1, 0, 0, 1, 0, 1, 1, 3)],   // var 1: t_(0,1/3) |G/T|=12
+  ]},
+  'cm:cm':   { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },    // t_(1/3,1/3) |G/T|=6
+  'cmm:cmm': { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },    // t_(1/3,1/3) |G/T|=12
+
+  // ── same-type: square lattice (index 2 with diagonal centering) ──
+  'p4:p4':   { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=8
+  'p4m:p4m': { generators: [rimat(1, 0, 0, 1, 1, 2, 1, 2)] },    // t_(1/2,1/2) |G/T|=16
+
+  // ── same-type: hexagonal lattice ──
+  'p3:p3':     { generators: [rimat(1, 0, 0, 1, 1, 3, 1, 3)] },  // t_(1/3,1/3) |G/T|=9
+  'p3m1:p3m1': { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
+  'p31m:p31m': { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
+  'p6:p6':     { generators: [rimat(1, 0, 0, 1, 1, 2)] },        // t_(1/2,0)   |G/T|=24
+
+  // ═══════════════════════════════════════════════════
+  //  Cross-type transitions (add rotation/reflection)
+  // ═══════════════════════════════════════════════════
+
   // ── p1 → ... (no variants, no existing generators) ──
   'p1:p2':  { generators: [rimat(-1, 0, 0, -1)] },              // R₂
   'p1:pm':  { generators: [rimat(1, 0, 0, -1)] },               // σ_a
