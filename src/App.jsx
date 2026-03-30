@@ -391,7 +391,7 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={gpEquivariant}
-                  onChange={(e) => setGpEquivariant(e.target.checked)}
+                  onChange={(e) => { setGpEquivariant(e.target.checked); if (e.target.checked) setActiveSupergroup(null); }}
                 />
                 Equivariant
               </label>
@@ -444,6 +444,7 @@ export default function App() {
         variantIndex={variantIndex}
         activeSupergroup={activeSupergroup}
         onToggle={handleSupergroupToggle}
+        disabled={showGP && gpEquivariant}
       />
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
