@@ -106,6 +106,7 @@ void main() {
     float maxF = max(scaledF.x, max(scaledF.y, scaledF.z));
     vec3 expF = exp(scaledF - maxF);
     vec3 color = expF / (expF.x + expF.y + expF.z);
+    color = clamp(vec3(1.0/3.0) - 1.5 * color, 0.0, 1.0);
 
     gl_FragColor = vec4(color, 1.0);
     return;
