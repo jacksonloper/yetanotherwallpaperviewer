@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 import WindShaderCanvas from './WindShaderCanvas.jsx';
 
@@ -287,6 +287,45 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     return () => cancelAnimationFrame(animId);
   }, [showWind, gpSpeed, gpDamping]);
 
+  // ── P3 equivariant coefficients (3 independent GPs) ───────
+  const p3Active = showGP && gpEquivariant && cosetReps && cosetReps.length === 3;
+
+  const p3InitialCoeffs = useMemo(() => {
+    if (!p3Active || !latticeVectors) return null;
+    return drawP3Coefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+  }, [p3Active, latticeVectors, gpSeed, gpEll, gpN]);
+
+  const [p3Coeffs, setP3Coeffs] = useState(null);
+  const [prevP3InitialCoeffs, setPrevP3InitialCoeffs] = useState(null);
+
+  if (p3InitialCoeffs !== prevP3InitialCoeffs) {
+    setPrevP3InitialCoeffs(p3InitialCoeffs);
+    setP3Coeffs(p3InitialCoeffs);
+  }
+
+  // P3 animation loop (SHO for all three GPs)
+  useEffect(() => {
+    if (!p3Active || !gpSpeed || gpSpeed <= 0) return;
+
+    let animId;
+    let lastTime = null;
+    const damping = gpDamping;
+
+    const animate = (timestamp) => {
+      if (lastTime !== null) {
+        const dt = (timestamp - lastTime) / 1000;
+        setP3Coeffs((prev) =>
+          prev ? shoStepP3Coefficients(prev, dt, gpSpeed, damping) : prev
+        );
+      }
+      lastTime = timestamp;
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [p3Active, gpSpeed, gpDamping]);
+
   const latticePoints = useMemo(() => {
     if (!latticeVectors) return [];
     return generateLatticePoints(latticeVectors.v1, latticeVectors.v2, bounds);
@@ -373,6 +412,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         {showGP && gpCoeffs && cosetReps && (
           <GPShaderCanvas
             gpCoeffs={gpCoeffs}
+            p3Coeffs={p3Active ? p3Coeffs : null}
             cosetReps={cosetReps}
             bounds={gpBounds}
             width={width}
