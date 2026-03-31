@@ -387,7 +387,7 @@ export default function App() {
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
-            {showGP && rationalCosets.cosets && rationalCosets.cosets.length === 2 && (
+            {showGP && rationalCosets.cosets && (rationalCosets.cosets.length === 2 || rationalCosets.cosets.length === 3) && (
               <label className="toggle-label">
                 <input
                   type="checkbox"

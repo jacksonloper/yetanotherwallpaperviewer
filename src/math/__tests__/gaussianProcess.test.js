@@ -7,6 +7,9 @@ import {
   generateGPHeatmap,
   ouStepGPCoefficients,
   shoStepGPCoefficients,
+  drawP3Coefficients,
+  shoStepP3Coefficients,
+  evaluateP3SymmetrizedGP,
 } from '../gaussianProcess.js';
 import { identity, rotation, reflection, translation } from '../isometry.js';
 
@@ -419,5 +422,125 @@ describe('generateGPHeatmap', () => {
         expect(hmExplicit.data[j][i]).toBe(hmDefault.data[j][i]);
       }
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  P3 equivariant (3-GP) coefficients                                 */
+/* ------------------------------------------------------------------ */
+
+describe('drawP3Coefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+
+  it('returns three independent GP coefficient sets', () => {
+    const p3 = drawP3Coefficients(lv, 1, 3);
+    expect(p3.gp1).toBeDefined();
+    expect(p3.gp2).toBeDefined();
+    expect(p3.gp3).toBeDefined();
+    expect(p3.gp1.modes.length).toBe(p3.gp2.modes.length);
+    expect(p3.gp2.modes.length).toBe(p3.gp3.modes.length);
+  });
+
+  it('produces different coefficients for each GP', () => {
+    const p3 = drawP3Coefficients(lv, 1, 3);
+    // The three GPs should have different a/b values
+    const a1 = p3.gp1.modes.map((m) => m.a);
+    const a2 = p3.gp2.modes.map((m) => m.a);
+    const a3 = p3.gp3.modes.map((m) => m.a);
+    const allSame12 = a1.every((v, i) => Math.abs(v - a2[i]) < 1e-10);
+    const allSame23 = a2.every((v, i) => Math.abs(v - a3[i]) < 1e-10);
+    expect(allSame12).toBe(false);
+    expect(allSame23).toBe(false);
+  });
+
+  it('returns consistent results for the same seed', () => {
+    const p3a = drawP3Coefficients(lv, 42, 3);
+    const p3b = drawP3Coefficients(lv, 42, 3);
+    expect(p3a.gp1.modes[0].a).toBe(p3b.gp1.modes[0].a);
+    expect(p3a.gp2.modes[0].a).toBe(p3b.gp2.modes[0].a);
+    expect(p3a.gp3.modes[0].a).toBe(p3b.gp3.modes[0].a);
+  });
+});
+
+describe('shoStepP3Coefficients', () => {
+  it('preserves three GP structure through SHO step', () => {
+    const lv = { v1: { x: 0, y: 1 }, v2: { x: 1, y: 0 } };
+    const p3 = drawP3Coefficients(lv, 1, 3);
+    const stepped = shoStepP3Coefficients(p3, 0.01, 2, 0.5);
+    expect(stepped.gp1.modes.length).toBe(p3.gp1.modes.length);
+    expect(stepped.gp2.modes.length).toBe(p3.gp2.modes.length);
+    expect(stepped.gp3.modes.length).toBe(p3.gp3.modes.length);
+    // k-vectors should be preserved
+    expect(stepped.gp1.modes[0].kx).toBe(p3.gp1.modes[0].kx);
+    expect(stepped.gp2.modes[0].kx).toBe(p3.gp2.modes[0].kx);
+    expect(stepped.gp3.modes[0].kx).toBe(p3.gp3.modes[0].kx);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  P3 equivariant evaluation                                          */
+/* ------------------------------------------------------------------ */
+
+describe('evaluateP3SymmetrizedGP', () => {
+  // Hexagonal lattice for P3
+  const hexLv = { v1: { x: 0, y: 1 }, v2: { x: Math.sqrt(3) / 2, y: 0.5 } };
+  // P3 point group: {e, R_120, R_240}
+  const R120 = rotation((2 * PI) / 3, 0, 0);
+  const R240 = rotation((4 * PI) / 3, 0, 0);
+  const pg = [identity(), R120, R240];
+
+  it('returns a 3-component vector', () => {
+    const p3 = drawP3Coefficients(hexLv, 1, 3);
+    const F = evaluateP3SymmetrizedGP(p3, 0.5, 0.3, pg);
+    expect(F.length).toBe(3);
+    expect(typeof F[0]).toBe('number');
+    expect(typeof F[1]).toBe('number');
+    expect(typeof F[2]).toBe('number');
+  });
+
+  it('is equivariant: F(r·x) = ρ(r)·F(x) under 120° rotation (cyclic permutation)', () => {
+    const p3 = drawP3Coefficients(hexLv, 42, 5);
+
+    // Test at several points
+    const testPoints = [
+      { x: 0.3, y: 0.7 },
+      { x: -0.5, y: 0.2 },
+      { x: 1.1, y: -0.4 },
+    ];
+
+    for (const pt of testPoints) {
+      const F_at_x = evaluateP3SymmetrizedGP(p3, pt.x, pt.y, pg);
+
+      // Apply 120° rotation to the point
+      const cos120 = Math.cos((2 * PI) / 3);
+      const sin120 = Math.sin((2 * PI) / 3);
+      const rx = cos120 * pt.x - sin120 * pt.y;
+      const ry = sin120 * pt.x + cos120 * pt.y;
+
+      const F_at_rx = evaluateP3SymmetrizedGP(p3, rx, ry, pg);
+
+      // ρ(r)·F(x) = cyclic permutation: (F₃, F₁, F₂)
+      // i.e. F(r·x) should equal (F₃(x), F₁(x), F₂(x))
+      expect(F_at_rx[0]).toBeCloseTo(F_at_x[2], 5);
+      expect(F_at_rx[1]).toBeCloseTo(F_at_x[0], 5);
+      expect(F_at_rx[2]).toBeCloseTo(F_at_x[1], 5);
+    }
+  });
+
+  it('is invariant under lattice translations', () => {
+    const p3 = drawP3Coefficients(hexLv, 42, 5);
+    const F0 = evaluateP3SymmetrizedGP(p3, 0.3, 0.7, pg);
+
+    // Shift by v1 = (0, 1)
+    const Fv1 = evaluateP3SymmetrizedGP(p3, 0.3, 0.7 + 1, pg);
+    expect(Fv1[0]).toBeCloseTo(F0[0], 5);
+    expect(Fv1[1]).toBeCloseTo(F0[1], 5);
+    expect(Fv1[2]).toBeCloseTo(F0[2], 5);
+
+    // Shift by v2
+    const Fv2 = evaluateP3SymmetrizedGP(p3, 0.3 + hexLv.v2.x, 0.7 + hexLv.v2.y, pg);
+    expect(Fv2[0]).toBeCloseTo(F0[0], 5);
+    expect(Fv2[1]).toBeCloseTo(F0[1], 5);
+    expect(Fv2[2]).toBeCloseTo(F0[2], 5);
   });
 });
