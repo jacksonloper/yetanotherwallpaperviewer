@@ -284,6 +284,34 @@ export function shoStepWindCoefficients(windCoeffs, dt, omega, damping) {
   };
 }
 
+/* ---------- p3 equivariant (3-GP → RGB) coefficients --------------------- */
+
+/**
+ * Draw random Fourier coefficients for three independent GPs, used to build
+ * a p3-equivariant R³-valued field via cyclic-permutation Reynolds averaging.
+ *
+ * All three GPs share the same lattice and spectral envelope but receive
+ * independent random draws (offset seeds).
+ */
+export function drawP3Coefficients(latticeVectors, seed, maxFreq = 5, lengthScale = 0.1) {
+  return {
+    gp1: drawGPCoefficients(latticeVectors, seed, maxFreq, lengthScale),
+    gp2: drawGPCoefficients(latticeVectors, seed + 1000, maxFreq, lengthScale),
+    gp3: drawGPCoefficients(latticeVectors, seed + 2000, maxFreq, lengthScale),
+  };
+}
+
+/**
+ * Advance all three GP components of a p3 field by one SHO step.
+ */
+export function shoStepP3Coefficients(p3Coeffs, dt, omega, damping) {
+  return {
+    gp1: shoStepGPCoefficients(p3Coeffs.gp1, dt, omega, damping),
+    gp2: shoStepGPCoefficients(p3Coeffs.gp2, dt, omega, damping),
+    gp3: shoStepGPCoefficients(p3Coeffs.gp3, dt, omega, damping),
+  };
+}
+
 /* ---------- GP evaluation ------------------------------------------------ */
 
 /**
@@ -349,6 +377,43 @@ function evaluateSymmetrizedGP(gpCoeffs, x, y, pointGroup, equivariant = false) 
     sum += sign * evaluateGP(gpCoeffs, gx, gy);
   }
   return sum / pointGroup.length;
+}
+
+/* ---------- p3 equivariant evaluation ------------------------------------ */
+
+/**
+ * Evaluate the p3-equivariant vector field F: R² → R³ at a point.
+ *
+ * Uses three independent GPs and Reynolds averaging with the cyclic
+ * permutation representation of C₃:
+ *
+ *   F_c(r) = (1/3) Σ_{g=0}^{2} f_{(c+g) mod 3}(g(r))
+ *
+ * where g indexes the point-group cosets {e, r₁₂₀, r₂₄₀}.
+ *
+ * @param {object} gp1  First GP coefficients
+ * @param {object} gp2  Second GP coefficients
+ * @param {object} gp3  Third GP coefficients
+ * @param {number} x    x-coordinate
+ * @param {number} y    y-coordinate
+ * @param {Array}  pointGroup  [{a,b,c,d,tx,ty}, ...] for the 3 coset reps
+ * @returns {number[]}  [R, G, B] values (unnormalized)
+ */
+export function evaluateP3Equivariant(gp1, gp2, gp3, x, y, pointGroup) {
+  const gps = [gp1, gp2, gp3];
+  const n = pointGroup.length;
+  const rgb = [0, 0, 0];
+  for (let gi = 0; gi < n; gi++) {
+    const g = pointGroup[gi];
+    const gx = g.a * x + g.b * y + g.tx;
+    const gy = g.c * x + g.d * y + g.ty;
+    const vals = gps.map((gp) => evaluateGP(gp, gx, gy));
+    const shift = gi % 3;
+    for (let c = 0; c < 3; c++) {
+      rgb[c] += vals[(c + shift) % 3];
+    }
+  }
+  return rgb.map((v) => v / n);
 }
 
 /* ---------- Heatmap generation ------------------------------------------- */

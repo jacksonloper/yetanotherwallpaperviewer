@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 import WindShaderCanvas from './WindShaderCanvas.jsx';
 
@@ -225,6 +225,28 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     setGpCoeffs(initialCoeffs);
   }
 
+  // Compute equivariant mode from coset count
+  const eqMode = useMemo(() => {
+    if (!gpEquivariant || !cosetReps) return 0;
+    if (cosetReps.length === 2) return 1;
+    if (cosetReps.length === 3) return 2;
+    return 0;
+  }, [gpEquivariant, cosetReps]);
+
+  // ── p3 equivariant: two additional GP coefficient sets ────────────
+  const p3InitialCoeffs = useMemo(() => {
+    if (eqMode !== 2 || !latticeVectors) return null;
+    return drawP3Coefficients(latticeVectors, (gpSeed ?? 0), gpN ?? 5, gpEll ?? 0.1);
+  }, [eqMode, latticeVectors, gpSeed, gpEll, gpN]);
+
+  const [p3Coeffs, setP3Coeffs] = useState(null);
+  const [prevP3InitialCoeffs, setPrevP3InitialCoeffs] = useState(null);
+
+  if (p3InitialCoeffs !== prevP3InitialCoeffs) {
+    setPrevP3InitialCoeffs(p3InitialCoeffs);
+    setP3Coeffs(p3InitialCoeffs);
+  }
+
   // GP animation loop
   useEffect(() => {
     if (!gpSpeed || gpSpeed <= 0) return;
@@ -238,6 +260,9 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         const dt = (timestamp - lastTime) / 1000;
         setGpCoeffs((prev) =>
           prev ? shoStepGPCoefficients(prev, dt, gpSpeed, damping) : prev
+        );
+        setP3Coeffs((prev) =>
+          prev ? shoStepP3Coefficients(prev, dt, gpSpeed, damping) : prev
         );
       }
       lastTime = timestamp;
@@ -372,12 +397,14 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         {/* Three.js GP canvas (behind SVG) */}
         {showGP && gpCoeffs && cosetReps && (
           <GPShaderCanvas
-            gpCoeffs={gpCoeffs}
+            gpCoeffs={eqMode === 2 && p3Coeffs ? p3Coeffs.gp1 : gpCoeffs}
+            gpCoeffs2={eqMode === 2 && p3Coeffs ? p3Coeffs.gp2 : null}
+            gpCoeffs3={eqMode === 2 && p3Coeffs ? p3Coeffs.gp3 : null}
             cosetReps={cosetReps}
             bounds={gpBounds}
             width={width}
             height={height}
-            equivariant={gpEquivariant}
+            eqMode={eqMode}
           />
         )}
 

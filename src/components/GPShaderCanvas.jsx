@@ -26,77 +26,116 @@ precision highp float;
 
 uniform vec2  u_boundsMin;   // (minX, minY) in math coords
 uniform vec2  u_boundsMax;   // (maxX, maxY) in math coords
-uniform float u_dc;          // DC offset
+uniform float u_dc;          // DC offset (GP 1)
+uniform float u_dc2;         // DC offset (GP 2, eqMode 2 only)
+uniform float u_dc3;         // DC offset (GP 3, eqMode 2 only)
 uniform int   u_numModes;    // number of Fourier modes
 uniform int   u_numCosets;   // number of G/T coset representatives
 uniform float u_normScale;   // normalization for tanh colormap
-uniform int   u_equivariant; // 1 = equivariant (f − f∘g), 0 = invariant (f + f∘g)
+uniform int   u_eqMode;      // 0 = invariant, 1 = sign-flip, 2 = p3 cyclic RGB
 
-uniform sampler2D u_modesTexture;   // width=numModes, height=1, RGBA float
-                                    // texel i = (kx, ky, a, b)
-uniform sampler2D u_cosetsTexture;  // width=numCosets, height=2, RGBA float
-                                    // row 0 texel i = (a, b, c, d)
-                                    // row 1 texel i = (tx, ty, 0, 0)
-uniform float u_modesTexWidth;      // float(numModes) for UV calc
-uniform float u_cosetsTexWidth;     // float(numCosets) for UV calc
+uniform sampler2D u_modesTexture;    // GP 1: width=numModes, height=1, RGBA (kx,ky,a,b)
+uniform sampler2D u_modesTexture2;   // GP 2 (eqMode 2 only)
+uniform sampler2D u_modesTexture3;   // GP 3 (eqMode 2 only)
+uniform sampler2D u_cosetsTexture;   // width=numCosets, height=2, RGBA float
+uniform float u_modesTexWidth;       // float(numModes) for UV calc
+uniform float u_cosetsTexWidth;      // float(numCosets) for UV calc
 
 varying vec2 vUv;
 
 void main() {
-  // Map fragment UV → math coordinates
-  // vUv.y=0 is bottom of screen = minY, vUv.y=1 is top = maxY
   vec2 pos = mix(u_boundsMin, u_boundsMax, vUv);
 
-  float sum = 0.0;
+  if (u_eqMode < 2) {
+    // ── Mode 0 (invariant) or 1 (sign-flip): single GP ──
+    float sum = 0.0;
 
-  for (int g = 0; g < 24; g++) {           // MAX_COSETS = 24 (supergroups)
-    if (g >= u_numCosets) break;
+    for (int g = 0; g < 24; g++) {
+      if (g >= u_numCosets) break;
 
-    // Read coset data
-    float cu = (float(g) + 0.5) / u_cosetsTexWidth;
-    vec4 abcd = texture2D(u_cosetsTexture, vec2(cu, 0.25));
-    vec4 txty = texture2D(u_cosetsTexture, vec2(cu, 0.75));
+      float cu = (float(g) + 0.5) / u_cosetsTexWidth;
+      vec4 abcd = texture2D(u_cosetsTexture, vec2(cu, 0.25));
+      vec4 txty = texture2D(u_cosetsTexture, vec2(cu, 0.75));
 
-    // Apply coset isometry: g(pos) = R*pos + t
-    vec2 gPos = vec2(
-      abcd.x * pos.x + abcd.y * pos.y + txty.x,
-      abcd.z * pos.x + abcd.w * pos.y + txty.y
-    );
+      vec2 gPos = vec2(
+        abcd.x * pos.x + abcd.y * pos.y + txty.x,
+        abcd.z * pos.x + abcd.w * pos.y + txty.y
+      );
 
-    // Evaluate GP at transformed point
-    float val = u_dc;
-    for (int m = 0; m < 512; m++) {         // MAX_MODES = 512 (maxFreq≤15)
-      if (m >= u_numModes) break;
+      float val = u_dc;
+      for (int m = 0; m < 512; m++) {
+        if (m >= u_numModes) break;
+        float mu = (float(m) + 0.5) / u_modesTexWidth;
+        vec4 mode = texture2D(u_modesTexture, vec2(mu, 0.5));
+        float phase = mode.x * gPos.x + mode.y * gPos.y;
+        val += mode.z * cos(phase) + mode.w * sin(phase);
+      }
 
-      float mu = (float(m) + 0.5) / u_modesTexWidth;
-      vec4 mode = texture2D(u_modesTexture, vec2(mu, 0.5));
-      // mode = (kx, ky, a, b)
-      float phase = mode.x * gPos.x + mode.y * gPos.y;
-      val += mode.z * cos(phase) + mode.w * sin(phase);
+      float sign = 1.0;
+      if (u_eqMode == 1 && g > 0) sign = -1.0;
+      sum += sign * val;
     }
 
-    // Apply sign: +1 for invariant, −1 for non-identity coset in equivariant mode
-    float sign = 1.0;
-    if (u_equivariant == 1 && g > 0) sign = -1.0;
-    sum += sign * val;
-  }
+    sum /= float(u_numCosets);
+    float t = 0.5 + 0.5 * tanh(sum * u_normScale);
 
-  sum /= float(u_numCosets);
+    vec3 color;
+    if (t < 0.5) {
+      float s = t * 2.0;
+      color = vec3(s, s, 1.0);
+    } else {
+      float s = (t - 0.5) * 2.0;
+      color = vec3(1.0, 1.0 - s, 1.0 - s);
+    }
+    gl_FragColor = vec4(color, 1.0);
 
-  // Normalize to [0,1] via tanh
-  float t = 0.5 + 0.5 * tanh(sum * u_normScale);
-
-  // Diverging colormap: blue (t=0) → white (t=0.5) → red (t=1)
-  vec3 color;
-  if (t < 0.5) {
-    float s = t * 2.0;
-    color = vec3(s, s, 1.0);
   } else {
-    float s = (t - 0.5) * 2.0;
-    color = vec3(1.0, 1.0 - s, 1.0 - s);
-  }
+    // ── Mode 2: p3 cyclic permutation → RGB ──
+    // Three independent GPs → Reynolds average with ρ = cyclic permutation
+    // F_c(r) = (1/3) Σ_g f_{(c+g) mod 3}(g(r))
+    vec3 rgb = vec3(0.0);
 
-  gl_FragColor = vec4(color, 1.0);
+    for (int g = 0; g < 24; g++) {
+      if (g >= u_numCosets) break;
+
+      float cu = (float(g) + 0.5) / u_cosetsTexWidth;
+      vec4 abcd = texture2D(u_cosetsTexture, vec2(cu, 0.25));
+      vec4 txty = texture2D(u_cosetsTexture, vec2(cu, 0.75));
+
+      vec2 gPos = vec2(
+        abcd.x * pos.x + abcd.y * pos.y + txty.x,
+        abcd.z * pos.x + abcd.w * pos.y + txty.y
+      );
+
+      // Evaluate all 3 GPs at transformed point (shared wave vectors)
+      float v1 = u_dc;
+      float v2 = u_dc2;
+      float v3 = u_dc3;
+      for (int m = 0; m < 512; m++) {
+        if (m >= u_numModes) break;
+        float mu = (float(m) + 0.5) / u_modesTexWidth;
+        vec4 m1 = texture2D(u_modesTexture,  vec2(mu, 0.5));
+        vec4 m2 = texture2D(u_modesTexture2, vec2(mu, 0.5));
+        vec4 m3 = texture2D(u_modesTexture3, vec2(mu, 0.5));
+        float phase = m1.x * gPos.x + m1.y * gPos.y;
+        float cp = cos(phase);
+        float sp = sin(phase);
+        v1 += m1.z * cp + m1.w * sp;
+        v2 += m2.z * cp + m2.w * sp;
+        v3 += m3.z * cp + m3.w * sp;
+      }
+
+      // Inverse cyclic permutation by g: component c gets GP (c+g) mod 3
+      // g=0: (v1,v2,v3), g=1: (v2,v3,v1), g=2: (v3,v1,v2)
+      if (g == 0) rgb += vec3(v1, v2, v3);
+      else if (g == 1) rgb += vec3(v2, v3, v1);
+      else rgb += vec3(v3, v1, v2);
+    }
+
+    rgb /= float(u_numCosets);
+    rgb = 0.5 + 0.5 * tanh(rgb * u_normScale);
+    gl_FragColor = vec4(rgb, 1.0);
+  }
 }
 `;
 
@@ -168,20 +207,22 @@ function computeNormScale(modes) {
  * Renders the symmetrized GP field on the GPU using Three.js.
  *
  * @param {object}  props.gpCoeffs    Output of drawGPCoefficients: { modes, dc }
+ * @param {object}  [props.gpCoeffs2] Second GP coefficients (eqMode 2 only)
+ * @param {object}  [props.gpCoeffs3] Third GP coefficients (eqMode 2 only)
  * @param {Array}   props.cosetReps   Physical isometry coset reps: [{a,b,c,d,tx,ty}]
  * @param {{minX,maxX,minY,maxY}} props.bounds  Viewport bounds in math coords
  * @param {number}  props.width       Canvas width in pixels
  * @param {number}  props.height      Canvas height in pixels
- * @param {boolean} [props.equivariant=false]  If true and |cosetReps|=2, use f−f∘g.
+ * @param {number}  [props.eqMode=0]  0=invariant, 1=sign-flip (|G/T|=2), 2=p3 cyclic RGB
  */
-export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, height, equivariant }) {
+export default function GPShaderCanvas({ gpCoeffs, gpCoeffs2, gpCoeffs3, cosetReps, bounds, width, height, eqMode }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const materialRef = useRef(null);
   const meshRef = useRef(null);
-  const texturesRef = useRef({ modes: null, cosets: null });
+  const texturesRef = useRef({ modes: null, modes2: null, modes3: null, cosets: null });
 
   // Initialize Three.js scene (once)
   useEffect(() => {
@@ -202,6 +243,8 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
 
     // Placeholder textures (will be replaced in the data effect)
     const placeholderModes = buildModesTexture([{ kx: 0, ky: 0, a: 0, b: 0 }]);
+    const placeholderModes2 = buildModesTexture([{ kx: 0, ky: 0, a: 0, b: 0 }]);
+    const placeholderModes3 = buildModesTexture([{ kx: 0, ky: 0, a: 0, b: 0 }]);
     const placeholderCosets = buildCosetsTexture([{ a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 }]);
 
     const material = new THREE.ShaderMaterial({
@@ -211,18 +254,22 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
         u_boundsMin: { value: new THREE.Vector2(-4, -3) },
         u_boundsMax: { value: new THREE.Vector2(4, 3) },
         u_dc: { value: 0 },
+        u_dc2: { value: 0 },
+        u_dc3: { value: 0 },
         u_numModes: { value: 1 },
         u_numCosets: { value: 1 },
         u_normScale: { value: 1.0 },
-        u_equivariant: { value: 0 },
+        u_eqMode: { value: 0 },
         u_modesTexture: { value: placeholderModes },
+        u_modesTexture2: { value: placeholderModes2 },
+        u_modesTexture3: { value: placeholderModes3 },
         u_cosetsTexture: { value: placeholderCosets },
         u_modesTexWidth: { value: 1.0 },
         u_cosetsTexWidth: { value: 1.0 },
       },
     });
     materialRef.current = material;
-    texturesRef.current = { modes: placeholderModes, cosets: placeholderCosets };
+    texturesRef.current = { modes: placeholderModes, modes2: placeholderModes2, modes3: placeholderModes3, cosets: placeholderCosets };
 
     const mesh = new THREE.Mesh(geometry, material);
     meshRef.current = mesh;
@@ -232,6 +279,8 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
       geometry.dispose();
       material.dispose();
       placeholderModes.dispose();
+      placeholderModes2.dispose();
+      placeholderModes3.dispose();
       placeholderCosets.dispose();
       renderer.dispose();
       rendererRef.current = null;
@@ -259,6 +308,7 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
 
     const { modes, dc } = gpCoeffs;
     const n = Math.max(modes.length, 1);
+    const mode = eqMode || 0;
 
     // Update modes texture: reuse in-place if width matches, else recreate
     const existingModes = texturesRef.current.modes;
@@ -277,6 +327,35 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
       texturesRef.current.modes = modesTex;
       material.uniforms.u_modesTexture.value = modesTex;
       material.uniforms.u_modesTexWidth.value = n;
+    }
+
+    // Update extra mode textures for p3 cyclic mode
+    if (mode === 2 && gpCoeffs2 && gpCoeffs3) {
+      for (const [key, uName, coeffs] of [
+        ['modes2', 'u_modesTexture2', gpCoeffs2],
+        ['modes3', 'u_modesTexture3', gpCoeffs3],
+      ]) {
+        const existing = texturesRef.current[key];
+        const m = coeffs.modes;
+        const mn = Math.max(m.length, 1);
+        if (existing && existing.image.width === mn) {
+          const data = existing.image.data;
+          for (let i = 0; i < m.length; i++) {
+            data[i * 4 + 0] = m[i].kx;
+            data[i * 4 + 1] = m[i].ky;
+            data[i * 4 + 2] = m[i].a;
+            data[i * 4 + 3] = m[i].b;
+          }
+          existing.needsUpdate = true;
+        } else {
+          if (existing) existing.dispose();
+          const tex = buildModesTexture(m);
+          texturesRef.current[key] = tex;
+          material.uniforms[uName].value = tex;
+        }
+      }
+      material.uniforms.u_dc2.value = gpCoeffs2.dc;
+      material.uniforms.u_dc3.value = gpCoeffs3.dc;
     }
 
     // Update cosets texture: reuse in-place if width matches, else recreate
@@ -310,12 +389,15 @@ export default function GPShaderCanvas({ gpCoeffs, cosetReps, bounds, width, hei
     material.uniforms.u_dc.value = dc;
     material.uniforms.u_numModes.value = modes.length;
     material.uniforms.u_numCosets.value = cosetReps.length;
-    material.uniforms.u_equivariant.value = equivariant ? 1 : 0;
-    material.uniforms.u_normScale.value = computeNormScale(modes);
+    material.uniforms.u_eqMode.value = mode;
+    // Compensate for variance reduction in p3 averaging (3 independent terms → σ/√3)
+    let normScale = computeNormScale(modes);
+    if (mode === 2) normScale *= Math.sqrt(3);
+    material.uniforms.u_normScale.value = normScale;
 
     // Render
     renderer.render(scene, camera);
-  }, [gpCoeffs, cosetReps, bounds, equivariant]);
+  }, [gpCoeffs, gpCoeffs2, gpCoeffs3, cosetReps, bounds, eqMode]);
 
   return (
     <canvas

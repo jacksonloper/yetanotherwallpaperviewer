@@ -7,6 +7,9 @@ import {
   generateGPHeatmap,
   ouStepGPCoefficients,
   shoStepGPCoefficients,
+  drawP3Coefficients,
+  shoStepP3Coefficients,
+  evaluateP3Equivariant,
 } from '../gaussianProcess.js';
 import { identity, rotation, reflection, translation } from '../isometry.js';
 
@@ -418,6 +421,125 @@ describe('generateGPHeatmap', () => {
       for (let i = 0; i < 20; i++) {
         expect(hmExplicit.data[j][i]).toBe(hmDefault.data[j][i]);
       }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  p3 equivariant coefficients                                        */
+/* ------------------------------------------------------------------ */
+
+describe('drawP3Coefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: Math.sqrt(3) / 2, y: 0.5 } };
+
+  it('returns three independent GP coefficient sets', () => {
+    const p3 = drawP3Coefficients(lv, 42);
+    expect(p3.gp1).toBeDefined();
+    expect(p3.gp2).toBeDefined();
+    expect(p3.gp3).toBeDefined();
+    expect(p3.gp1.modes.length).toBe(p3.gp2.modes.length);
+    expect(p3.gp1.modes.length).toBe(p3.gp3.modes.length);
+    // GPs should be different (independent draws)
+    const same12 = p3.gp1.modes.every(
+      (m, i) => m.a === p3.gp2.modes[i].a && m.b === p3.gp2.modes[i].b
+    );
+    expect(same12).toBe(false);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const a = drawP3Coefficients(lv, 42);
+    const b = drawP3Coefficients(lv, 42);
+    expect(a.gp1.dc).toBe(b.gp1.dc);
+    expect(a.gp2.dc).toBe(b.gp2.dc);
+    expect(a.gp3.dc).toBe(b.gp3.dc);
+  });
+});
+
+describe('shoStepP3Coefficients', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: Math.sqrt(3) / 2, y: 0.5 } };
+
+  it('preserves structure through SHO step', () => {
+    const initial = drawP3Coefficients(lv, 42, 3);
+    const stepped = shoStepP3Coefficients(initial, 0.016, 2, 0.5);
+    expect(stepped.gp1.modes.length).toBe(initial.gp1.modes.length);
+    expect(stepped.gp2.modes.length).toBe(initial.gp2.modes.length);
+    expect(stepped.gp3.modes.length).toBe(initial.gp3.modes.length);
+    expect(stepped.gp1.modes[0].va).toBeDefined();
+    expect(stepped.gp2.modes[0].va).toBeDefined();
+    expect(stepped.gp3.modes[0].va).toBeDefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  p3 equivariant evaluation                                          */
+/* ------------------------------------------------------------------ */
+
+describe('evaluateP3Equivariant', () => {
+  const lv = { v1: { x: 0, y: 1 }, v2: { x: Math.sqrt(3) / 2, y: 0.5 } };
+
+  it('satisfies F(rot·r) = ρ(rot)·F(r) (cyclic permutation equivariance)', () => {
+    const p3 = drawP3Coefficients(lv, 42, 4);
+    const rot120 = rotation(2 * PI / 3, 0, 0);
+    const rot240 = rotation(4 * PI / 3, 0, 0);
+    const pg = [identity(), rot120, rot240];
+
+    // Test at an arbitrary point
+    const x = 0.37, y = 0.53;
+    const F = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3, x, y, pg);
+
+    // Apply 120° rotation to the test point
+    const cos120 = Math.cos(2 * PI / 3);
+    const sin120 = Math.sin(2 * PI / 3);
+    const rx = cos120 * x - sin120 * y;
+    const ry = sin120 * x + cos120 * y;
+    const Frot = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3, rx, ry, pg);
+
+    // ρ(rot)·(v0,v1,v2) = (v2,v0,v1), so F(rot·r) should equal (F[2], F[0], F[1])
+    expect(Frot[0]).toBeCloseTo(F[2], 8);
+    expect(Frot[1]).toBeCloseTo(F[0], 8);
+    expect(Frot[2]).toBeCloseTo(F[1], 8);
+  });
+
+  it('satisfies F(rot²·r) = ρ(rot²)·F(r)', () => {
+    const p3 = drawP3Coefficients(lv, 99, 4);
+    const rot120 = rotation(2 * PI / 3, 0, 0);
+    const rot240 = rotation(4 * PI / 3, 0, 0);
+    const pg = [identity(), rot120, rot240];
+
+    const x = -0.2, y = 0.8;
+    const F = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3, x, y, pg);
+
+    // Apply 240° rotation
+    const cos240 = Math.cos(4 * PI / 3);
+    const sin240 = Math.sin(4 * PI / 3);
+    const rx = cos240 * x - sin240 * y;
+    const ry = sin240 * x + cos240 * y;
+    const Frot2 = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3, rx, ry, pg);
+
+    // ρ(rot²)·(v0,v1,v2) = (v1,v2,v0)
+    expect(Frot2[0]).toBeCloseTo(F[1], 8);
+    expect(Frot2[1]).toBeCloseTo(F[2], 8);
+    expect(Frot2[2]).toBeCloseTo(F[0], 8);
+  });
+
+  it('is periodic under lattice translations', () => {
+    const p3 = drawP3Coefficients(lv, 7, 4);
+    const rot120 = rotation(2 * PI / 3, 0, 0);
+    const rot240 = rotation(4 * PI / 3, 0, 0);
+    const pg = [identity(), rot120, rot240];
+
+    const x = 0.3, y = 0.4;
+    const F0 = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3, x, y, pg);
+    // Shift by v1
+    const Fv1 = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3,
+      x + lv.v1.x, y + lv.v1.y, pg);
+    // Shift by v2
+    const Fv2 = evaluateP3Equivariant(p3.gp1, p3.gp2, p3.gp3,
+      x + lv.v2.x, y + lv.v2.y, pg);
+
+    for (let c = 0; c < 3; c++) {
+      expect(Fv1[c]).toBeCloseTo(F0[c], 6);
+      expect(Fv2[c]).toBeCloseTo(F0[c], 6);
     }
   });
 });
