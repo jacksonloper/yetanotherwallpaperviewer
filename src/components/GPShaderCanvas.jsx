@@ -105,8 +105,19 @@ void main() {
     vec3 scaledF = F * u_normScale;
     float maxF = max(scaledF.x, max(scaledF.y, scaledF.z));
     vec3 expF = exp(scaledF - maxF);
-    vec3 color = expF / (expF.x + expF.y + expF.z);
-    color = clamp(vec3(1.0/3.0) - 1.5 * color, 0.0, 1.0);
+    vec3 bary = expF / (expF.x + expF.y + expF.z);
+    float r = bary.x, g = bary.y, b = bary.z;
+
+    // Barycentric → RGB: dominant channel stays 1, others = 1−s
+    float sr = (r >= g && r >= b) ? ((r - g) * (r - b)) / max(r * r, 1e-10) : 0.0;
+    float sg = (g >= r && g >= b) ? ((g - r) * (g - b)) / max(g * g, 1e-10) : 0.0;
+    float sb = (b >= r && b >= g) ? ((b - r) * (b - g)) / max(b * b, 1e-10) : 0.0;
+
+    vec3 color = vec3(
+      1.0 - sg - sb,
+      1.0 - sr - sb,
+      1.0 - sr - sg
+    );
 
     gl_FragColor = vec4(color, 1.0);
     return;
