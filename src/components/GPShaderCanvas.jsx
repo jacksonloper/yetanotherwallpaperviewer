@@ -125,11 +125,13 @@ void main() {
         v3 += m3.z * cp + m3.w * sp;
       }
 
-      // Inverse cyclic permutation by g: component c gets GP (c+g) mod 3
-      // g=0: (v1,v2,v3), g=1: (v2,v3,v1), g=2: (v3,v1,v2)
+      // Apply ρ(g)⁻¹ cyclic permutation: component c gets GP (c+g) mod 3
+      // g=0: identity  → (v1,v2,v3)
+      // g=1: ρ(r)⁻¹    → (v2,v3,v1)
+      // g=2: ρ(r²)⁻¹   → (v3,v1,v2)
       if (g == 0) rgb += vec3(v1, v2, v3);
       else if (g == 1) rgb += vec3(v2, v3, v1);
-      else rgb += vec3(v3, v1, v2);
+      else if (g == 2) rgb += vec3(v3, v1, v2);
     }
 
     rgb /= float(u_numCosets);
