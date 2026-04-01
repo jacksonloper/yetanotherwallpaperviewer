@@ -83,6 +83,7 @@ export default function App() {
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.005)
   const [particleTailLength, setParticleTailLength] = useState(12)
   const [particleMaxCount, setParticleMaxCount] = useState(500)
+  const [particleDotSize, setParticleDotSize] = useState(6)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
@@ -460,6 +461,18 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
+            <label className="slider-inline">
+              Dot size: {particleDotSize}
+              <input
+                type="range"
+                min="1"
+                max="20"
+                step="1"
+                value={particleDotSize}
+                onChange={(e) => setParticleDotSize(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
           </div>
         )}
 
@@ -496,6 +509,7 @@ export default function App() {
           particleFadeSpeed={particleFadeSpeed}
           particleTailLength={particleTailLength}
           particleMaxCount={particleMaxCount}
+          particleDotSize={particleDotSize}
           showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}

@@ -265,12 +265,13 @@ function wrapToFundamentalDomain(px, py, v1, v2) {
  * @param {number}  props.fadeSpeed     How fast particles die (life lost per frame)
  * @param {number}  props.tailLength    Controls accumulation decay / trail persistence (higher = longer trail)
  * @param {number}  props.maxParticles  Maximum number of alive particles (50-2000)
+ * @param {number}  [props.dotSize]     Point sprite size in pixels (1-20, default 6)
  * @param {number}  [props.resetTrigger]  Increment to clear all particles + accumulation
  */
 export default function ParticleCanvas({
   windCoeffs, cosetReps, bounds, latticeVectors,
   width, height, spawnRate, fadeSpeed, tailLength, maxParticles,
-  resetTrigger,
+  dotSize, resetTrigger,
 }) {
   const canvasRef       = useRef(null);
   const rendererRef     = useRef(null);
@@ -320,8 +321,8 @@ export default function ParticleCanvas({
 
   // Keep latest props accessible from animation loop closure
   useEffect(() => {
-    propsRef.current = { bounds, spawnRate, fadeSpeed, tailLength, maxParticles, latticeVectors };
-  }, [bounds, spawnRate, fadeSpeed, tailLength, maxParticles, latticeVectors]);
+    propsRef.current = { bounds, spawnRate, fadeSpeed, tailLength, maxParticles, latticeVectors, dotSize };
+  }, [bounds, spawnRate, fadeSpeed, tailLength, maxParticles, latticeVectors, dotSize]);
 
   useEffect(() => {
     resetRef.current = resetTrigger;
@@ -469,7 +470,7 @@ export default function ParticleCanvas({
 
       const props = propsRef.current;
       const { bounds: b, spawnRate: sr, fadeSpeed: fs, tailLength: tl,
-              maxParticles: mp, latticeVectors: lv } = props;
+              maxParticles: mp, latticeVectors: lv, dotSize: ds } = props;
       if (!b || !lv) { animIdRef.current = requestAnimationFrame(animate); return; }
 
       const v1 = lv.v1;
@@ -624,6 +625,7 @@ export default function ParticleCanvas({
       // 6b. Particle stamp: additive blend into accumRT[next]
       particleMatRef.current.uniforms.u_boundsMin.value.set(b.minX, b.minY);
       particleMatRef.current.uniforms.u_boundsMax.value.set(b.maxX, b.maxY);
+      particleMatRef.current.uniforms.u_pointSize.value = ds ?? 6;
       r.render(particleSceneRef.current, camera);
 
       // ── 7. Display pass: accumRT[next] → screen ─────────
