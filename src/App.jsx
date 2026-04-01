@@ -87,6 +87,14 @@ export default function App() {
   const [gpEquivariant, setGpEquivariant] = useState(false)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
 
+  // Wind-specific tuning parameters
+  const [windSpeed, setWindSpeed] = useState(1.0)
+  const [windDecay, setWindDecay] = useState(0.995)
+  const [windDiffusion, setWindDiffusion] = useState(0.0)
+  const [windDyeRate, setWindDyeRate] = useState(0.002)
+  const [windTimestep, setWindTimestep] = useState(0.016)
+  const [windDyeDensity, setWindDyeDensity] = useState(1.0)
+
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
   const generators = useMemo(
@@ -400,6 +408,87 @@ export default function App() {
           </div>
         )}
 
+        {/* Wind-specific tuning sliders */}
+        {showWind && (
+          <div className="display-sub">
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: 4 }}>
+              Wind Tuning
+            </div>
+            <label className="slider-inline">
+              Advection speed: {windSpeed.toFixed(2)}
+              <input
+                type="range"
+                min="0.05"
+                max="5"
+                step="0.05"
+                value={windSpeed}
+                onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Timestep: {windTimestep.toFixed(4)}
+              <input
+                type="range"
+                min="0.001"
+                max="0.1"
+                step="0.001"
+                value={windTimestep}
+                onChange={(e) => setWindTimestep(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Decay: {windDecay.toFixed(4)}
+              <input
+                type="range"
+                min="0.9"
+                max="1"
+                step="0.0005"
+                value={windDecay}
+                onChange={(e) => setWindDecay(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Diffusion: {windDiffusion.toFixed(3)}
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.005"
+                value={windDiffusion}
+                onChange={(e) => setWindDiffusion(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Dye rate: {windDyeRate.toFixed(4)}
+              <input
+                type="range"
+                min="0"
+                max="0.02"
+                step="0.0002"
+                value={windDyeRate}
+                onChange={(e) => setWindDyeRate(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Dye density: {windDyeDensity.toFixed(2)}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={windDyeDensity}
+                onChange={(e) => setWindDyeDensity(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+          </div>
+        )}
+
         <div className="display-actions">
           <button className="btn-copy" onClick={copyToClipboard}>
             📋 Copy JSON
@@ -435,6 +524,12 @@ export default function App() {
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
           gpEquivariant={gpEquivariant}
+          windSpeed={windSpeed}
+          windDecay={windDecay}
+          windDiffusion={windDiffusion}
+          windDyeRate={windDyeRate}
+          windTimestep={windTimestep}
+          windDyeDensity={windDyeDensity}
         />
       )}
 

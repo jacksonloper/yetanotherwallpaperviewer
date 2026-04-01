@@ -54,6 +54,9 @@ uniform float u_dt;                  // advection timestep
 uniform float u_seed;                // varies each frame for random injection
 uniform float u_decay;               // density decay per step
 uniform float u_dyeRate;             // probability of dye injection per pixel
+uniform float u_diffusion;           // spatial diffusion coefficient
+uniform float u_dyeDensity;          // brightness of injected dye
+uniform vec2  u_resolution;          // canvas resolution in pixels
 
 varying vec2 vUv;
 
@@ -117,13 +120,26 @@ void main() {
     density = texture2D(u_prevDensity, srcUv).r;
   }
 
+  // Diffusion (Laplacian from previous density at current position)
+  if (u_diffusion > 0.0) {
+    vec2 dx = vec2(1.0 / u_resolution.x, 0.0);
+    vec2 dy = vec2(0.0, 1.0 / u_resolution.y);
+    float center = texture2D(u_prevDensity, vUv).r;
+    float laplacian = texture2D(u_prevDensity, vUv + dx).r
+                    + texture2D(u_prevDensity, vUv - dx).r
+                    + texture2D(u_prevDensity, vUv + dy).r
+                    + texture2D(u_prevDensity, vUv - dy).r
+                    - 4.0 * center;
+    density += u_diffusion * laplacian;
+  }
+
   // Decay
   density *= u_decay;
 
   // Random dye injection
   float rnd = hash21(gl_FragCoord.xy + vec2(u_seed, u_seed * 1.7));
   if (rnd < u_dyeRate) {
-    density = 1.0;
+    density = u_dyeDensity;
   }
 
   gl_FragColor = vec4(density, density, density, 1.0);
@@ -209,7 +225,7 @@ function computeWindSpeedScale(modes1, modes2) {
  * @param {number}  props.height      Canvas height in pixels
  * @param {number}  [props.resetTrigger]  Increment to clear density field
  */
-export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width, height, resetTrigger }) {
+export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width, height, resetTrigger, windSpeed, windDecay, windDiffusion, windDyeRate, windTimestep, windDyeDensity }) {
   const canvasRef       = useRef(null);
   const rendererRef     = useRef(null);
   const cameraRef       = useRef(null);
@@ -276,6 +292,9 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
         u_seed:           { value: 0 },
         u_decay:          { value: 0.995 },
         u_dyeRate:        { value: 0.002 },
+        u_diffusion:      { value: 0.0 },
+        u_dyeDensity:     { value: 1.0 },
+        u_resolution:     { value: new THREE.Vector2(width, height) },
       },
     });
     advMatRef.current = advMat;
@@ -442,8 +461,14 @@ export default function WindShaderCanvas({ windCoeffs, cosetReps, bounds, width,
     am.uniforms.u_dc2.value = gp2.dc;
     am.uniforms.u_numModes.value  = gp1.modes.length;
     am.uniforms.u_numCosets.value = cosetReps.length;
-    am.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes);
-  }, [windCoeffs, cosetReps, bounds]);
+    am.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes) * (windSpeed ?? 1.0);
+    am.uniforms.u_decay.value = windDecay ?? 0.995;
+    am.uniforms.u_diffusion.value = windDiffusion ?? 0.0;
+    am.uniforms.u_dyeRate.value = windDyeRate ?? 0.002;
+    am.uniforms.u_dt.value = windTimestep ?? 0.016;
+    am.uniforms.u_dyeDensity.value = windDyeDensity ?? 1.0;
+    am.uniforms.u_resolution.value.set(width, height);
+  }, [windCoeffs, cosetReps, bounds, windSpeed, windDecay, windDiffusion, windDyeRate, windTimestep, windDyeDensity, width, height]);
 
   /* ── Propagate resetTrigger ── */
   useEffect(() => {
