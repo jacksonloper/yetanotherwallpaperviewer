@@ -78,6 +78,11 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [showWind, setShowWind] = useState(false)
+  const [showParticles, setShowParticles] = useState(false)
+  const [particleSpawnRate, setParticleSpawnRate] = useState(5)
+  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.005)
+  const [particleTailLength, setParticleTailLength] = useState(12)
+  const [particleMaxCount, setParticleMaxCount] = useState(500)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
@@ -290,12 +295,16 @@ export default function App() {
             Show F
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) setShowWind(false); }} />
+            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) { setShowWind(false); setShowParticles(false); } }} />
             Show GP
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showWind} onChange={(e) => { setShowWind(e.target.checked); if (e.target.checked) setShowGP(false); }} />
+            <input type="checkbox" checked={showWind} onChange={(e) => { setShowWind(e.target.checked); if (e.target.checked) { setShowGP(false); setShowParticles(false); } }} />
             Show Wind
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showParticles} onChange={(e) => { setShowParticles(e.target.checked); if (e.target.checked) { setShowGP(false); setShowWind(false); } }} />
+            Show Particles
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
@@ -333,8 +342,8 @@ export default function App() {
           </div>
         )}
 
-        {/* GP / Wind controls — revealed when Show GP or Show Wind is on */}
-        {(showGP || showWind) && (
+        {/* GP / Wind / Particle controls — revealed when Show GP, Show Wind, or Show Particles is on */}
+        {(showGP || showWind || showParticles) && (
           <div className="display-sub">
             <label className="slider-inline">
               ℓ (length scale): {gpEll.toFixed(2)}
@@ -400,6 +409,60 @@ export default function App() {
           </div>
         )}
 
+        {/* Particle-specific controls */}
+        {showParticles && (
+          <div className="display-sub">
+            <label className="slider-inline">
+              Spawn rate: {particleSpawnRate.toFixed(1)}
+              <input
+                type="range"
+                min="0.5"
+                max="20"
+                step="0.5"
+                value={particleSpawnRate}
+                onChange={(e) => setParticleSpawnRate(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Fade speed: {particleFadeSpeed.toFixed(4)}
+              <input
+                type="range"
+                min="0.001"
+                max="0.05"
+                step="0.001"
+                value={particleFadeSpeed}
+                onChange={(e) => setParticleFadeSpeed(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Tail length: {particleTailLength}
+              <input
+                type="range"
+                min="1"
+                max="40"
+                step="1"
+                value={particleTailLength}
+                onChange={(e) => setParticleTailLength(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Max particles: {particleMaxCount}
+              <input
+                type="range"
+                min="50"
+                max="2000"
+                step="50"
+                value={particleMaxCount}
+                onChange={(e) => setParticleMaxCount(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+          </div>
+        )}
+
         <div className="display-actions">
           <button className="btn-copy" onClick={copyToClipboard}>
             📋 Copy JSON
@@ -428,6 +491,11 @@ export default function App() {
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
           showWind={showWind}
+          showParticles={showParticles}
+          particleSpawnRate={particleSpawnRate}
+          particleFadeSpeed={particleFadeSpeed}
+          particleTailLength={particleTailLength}
+          particleMaxCount={particleMaxCount}
           showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}

@@ -10,6 +10,7 @@ import { generateLatticePoints } from '../math/groupGenerator.js';
 import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 import WindShaderCanvas from './WindShaderCanvas.jsx';
+import ParticleCanvas from './ParticleCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -183,7 +184,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showWind, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showWind, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements }) {
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
@@ -250,9 +251,9 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
   // ── Wind coefficients ────────────────────────────────────
   const windInitialCoeffs = useMemo(() => {
-    if (!showWind || !latticeVectors) return null;
+    if (!(showWind || showParticles) || !latticeVectors) return null;
     return drawWindCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-  }, [showWind, latticeVectors, gpSeed, gpEll, gpN]);
+  }, [showWind, showParticles, latticeVectors, gpSeed, gpEll, gpN]);
 
   const [windCoeffs, setWindCoeffs] = useState(null);
   const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
@@ -266,7 +267,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
   // Wind animation loop (SHO for the two GPs)
   useEffect(() => {
-    if (!showWind || !gpSpeed || gpSpeed <= 0) return;
+    if (!(showWind || showParticles) || !gpSpeed || gpSpeed <= 0) return;
 
     let animId;
     let lastTime = null;
@@ -285,7 +286,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [showWind, gpSpeed, gpDamping]);
+  }, [showWind, showParticles, gpSpeed, gpDamping]);
 
   // ── P3 equivariant coefficients (3 independent GPs) ───────
   const p3Active = showGP && gpEquivariant && cosetReps && cosetReps.length === 3;
@@ -433,16 +434,33 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
           />
         )}
 
+        {/* Particle advection canvas (behind SVG) */}
+        {showParticles && windCoeffs && cosetReps && latticeVectors && (
+          <ParticleCanvas
+            windCoeffs={windCoeffs}
+            cosetReps={cosetReps}
+            bounds={gpBounds}
+            latticeVectors={latticeVectors}
+            width={width}
+            height={height}
+            spawnRate={particleSpawnRate ?? 5}
+            fadeSpeed={particleFadeSpeed ?? 0.005}
+            tailLength={particleTailLength ?? 12}
+            maxParticles={particleMaxCount ?? 500}
+            resetTrigger={windResetCount}
+          />
+        )}
+
         {/* SVG overlay for group elements */}
         <svg
           width={width}
           height={height}
           style={{
-            position: (showGP || showWind) ? 'absolute' : 'relative',
+            position: (showGP || showWind || showParticles) ? 'absolute' : 'relative',
             top: 0,
             left: 0,
             border: '1px solid var(--color-svg-container-border, #ccc)',
-            background: (showGP || showWind) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
+            background: (showGP || showWind || showParticles) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
             borderRadius: '4px',
           }}
         >
