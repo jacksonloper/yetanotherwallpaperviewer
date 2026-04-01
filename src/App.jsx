@@ -437,7 +437,7 @@ export default function App() {
               />
             </label>
             <label className="slider-inline">
-              Tail length: {particleTailLength}
+              Trail persistence: {particleTailLength}
               <input
                 type="range"
                 min="1"
