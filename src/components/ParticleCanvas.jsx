@@ -263,7 +263,7 @@ function wrapToFundamentalDomain(px, py, v1, v2) {
  * @param {number}  props.height        Canvas height in pixels
  * @param {number}  props.spawnRate     Particles spawned per frame (0-20)
  * @param {number}  props.fadeSpeed     How fast particles die (life lost per frame)
- * @param {number}  props.tailLength    Controls accumulation decay (higher = longer trail)
+ * @param {number}  props.tailLength    Controls accumulation decay / trail persistence (higher = longer trail)
  * @param {number}  props.maxParticles  Maximum number of alive particles (50-2000)
  * @param {number}  [props.resetTrigger]  Increment to clear all particles + accumulation
  */
@@ -589,6 +589,8 @@ export default function ParticleCanvas({
             const tx = n1 * v1.x + n2 * v2.x;
             const ty = n1 * v1.y + n2 * v2.y;
             // Keep copies that could bring a fundamental-domain point into view
+            // Padding in math-coord units to ensure particles near the edge
+            // of the fundamental domain are visible when translated.
             const margin = 2;
             if (tx + margin < b.minX - 1 || tx - margin > b.maxX + 1) continue;
             if (ty + margin < b.minY - 1 || ty - margin > b.maxY + 1) continue;
