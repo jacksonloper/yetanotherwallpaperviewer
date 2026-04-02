@@ -612,12 +612,12 @@ export default function ParticleCanvas({
           for (let n2 = -maxN; n2 <= maxN; n2++) {
             const tx = n1 * v1.x + n2 * v2.x;
             const ty = n1 * v1.y + n2 * v2.y;
-            // Keep copies that could bring a fundamental-domain point into view
-            // Padding in math-coord units to ensure particles near the edge
-            // of the fundamental domain are visible when translated.
-            const margin = 2;
-            if (tx + margin < b.minX - 1 || tx - margin > b.maxX + 1) continue;
-            if (ty + margin < b.minY - 1 || ty - margin > b.maxY + 1) continue;
+            // Keep copies whose translated fundamental domain overlaps the viewport.
+            // The fundamental domain (parallelogram 0,v1,v2,v1+v2) has axis-aligned
+            // bounding box fdB; shifted by (tx,ty) it spans
+            //   [tx + fdB.minX, tx + fdB.maxX] × [ty + fdB.minY, ty + fdB.maxY].
+            if (tx + fdB.maxX < b.minX || tx + fdB.minX > b.maxX) continue;
+            if (ty + fdB.maxY < b.minY || ty + fdB.minY > b.maxY) continue;
             if (nc < MAX_COPIES) {
               oa[nc * 2 + 0] = tx;
               oa[nc * 2 + 1] = ty;
@@ -701,7 +701,7 @@ export default function ParticleCanvas({
   /* ── Update velocity-field uniforms when coefficients change ── */
   useEffect(() => {
     const m = velMatRef.current;
-    if (!m || !windCoeffs || !cosetReps || !bounds) return;
+    if (!m || !windCoeffs || !cosetReps) return;
 
     const { gp1, gp2 } = windCoeffs;
     const n = Math.max(gp1.modes.length, 1);
@@ -768,25 +768,28 @@ export default function ParticleCanvas({
       m.uniforms.u_cosetsTexWidth.value = cn;
     }
 
-    // Scalar uniforms
-    m.uniforms.u_boundsMin.value.set(bounds.minX, bounds.minY);
-    m.uniforms.u_boundsMax.value.set(bounds.maxX, bounds.maxY);
+    // Scalar uniforms (velocity bounds are set per-frame in the animation
+    // loop via fundamentalDomainBounds — NOT from viewport bounds here)
     m.uniforms.u_dc1.value = gp1.dc;
     m.uniforms.u_dc2.value = gp2.dc;
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
     m.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes);
+  }, [windCoeffs, cosetReps]);
 
-    // Clear accumulation when bounds change (e.g. zoom) — old trail
-    // pixels are at wrong positions under the new coordinate mapping.
+  /* ── Clear accumulation when viewport bounds change (e.g. zoom) ── */
+  // Old trail pixels are at wrong screen positions under the new coordinate
+  // mapping, so we must discard them.  Velocity-field bounds are unaffected
+  // (they always cover the fundamental domain).
+  useEffect(() => {
     const pb = prevBoundsRef.current;
-    if (pb && (pb.minX !== bounds.minX || pb.maxX !== bounds.maxX ||
+    if (pb && bounds && (pb.minX !== bounds.minX || pb.maxX !== bounds.maxX ||
                pb.minY !== bounds.minY || pb.maxY !== bounds.maxY)) {
       cpuStateRef.current.numAlive = 0;
       needsAccumClear.current = true;
     }
-    prevBoundsRef.current = { ...bounds };
-  }, [windCoeffs, cosetReps, bounds]);
+    if (bounds) prevBoundsRef.current = { ...bounds };
+  }, [bounds]);
 
   return (
     <canvas
