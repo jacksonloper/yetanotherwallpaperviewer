@@ -77,7 +77,12 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
-  const [showWind, setShowWind] = useState(false)
+  const [showParticles, setShowParticles] = useState(false)
+  const [particleSpawnRate, setParticleSpawnRate] = useState(7)
+  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.033)
+  const [particleTailLength, setParticleTailLength] = useState(12)
+  const [particleMaxCount, setParticleMaxCount] = useState(500)
+  const [particleDotSize, setParticleDotSize] = useState(2)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
@@ -85,6 +90,8 @@ export default function App() {
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
   const [gpEquivariant, setGpEquivariant] = useState(false)
+  const [viewZoom, setViewZoom] = useState(1.0)
+  const [canvasResolution, setCanvasResolution] = useState(1.0)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
@@ -163,12 +170,14 @@ export default function App() {
       const cosetReps = quotientToPhysical(cosets, vec)
 
       // Generate all visible elements from cosets + lattice translations
+      // Bounds expand when zoomed out (zoom < 1), shrink when zoomed in (zoom > 1)
       const latticeVectors = { v1: { x: 0, y: 1 }, v2: vec }
+      const effectiveScale = SCALE * viewZoom
       const bounds = {
-        minX: -SVG_WIDTH / (2 * SCALE) - 1,
-        maxX: SVG_WIDTH / (2 * SCALE) + 1,
-        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
-        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+        minX: -SVG_WIDTH / (2 * effectiveScale) - 1,
+        maxX: SVG_WIDTH / (2 * effectiveScale) + 1,
+        minY: -SVG_HEIGHT / (2 * effectiveScale) - 1,
+        maxY: SVG_HEIGHT / (2 * effectiveScale) + 1,
       }
       const elements = generateElements(cosets, vec, bounds)
 
@@ -176,7 +185,7 @@ export default function App() {
     } catch (err) {
       return { result: null, error: `Error: ${err.message}`, warning: rationalCosets.warning }
     }
-  }, [rationalCosets, latticeVec])
+  }, [rationalCosets, latticeVec, viewZoom])
 
   const { result, error, warning } = groupResult
 
@@ -194,8 +203,6 @@ export default function App() {
   const supergroupResult = useMemo(() => {
     if (!activeSupergroup) return null
     try {
-      // Get the extra generator(s) to ADD to the current group's generators.
-      // This ensures the supergroup is always a proper superset of the current group.
       const extra = getExtraGenerators(wallpaperType, variantIndex, activeSupergroup)
       if (!extra) return null
       const currentGens = standardGenerators(wallpaperType, variantIndex)?.generators ?? []
@@ -205,18 +212,19 @@ export default function App() {
 
       const cosetReps = quotientToPhysical(cosets, latticeVec)
       const latticeVectors = { v1: { x: 0, y: 1 }, v2: latticeVec }
+      const effectiveScale = SCALE * viewZoom
       const bounds = {
-        minX: -SVG_WIDTH / (2 * SCALE) - 1,
-        maxX: SVG_WIDTH / (2 * SCALE) + 1,
-        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
-        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+        minX: -SVG_WIDTH / (2 * effectiveScale) - 1,
+        maxX: SVG_WIDTH / (2 * effectiveScale) + 1,
+        minY: -SVG_HEIGHT / (2 * effectiveScale) - 1,
+        maxY: SVG_HEIGHT / (2 * effectiveScale) + 1,
       }
       const elements = generateElements(cosets, latticeVec, bounds)
       return { elements, latticeVectors, cosetReps }
     } catch {
       return null
     }
-  }, [activeSupergroup, wallpaperType, variantIndex, latticeVec])
+  }, [activeSupergroup, wallpaperType, variantIndex, latticeVec, viewZoom])
 
   // Use supergroup result for visualization when active, otherwise base group
   const displayResult = (activeSupergroup && supergroupResult) ? supergroupResult : result
@@ -290,12 +298,12 @@ export default function App() {
             Show F
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) setShowWind(false); }} />
+            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) { setShowParticles(false); } }} />
             Show GP
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showWind} onChange={(e) => { setShowWind(e.target.checked); if (e.target.checked) setShowGP(false); }} />
-            Show Wind
+            <input type="checkbox" checked={showParticles} onChange={(e) => { setShowParticles(e.target.checked); if (e.target.checked) { setShowGP(false); } }} />
+            Show Particles
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
@@ -333,8 +341,8 @@ export default function App() {
           </div>
         )}
 
-        {/* GP / Wind controls — revealed when Show GP or Show Wind is on */}
-        {(showGP || showWind) && (
+        {/* GP / Particle controls — revealed when Show GP or Show Particles is on */}
+        {(showGP || showParticles) && (
           <div className="display-sub">
             <label className="slider-inline">
               ℓ (length scale): {gpEll.toFixed(2)}
@@ -397,6 +405,96 @@ export default function App() {
                 Equivariant
               </label>
             )}
+            <label className="slider-inline">
+              Zoom: {viewZoom.toFixed(2)}×
+              <input
+                type="range"
+                min="0.25"
+                max="4"
+                step="0.25"
+                value={viewZoom}
+                onChange={(e) => setViewZoom(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Resolution: {canvasResolution.toFixed(1)}×
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.25"
+                value={canvasResolution}
+                onChange={(e) => setCanvasResolution(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+          </div>
+        )}
+
+        {/* Particle-specific controls */}
+        {showParticles && (
+          <div className="display-sub">
+            <label className="slider-inline">
+              Spawn rate: {particleSpawnRate.toFixed(1)}
+              <input
+                type="range"
+                min="0.5"
+                max="20"
+                step="0.5"
+                value={particleSpawnRate}
+                onChange={(e) => setParticleSpawnRate(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Fade speed: {particleFadeSpeed.toFixed(4)}
+              <input
+                type="range"
+                min="0.001"
+                max="0.05"
+                step="0.001"
+                value={particleFadeSpeed}
+                onChange={(e) => setParticleFadeSpeed(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Trail persistence: {particleTailLength}
+              <input
+                type="range"
+                min="1"
+                max="40"
+                step="1"
+                value={particleTailLength}
+                onChange={(e) => setParticleTailLength(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Max particles: {particleMaxCount}
+              <input
+                type="range"
+                min="50"
+                max="2000"
+                step="50"
+                value={particleMaxCount}
+                onChange={(e) => setParticleMaxCount(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Dot size: {particleDotSize}
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={particleDotSize}
+                onChange={(e) => setParticleDotSize(parseInt(e.target.value, 10))}
+                className="gen-slider"
+              />
+            </label>
           </div>
         )}
 
@@ -427,7 +525,12 @@ export default function App() {
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
-          showWind={showWind}
+          showParticles={showParticles}
+          particleSpawnRate={particleSpawnRate}
+          particleFadeSpeed={particleFadeSpeed}
+          particleTailLength={particleTailLength}
+          particleMaxCount={particleMaxCount}
+          particleDotSize={particleDotSize}
           showGroupElements={showGroupElements}
           gpSeed={gpSeed}
           gpEll={gpEll}
@@ -435,6 +538,8 @@ export default function App() {
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
           gpEquivariant={gpEquivariant}
+          viewZoom={viewZoom}
+          canvasResolution={canvasResolution}
         />
       )}
 

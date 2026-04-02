@@ -9,7 +9,7 @@ import {
 import { generateLatticePoints } from '../math/groupGenerator.js';
 import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
-import WindShaderCanvas from './WindShaderCanvas.jsx';
+import ParticleCanvas from './ParticleCanvas.jsx';
 
 export const SCALE = 80; // pixels per unit
 export const SVG_WIDTH = 700;
@@ -19,15 +19,15 @@ export const SVG_HEIGHT = 500;
  * Convert math coordinates to SVG coordinates.
  * SVG y-axis is flipped relative to math convention.
  */
-function toSvg(x, y, cx, cy) {
-  return { x: cx + x * SCALE, y: cy - y * SCALE };
+function toSvg(x, y, cx, cy, scale = SCALE) {
+  return { x: cx + x * scale, y: cy - y * scale };
 }
 
 /**
  * Draw a rotation marker (diamond=2, triangle=3, square=4, hexagon=6).
  */
-function RotationMarker({ cx, cy, order, svgCx, svgCy }) {
-  const pos = toSvg(cx, cy, svgCx, svgCy);
+function RotationMarker({ cx, cy, order, svgCx, svgCy, scale }) {
+  const pos = toSvg(cx, cy, svgCx, svgCy, scale);
   const r = 6;
   const n = order || 4;
 
@@ -75,19 +75,21 @@ function RotationMarker({ cx, cy, order, svgCx, svgCy }) {
 /**
  * Draw a reflection line (solid).
  */
-function ReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
+function ReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth, scale }) {
   const len = viewWidth;
   const p1 = toSvg(
     px - len * Math.cos(angle),
     py - len * Math.sin(angle),
     svgCx,
-    svgCy
+    svgCy,
+    scale
   );
   const p2 = toSvg(
     px + len * Math.cos(angle),
     py + len * Math.sin(angle),
     svgCx,
-    svgCy
+    svgCy,
+    scale
   );
   return (
     <line
@@ -138,12 +140,12 @@ const F_OUTLINE = (() => {
 /**
  * Draw one F shape transformed by an isometry.
  */
-function FShape({ isometry, svgCx, svgCy, fOffset }) {
+function FShape({ isometry, svgCx, svgCy, fOffset, scale }) {
   const ox = fOffset?.x || 0;
   const oy = fOffset?.y || 0;
   const pts = F_OUTLINE.map(([x, y]) => {
     const p = applyToPoint(isometry, x + ox, y + oy);
-    return toSvg(p.x, p.y, svgCx, svgCy);
+    return toSvg(p.x, p.y, svgCx, svgCy, scale);
   });
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
   return <path d={d} fill="var(--color-fundamental-domain, #2c3e50)" fillOpacity="0.35" stroke="var(--color-fundamental-domain, #2c3e50)" strokeWidth="0.5" />;
@@ -152,19 +154,21 @@ function FShape({ isometry, svgCx, svgCy, fOffset }) {
 /**
  * Draw a glide reflection line (dotted).
  */
-function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
+function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth, scale }) {
   const len = viewWidth;
   const p1 = toSvg(
     px - len * Math.cos(angle),
     py - len * Math.sin(angle),
     svgCx,
-    svgCy
+    svgCy,
+    scale
   );
   const p2 = toSvg(
     px + len * Math.cos(angle),
     py + len * Math.sin(angle),
     svgCx,
-    svgCy
+    svgCy,
+    scale
   );
   return (
     <line
@@ -183,32 +187,40 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth }) {
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showWind, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, particleDotSize, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements, viewZoom, canvasResolution }) {
+  const zoom = viewZoom || 1.0;
+  const resolution = canvasResolution || 1.0;
+  const effectiveScale = SCALE * zoom;
+
   const width = SVG_WIDTH;
   const height = SVG_HEIGHT;
   const svgCx = width / 2;
   const svgCy = height / 2;
-  const viewWidth = width / SCALE;
+  const viewWidth = width / effectiveScale;
+
+  // Render resolution for canvas (may differ from display size)
+  const renderWidth = Math.round(width * resolution);
+  const renderHeight = Math.round(height * resolution);
 
   const bounds = useMemo(
     () => ({
       minX: -viewWidth / 2 - 1,
       maxX: viewWidth / 2 + 1,
-      minY: -height / (2 * SCALE) - 1,
-      maxY: height / (2 * SCALE) + 1,
+      minY: -height / (2 * effectiveScale) - 1,
+      maxY: height / (2 * effectiveScale) + 1,
     }),
-    [viewWidth, height]
+    [viewWidth, height, effectiveScale]
   );
 
-  // Visible bounds for GP / wind rendering (exact viewport, no margin)
+  // Visible bounds for GP / particle rendering (exact viewport, no margin)
   const gpBounds = useMemo(
     () => ({
       minX: -viewWidth / 2,
       maxX: viewWidth / 2,
-      minY: -height / (2 * SCALE),
-      maxY: height / (2 * SCALE),
+      minY: -height / (2 * effectiveScale),
+      maxY: height / (2 * effectiveScale),
     }),
-    [viewWidth, height]
+    [viewWidth, height, effectiveScale]
   );
 
   // GP coefficients: initialize from seed, then evolve via SHO
@@ -248,11 +260,11 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     return () => cancelAnimationFrame(animId);
   }, [gpSpeed, gpDamping]);
 
-  // ── Wind coefficients ────────────────────────────────────
+  // ── Wind coefficients (for particle advection) ────────────
   const windInitialCoeffs = useMemo(() => {
-    if (!showWind || !latticeVectors) return null;
+    if (!showParticles || !latticeVectors) return null;
     return drawWindCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-  }, [showWind, latticeVectors, gpSeed, gpEll, gpN]);
+  }, [showParticles, latticeVectors, gpSeed, gpEll, gpN]);
 
   const [windCoeffs, setWindCoeffs] = useState(null);
   const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
@@ -266,7 +278,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
   // Wind animation loop (SHO for the two GPs)
   useEffect(() => {
-    if (!showWind || !gpSpeed || gpSpeed <= 0) return;
+    if (!showParticles || !gpSpeed || gpSpeed <= 0) return;
 
     let animId;
     let lastTime = null;
@@ -285,7 +297,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [showWind, gpSpeed, gpDamping]);
+  }, [showParticles, gpSpeed, gpDamping]);
 
   // ── P3 equivariant coefficients (3 independent GPs) ───────
   const p3Active = showGP && gpEquivariant && cosetReps && cosetReps.length === 3;
@@ -407,7 +419,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
         Rot: {counts.rotation} | Refl: {counts.reflection} |{' '}
         Glide: {counts['glide-reflection']} | Trans: {counts.translation}
       </div>
-      <div style={{ position: 'relative', width, height }}>
+      <div style={{ position: 'relative', width, height, border: '1px solid var(--color-svg-container-border, #ccc)', borderRadius: '4px', overflow: 'hidden' }}>
         {/* Three.js GP canvas (behind SVG) */}
         {showGP && gpCoeffs && cosetReps && (
           <GPShaderCanvas
@@ -415,20 +427,30 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             p3Coeffs={p3Active ? p3Coeffs : null}
             cosetReps={cosetReps}
             bounds={gpBounds}
-            width={width}
-            height={height}
+            width={renderWidth}
+            height={renderHeight}
+            displayWidth={width}
+            displayHeight={height}
             equivariant={gpEquivariant}
           />
         )}
 
-        {/* Three.js wind-map canvas (behind SVG) */}
-        {showWind && windCoeffs && cosetReps && (
-          <WindShaderCanvas
+        {/* Particle advection canvas (behind SVG) */}
+        {showParticles && windCoeffs && cosetReps && latticeVectors && (
+          <ParticleCanvas
             windCoeffs={windCoeffs}
             cosetReps={cosetReps}
             bounds={gpBounds}
-            width={width}
-            height={height}
+            latticeVectors={latticeVectors}
+            width={renderWidth}
+            height={renderHeight}
+            displayWidth={width}
+            displayHeight={height}
+            spawnRate={particleSpawnRate ?? 7}
+            fadeSpeed={particleFadeSpeed ?? 0.033}
+            tailLength={particleTailLength ?? 12}
+            maxParticles={particleMaxCount ?? 500}
+            dotSize={particleDotSize ?? 2}
             resetTrigger={windResetCount}
           />
         )}
@@ -438,17 +460,15 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
           width={width}
           height={height}
           style={{
-            position: (showGP || showWind) ? 'absolute' : 'relative',
+            position: (showGP || showParticles) ? 'absolute' : 'relative',
             top: 0,
             left: 0,
-            border: '1px solid var(--color-svg-container-border, #ccc)',
-            background: (showGP || showWind) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
-            borderRadius: '4px',
+            background: (showGP || showParticles) ? 'transparent' : 'var(--color-svg-container-bg, #fafafa)',
           }}
         >
           {/* Lattice dots */}
           {showGroupElements !== false && latticePoints.map((p, i) => {
-            const sp = toSvg(p.x, p.y, svgCx, svgCy);
+            const sp = toSvg(p.x, p.y, svgCx, svgCy, effectiveScale);
             return (
               <circle
                 key={`lp-${i}`}
@@ -463,7 +483,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
           {/* F shapes (one per group element) */}
           {showF && elements && elements.map((el, i) => (
-            <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} fOffset={fOffset} />
+            <FShape key={`f-${i}`} isometry={el} svgCx={svgCx} svgCy={svgCy} fOffset={fOffset} scale={effectiveScale} />
           ))}
 
           {/* Reflection lines (solid) */}
@@ -476,6 +496,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
               svgCx={svgCx}
               svgCy={svgCy}
               viewWidth={viewWidth}
+              scale={effectiveScale}
             />
           ))}
 
@@ -489,6 +510,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
               svgCx={svgCx}
               svgCy={svgCy}
               viewWidth={viewWidth}
+              scale={effectiveScale}
             />
           ))}
 
@@ -501,6 +523,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
               order={r.order}
               svgCx={svgCx}
               svgCy={svgCy}
+              scale={effectiveScale}
             />
           ))}
 

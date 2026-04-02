@@ -253,7 +253,7 @@ function computeNormScale(modes) {
  * @param {number}  props.height      Canvas height in pixels
  * @param {boolean} [props.equivariant=false]  If true and |cosetReps|=2, use f−f∘g.
  */
-export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, width, height, equivariant }) {
+export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, width, height, displayWidth, displayHeight, equivariant }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
@@ -472,7 +472,7 @@ export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, 
       ref={canvasRef}
       width={width}
       height={height}
-      style={{ display: 'block' }}
+      style={{ display: 'block', width: (displayWidth || width) + 'px', height: (displayHeight || height) + 'px' }}
     />
   );
 }
