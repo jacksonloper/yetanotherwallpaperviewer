@@ -193,6 +193,17 @@ void main() {
 
 /* ───────────────────── Helpers (shared with Wind) ───────────────────── */
 
+/** Bounding box of the fundamental domain parallelogram (corners 0, v1, v2, v1+v2). */
+function fundamentalDomainBounds(v1, v2) {
+  const margin = 0.01;
+  return {
+    minX: Math.min(0, v1.x, v2.x, v1.x + v2.x) - margin,
+    maxX: Math.max(0, v1.x, v2.x, v1.x + v2.x) + margin,
+    minY: Math.min(0, v1.y, v2.y, v1.y + v2.y) - margin,
+    maxY: Math.max(0, v1.y, v2.y, v1.y + v2.y) + margin,
+  };
+}
+
 function buildModesTexture(modes) {
   const n = Math.max(modes.length, 1);
   const data = new Float32Array(n * 4);
@@ -498,6 +509,11 @@ export default function ParticleCanvas({
       }
 
       // ── 1. Compute velocity field on GPU ─────────────────
+      // Velocity grid must cover the fundamental domain (not just the viewport)
+      // so particles anywhere in [0,1)×[0,1) lattice coords get correct velocity.
+      const fdB = fundamentalDomainBounds(v1, v2);
+      velMatRef.current.uniforms.u_boundsMin.value.set(fdB.minX, fdB.minY);
+      velMatRef.current.uniforms.u_boundsMax.value.set(fdB.maxX, fdB.maxY);
       r.setRenderTarget(velRTRef.current);
       r.clear();
       r.render(velSceneRef.current, camera);
@@ -526,9 +542,9 @@ export default function ParticleCanvas({
       const dt = 0.016;
       let alive = state.numAlive;
       for (let i = alive - 1; i >= 0; i--) {
-        // Bilinear velocity sample from coarse grid
-        const u = (state.posX[i] - b.minX) / (b.maxX - b.minX) * GRID_RES;
-        const v = (state.posY[i] - b.minY) / (b.maxY - b.minY) * GRID_RES;
+        // Bilinear velocity sample from coarse grid (using fundamental domain bounds)
+        const u = (state.posX[i] - fdB.minX) / (fdB.maxX - fdB.minX) * GRID_RES;
+        const v = (state.posY[i] - fdB.minY) / (fdB.maxY - fdB.minY) * GRID_RES;
         const gi = Math.max(0, Math.min(GRID_RES - 2, Math.floor(u)));
         const gj = Math.max(0, Math.min(GRID_RES - 2, Math.floor(v)));
         const fu = u - gi;
