@@ -90,6 +90,8 @@ export default function App() {
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
   const [gpEquivariant, setGpEquivariant] = useState(false)
+  const [viewZoom, setViewZoom] = useState(1.0)
+  const [canvasResolution, setCanvasResolution] = useState(1.0)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
@@ -168,12 +170,14 @@ export default function App() {
       const cosetReps = quotientToPhysical(cosets, vec)
 
       // Generate all visible elements from cosets + lattice translations
+      // Bounds expand when zoomed out (zoom < 1), shrink when zoomed in (zoom > 1)
       const latticeVectors = { v1: { x: 0, y: 1 }, v2: vec }
+      const effectiveScale = SCALE * viewZoom
       const bounds = {
-        minX: -SVG_WIDTH / (2 * SCALE) - 1,
-        maxX: SVG_WIDTH / (2 * SCALE) + 1,
-        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
-        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+        minX: -SVG_WIDTH / (2 * effectiveScale) - 1,
+        maxX: SVG_WIDTH / (2 * effectiveScale) + 1,
+        minY: -SVG_HEIGHT / (2 * effectiveScale) - 1,
+        maxY: SVG_HEIGHT / (2 * effectiveScale) + 1,
       }
       const elements = generateElements(cosets, vec, bounds)
 
@@ -181,7 +185,7 @@ export default function App() {
     } catch (err) {
       return { result: null, error: `Error: ${err.message}`, warning: rationalCosets.warning }
     }
-  }, [rationalCosets, latticeVec])
+  }, [rationalCosets, latticeVec, viewZoom])
 
   const { result, error, warning } = groupResult
 
@@ -199,8 +203,6 @@ export default function App() {
   const supergroupResult = useMemo(() => {
     if (!activeSupergroup) return null
     try {
-      // Get the extra generator(s) to ADD to the current group's generators.
-      // This ensures the supergroup is always a proper superset of the current group.
       const extra = getExtraGenerators(wallpaperType, variantIndex, activeSupergroup)
       if (!extra) return null
       const currentGens = standardGenerators(wallpaperType, variantIndex)?.generators ?? []
@@ -210,18 +212,19 @@ export default function App() {
 
       const cosetReps = quotientToPhysical(cosets, latticeVec)
       const latticeVectors = { v1: { x: 0, y: 1 }, v2: latticeVec }
+      const effectiveScale = SCALE * viewZoom
       const bounds = {
-        minX: -SVG_WIDTH / (2 * SCALE) - 1,
-        maxX: SVG_WIDTH / (2 * SCALE) + 1,
-        minY: -SVG_HEIGHT / (2 * SCALE) - 1,
-        maxY: SVG_HEIGHT / (2 * SCALE) + 1,
+        minX: -SVG_WIDTH / (2 * effectiveScale) - 1,
+        maxX: SVG_WIDTH / (2 * effectiveScale) + 1,
+        minY: -SVG_HEIGHT / (2 * effectiveScale) - 1,
+        maxY: SVG_HEIGHT / (2 * effectiveScale) + 1,
       }
       const elements = generateElements(cosets, latticeVec, bounds)
       return { elements, latticeVectors, cosetReps }
     } catch {
       return null
     }
-  }, [activeSupergroup, wallpaperType, variantIndex, latticeVec])
+  }, [activeSupergroup, wallpaperType, variantIndex, latticeVec, viewZoom])
 
   // Use supergroup result for visualization when active, otherwise base group
   const displayResult = (activeSupergroup && supergroupResult) ? supergroupResult : result
@@ -402,6 +405,30 @@ export default function App() {
                 Equivariant
               </label>
             )}
+            <label className="slider-inline">
+              Zoom: {viewZoom.toFixed(2)}×
+              <input
+                type="range"
+                min="0.25"
+                max="4"
+                step="0.25"
+                value={viewZoom}
+                onChange={(e) => setViewZoom(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
+            <label className="slider-inline">
+              Resolution: {canvasResolution.toFixed(1)}×
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.25"
+                value={canvasResolution}
+                onChange={(e) => setCanvasResolution(parseFloat(e.target.value))}
+                className="gen-slider"
+              />
+            </label>
           </div>
         )}
 
@@ -511,6 +538,8 @@ export default function App() {
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
           gpEquivariant={gpEquivariant}
+          viewZoom={viewZoom}
+          canvasResolution={canvasResolution}
         />
       )}
 

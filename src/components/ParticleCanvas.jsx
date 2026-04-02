@@ -259,18 +259,21 @@ function wrapToFundamentalDomain(px, py, v1, v2) {
  * @param {Array}   props.cosetReps     Physical isometry coset reps [{a,b,c,d,tx,ty}]
  * @param {{minX,maxX,minY,maxY}} props.bounds  Viewport bounds in math coords
  * @param {{v1:{x,y}, v2:{x,y}}} props.latticeVectors  Translation lattice basis
- * @param {number}  props.width         Canvas width in pixels
- * @param {number}  props.height        Canvas height in pixels
+ * @param {number}  props.width         Canvas render width in pixels
+ * @param {number}  props.height        Canvas render height in pixels
+ * @param {number}  [props.displayWidth]  CSS display width (defaults to width)
+ * @param {number}  [props.displayHeight] CSS display height (defaults to height)
  * @param {number}  props.spawnRate     Particles spawned per frame (0-20)
  * @param {number}  props.fadeSpeed     How fast particles die (life lost per frame)
  * @param {number}  props.tailLength    Controls accumulation decay / trail persistence (higher = longer trail)
  * @param {number}  props.maxParticles  Maximum number of alive particles (50-2000)
- * @param {number}  [props.dotSize]     Point sprite size in pixels (1-20, default 6)
+ * @param {number}  [props.dotSize]     Point sprite size in pixels (1-10, default 2)
  * @param {number}  [props.resetTrigger]  Increment to clear all particles + accumulation
  */
 export default function ParticleCanvas({
   windCoeffs, cosetReps, bounds, latticeVectors,
-  width, height, spawnRate, fadeSpeed, tailLength, maxParticles,
+  width, height, displayWidth, displayHeight,
+  spawnRate, fadeSpeed, tailLength, maxParticles,
   dotSize, resetTrigger,
 }) {
   const canvasRef       = useRef(null);
@@ -762,7 +765,7 @@ export default function ParticleCanvas({
       ref={canvasRef}
       width={width}
       height={height}
-      style={{ display: 'block' }}
+      style={{ display: 'block', width: (displayWidth || width) + 'px', height: (displayHeight || height) + 'px' }}
     />
   );
 }
