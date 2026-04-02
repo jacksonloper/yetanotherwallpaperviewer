@@ -114,7 +114,14 @@ varying vec2 vUv;
 
 void main() {
   float prev = texture2D(u_prev, vUv).r;
-  gl_FragColor = vec4(vec3(prev * u_decay), 1.0);
+  float v = prev * u_decay;
+  // Snap near-zero values to true black.
+  // With 8-bit accumulation buffers, the minimum non-zero value (1/255)
+  // multiplied by typical decay factors rounds back to 1/255, never
+  // reaching zero. The gamma boost in the display pass then amplifies
+  // this residual to a visible gray. This threshold breaks the cycle.
+  if (v < 0.006) v = 0.0;
+  gl_FragColor = vec4(vec3(v), 1.0);
 }
 `;
 
@@ -754,10 +761,6 @@ export default function ParticleCanvas({
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
     m.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes);
-
-    // Clear particles + accumulation on coefficient change
-    cpuStateRef.current.numAlive = 0;
-    needsAccumClear.current = true;
   }, [windCoeffs, cosetReps, bounds]);
 
   return (
