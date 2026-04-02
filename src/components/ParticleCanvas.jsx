@@ -114,14 +114,7 @@ varying vec2 vUv;
 
 void main() {
   float prev = texture2D(u_prev, vUv).r;
-  float v = prev * u_decay;
-  // Snap near-zero values to true black.
-  // With 8-bit accumulation buffers, the minimum non-zero value (1/255)
-  // multiplied by typical decay factors rounds back to 1/255, never
-  // reaching zero. The gamma boost in the display pass then amplifies
-  // this residual to a visible gray. This threshold breaks the cycle.
-  if (v < 0.006) v = 0.0;
-  gl_FragColor = vec4(vec3(v), 1.0);
+  gl_FragColor = vec4(vec3(prev * u_decay), 1.0);
 }
 `;
 
@@ -328,6 +321,7 @@ export default function ParticleCanvas({
   const resetRef        = useRef(resetTrigger);
   const prevResetRef    = useRef(resetTrigger);
   const needsAccumClear = useRef(true);
+  const prevBoundsRef   = useRef(null);
 
   // Keep latest props accessible from animation loop closure
   useEffect(() => {
@@ -392,9 +386,12 @@ export default function ParticleCanvas({
     velGridRef.current = new Float32Array(GRID_RES * GRID_RES * 2);
 
     // --- Accumulation render targets (ping-pong) ---
+    // HalfFloatType avoids 8-bit quantization that makes multiplicative
+    // decay get stuck at 1/255 (which the gamma boost amplifies to
+    // visible gray).  16-bit float decays cleanly to true zero.
     const mkAccumRT = () => new THREE.WebGLRenderTarget(width, height, {
       minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
-      format: THREE.RGBAFormat, type: THREE.UnsignedByteType,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType,
     });
     accumRTRef.current = [mkAccumRT(), mkAccumRT()];
 
@@ -680,6 +677,8 @@ export default function ParticleCanvas({
     if (art[0] && art[1]) {
       art[0].setSize(width, height);
       art[1].setSize(width, height);
+      // Resizing discards old content; clear to avoid garbage
+      needsAccumClear.current = true;
     }
   }, [width, height]);
 
@@ -761,6 +760,16 @@ export default function ParticleCanvas({
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
     m.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes);
+
+    // Clear accumulation when bounds change (e.g. zoom) — old trail
+    // pixels are at wrong positions under the new coordinate mapping.
+    const pb = prevBoundsRef.current;
+    if (pb && (pb.minX !== bounds.minX || pb.maxX !== bounds.maxX ||
+               pb.minY !== bounds.minY || pb.maxY !== bounds.maxY)) {
+      cpuStateRef.current.numAlive = 0;
+      needsAccumClear.current = true;
+    }
+    prevBoundsRef.current = { ...bounds };
   }, [windCoeffs, cosetReps, bounds]);
 
   return (
