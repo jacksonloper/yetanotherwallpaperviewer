@@ -78,10 +78,10 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
-  const [particleSpawnRate, setParticleSpawnRate] = useState(7)
-  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.033)
-  const [particleTailLength, setParticleTailLength] = useState(12)
-  const [particleMaxCount, setParticleMaxCount] = useState(500)
+  const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
+  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
+  const [particleTailLength, setParticleTailLength] = useState(40)
+  const [particleMaxCount, setParticleMaxCount] = useState(1350)
   const [particleDotSize, setParticleDotSize] = useState(2)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
@@ -90,8 +90,8 @@ export default function App() {
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
   const [gpEquivariant, setGpEquivariant] = useState(false)
-  const [viewZoom, setViewZoom] = useState(1.0)
-  const [canvasResolution, setCanvasResolution] = useState(1.0)
+  const [viewZoom, setViewZoom] = useState(2.25)
+  const [canvasResolution, setCanvasResolution] = useState(1.5)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
@@ -409,7 +409,7 @@ export default function App() {
               Zoom: {viewZoom.toFixed(2)}×
               <input
                 type="range"
-                min="0.25"
+                min="0.5"
                 max="4"
                 step="0.25"
                 value={viewZoom}
@@ -422,7 +422,7 @@ export default function App() {
               <input
                 type="range"
                 min="0.5"
-                max="2"
+                max="2.5"
                 step="0.25"
                 value={canvasResolution}
                 onChange={(e) => setCanvasResolution(parseFloat(e.target.value))}
@@ -439,8 +439,8 @@ export default function App() {
               Spawn rate: {particleSpawnRate.toFixed(1)}
               <input
                 type="range"
-                min="0.5"
-                max="20"
+                min="1"
+                max="16"
                 step="0.5"
                 value={particleSpawnRate}
                 onChange={(e) => setParticleSpawnRate(parseFloat(e.target.value))}
@@ -452,7 +452,7 @@ export default function App() {
               <input
                 type="range"
                 min="0.001"
-                max="0.05"
+                max="0.030"
                 step="0.001"
                 value={particleFadeSpeed}
                 onChange={(e) => setParticleFadeSpeed(parseFloat(e.target.value))}
@@ -464,7 +464,7 @@ export default function App() {
               <input
                 type="range"
                 min="1"
-                max="40"
+                max="80"
                 step="1"
                 value={particleTailLength}
                 onChange={(e) => setParticleTailLength(parseInt(e.target.value, 10))}
@@ -475,8 +475,8 @@ export default function App() {
               Max particles: {particleMaxCount}
               <input
                 type="range"
-                min="50"
-                max="2000"
+                min="100"
+                max="2600"
                 step="50"
                 value={particleMaxCount}
                 onChange={(e) => setParticleMaxCount(parseInt(e.target.value, 10))}
@@ -488,10 +488,10 @@ export default function App() {
               <input
                 type="range"
                 min="1"
-                max="10"
-                step="1"
+                max="4"
+                step="0.5"
                 value={particleDotSize}
-                onChange={(e) => setParticleDotSize(parseInt(e.target.value, 10))}
+                onChange={(e) => setParticleDotSize(parseFloat(e.target.value))}
                 className="gen-slider"
               />
             </label>

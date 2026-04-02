@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   classify,
   rotationInfo,
@@ -270,10 +270,21 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
   const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
   const [windResetCount, setWindResetCount] = useState(0);
 
+  // Track lattice identity to only reset particles when the lattice itself changes
+  const prevLatticeRef = useRef(latticeVectors);
+  const prevShowParticlesRef = useRef(showParticles);
+
   if (windInitialCoeffs !== prevWindInitialCoeffs) {
     setPrevWindInitialCoeffs(windInitialCoeffs);
     setWindCoeffs(windInitialCoeffs);
-    setWindResetCount((c) => c + 1);
+    // Only reset particles+trails when the lattice changes or particles toggled
+    const latticeChanged = latticeVectors !== prevLatticeRef.current;
+    const showChanged = showParticles !== prevShowParticlesRef.current;
+    if (latticeChanged || showChanged) {
+      setWindResetCount((c) => c + 1);
+    }
+    prevLatticeRef.current = latticeVectors;
+    prevShowParticlesRef.current = showParticles;
   }
 
   // Wind animation loop (SHO for the two GPs)
@@ -446,10 +457,10 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             height={renderHeight}
             displayWidth={width}
             displayHeight={height}
-            spawnRate={particleSpawnRate ?? 7}
-            fadeSpeed={particleFadeSpeed ?? 0.033}
-            tailLength={particleTailLength ?? 12}
-            maxParticles={particleMaxCount ?? 500}
+            spawnRate={particleSpawnRate ?? 8.5}
+            fadeSpeed={particleFadeSpeed ?? 0.015}
+            tailLength={particleTailLength ?? 40}
+            maxParticles={particleMaxCount ?? 1350}
             dotSize={particleDotSize ?? 2}
             resetTrigger={windResetCount}
           />
