@@ -77,13 +77,12 @@ export default function App() {
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
-  const [showWind, setShowWind] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
-  const [particleSpawnRate, setParticleSpawnRate] = useState(5)
-  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.005)
+  const [particleSpawnRate, setParticleSpawnRate] = useState(7)
+  const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.033)
   const [particleTailLength, setParticleTailLength] = useState(12)
   const [particleMaxCount, setParticleMaxCount] = useState(500)
-  const [particleDotSize, setParticleDotSize] = useState(6)
+  const [particleDotSize, setParticleDotSize] = useState(2)
   const [showGroupElements, setShowGroupElements] = useState(true)
   const [gpSeed, setGpSeed] = useState(1)
   const [gpEll, setGpEll] = useState(0.1)
@@ -296,15 +295,11 @@ export default function App() {
             Show F
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) { setShowWind(false); setShowParticles(false); } }} />
+            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) { setShowParticles(false); } }} />
             Show GP
           </label>
           <label className="toggle-label">
-            <input type="checkbox" checked={showWind} onChange={(e) => { setShowWind(e.target.checked); if (e.target.checked) { setShowGP(false); setShowParticles(false); } }} />
-            Show Wind
-          </label>
-          <label className="toggle-label">
-            <input type="checkbox" checked={showParticles} onChange={(e) => { setShowParticles(e.target.checked); if (e.target.checked) { setShowGP(false); setShowWind(false); } }} />
+            <input type="checkbox" checked={showParticles} onChange={(e) => { setShowParticles(e.target.checked); if (e.target.checked) { setShowGP(false); } }} />
             Show Particles
           </label>
           <label className="toggle-label">
@@ -343,8 +338,8 @@ export default function App() {
           </div>
         )}
 
-        {/* GP / Wind / Particle controls — revealed when Show GP, Show Wind, or Show Particles is on */}
-        {(showGP || showWind || showParticles) && (
+        {/* GP / Particle controls — revealed when Show GP or Show Particles is on */}
+        {(showGP || showParticles) && (
           <div className="display-sub">
             <label className="slider-inline">
               ℓ (length scale): {gpEll.toFixed(2)}
@@ -466,7 +461,7 @@ export default function App() {
               <input
                 type="range"
                 min="1"
-                max="20"
+                max="10"
                 step="1"
                 value={particleDotSize}
                 onChange={(e) => setParticleDotSize(parseInt(e.target.value, 10))}
@@ -503,7 +498,6 @@ export default function App() {
           showF={showF}
           fOffset={{ x: fOffsetX, y: fOffsetY }}
           showGP={showGP}
-          showWind={showWind}
           showParticles={showParticles}
           particleSpawnRate={particleSpawnRate}
           particleFadeSpeed={particleFadeSpeed}

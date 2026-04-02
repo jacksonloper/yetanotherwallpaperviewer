@@ -184,8 +184,8 @@ void main() {
   float d = texture2D(u_accum, vUv).r;
   // Gamma boost makes dim trails more visible
   d = pow(clamp(d, 0.0, 1.0), 0.45);
-  // Dark navy → bright cool white
-  vec3 bg    = vec3(0.02, 0.05, 0.12);
+  // Black → bright cool white
+  vec3 bg    = vec3(0.0);
   vec3 bright = vec3(0.85, 0.95, 1.0);
   gl_FragColor = vec4(mix(bg, bright, d), 1.0);
 }
