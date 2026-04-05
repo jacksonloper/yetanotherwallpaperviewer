@@ -7,7 +7,7 @@ import {
   applyToPoint,
 } from '../math/isometry.js';
 import { generateLatticePoints } from '../math/groupGenerator.js';
-import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
+import { drawGPCoefficients, shoStepGPCoefficients, drawWindCoefficients, shoStepWindCoefficients, drawCurlCoefficients, shoStepCurlCoefficients, drawP3Coefficients, shoStepP3Coefficients } from '../math/gaussianProcess.js';
 import GPShaderCanvas from './GPShaderCanvas.jsx';
 import ParticleCanvas from './ParticleCanvas.jsx';
 
@@ -187,7 +187,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth, scale }) 
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, particleDotSize, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements, viewZoom, canvasResolution }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, particleDotSize, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements, viewZoom, canvasResolution, curlMode }) {
   const zoom = viewZoom || 1.0;
   const resolution = canvasResolution || 1.0;
   const effectiveScale = SCALE * zoom;
@@ -263,8 +263,11 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
   // ── Wind coefficients (for particle advection) ────────────
   const windInitialCoeffs = useMemo(() => {
     if (!showParticles || !latticeVectors) return null;
+    if (curlMode > 0) {
+      return drawCurlCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
+    }
     return drawWindCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-  }, [showParticles, latticeVectors, gpSeed, gpEll, gpN]);
+  }, [showParticles, latticeVectors, gpSeed, gpEll, gpN, curlMode]);
 
   const [windCoeffs, setWindCoeffs] = useState(null);
   const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
@@ -287,19 +290,20 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     prevShowParticlesRef.current = showParticles;
   }
 
-  // Wind animation loop (SHO for the two GPs)
+  // Wind animation loop (SHO for the GPs)
   useEffect(() => {
     if (!showParticles || !gpSpeed || gpSpeed <= 0) return;
 
     let animId;
     let lastTime = null;
     const damping = gpDamping;
+    const stepFn = curlMode > 0 ? shoStepCurlCoefficients : shoStepWindCoefficients;
 
     const animate = (timestamp) => {
       if (lastTime !== null) {
         const dt = (timestamp - lastTime) / 1000;
         setWindCoeffs((prev) =>
-          prev ? shoStepWindCoefficients(prev, dt, gpSpeed, damping) : prev
+          prev ? stepFn(prev, dt, gpSpeed, damping) : prev
         );
       }
       lastTime = timestamp;
@@ -308,7 +312,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [showParticles, gpSpeed, gpDamping]);
+  }, [showParticles, gpSpeed, gpDamping, curlMode]);
 
   // ── P3 equivariant coefficients (3 independent GPs) ───────
   const p3Active = showGP && gpEquivariant && cosetReps && cosetReps.length === 3;
@@ -463,6 +467,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             maxParticles={particleMaxCount ?? 1350}
             dotSize={particleDotSize ?? 2}
             resetTrigger={windResetCount}
+            curlMode={curlMode || 0}
           />
         )}
 

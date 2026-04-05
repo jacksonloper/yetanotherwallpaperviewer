@@ -43,6 +43,10 @@ void main() {
 /**
  * Velocity field computation – evaluates equivariant vector field on a grid.
  * Output: RG channels encode (Vx, Vy) mapped to [0,1] for UnsignedByte storage.
+ *
+ * u_curlMode: 0 = two-GP direct vector field (default)
+ *             1 = single-GP stream function, invariant symmetrisation
+ *             2 = single-GP stream function, negate under det(R_g) = −1
  */
 const velocityFS = /* glsl */ `
 precision highp float;
@@ -54,6 +58,7 @@ uniform float u_dc2;
 uniform int   u_numModes;
 uniform int   u_numCosets;
 uniform float u_speedScale;
+uniform int   u_curlMode;
 
 uniform sampler2D u_modesTexture1;
 uniform sampler2D u_modesTexture2;
@@ -76,23 +81,57 @@ void main() {
       abcd.x * pos.x + abcd.y * pos.y + txty.x,
       abcd.z * pos.x + abcd.w * pos.y + txty.y
     );
-    float val1 = u_dc1;
-    float val2 = u_dc2;
-    for (int m = 0; m < 512; m++) {
-      if (m >= u_numModes) break;
-      float mu = (float(m) + 0.5) / u_modesTexWidth;
-      vec4 mode1 = texture2D(u_modesTexture1, vec2(mu, 0.5));
-      vec4 mode2 = texture2D(u_modesTexture2, vec2(mu, 0.5));
-      float phase = mode1.x * gPos.x + mode1.y * gPos.y;
-      float cp = cos(phase);
-      float sp = sin(phase);
-      val1 += mode1.z * cp + mode1.w * sp;
-      val2 += mode2.z * cp + mode2.w * sp;
+
+    if (u_curlMode > 0) {
+      // ── Curl mode: single-GP stream function ψ, velocity = curl(ψ_sym) ──
+      // Compute ∇ψ at gPos analytically from Fourier modes.
+      float dPsi_du = 0.0;
+      float dPsi_dv = 0.0;
+      for (int m = 0; m < 512; m++) {
+        if (m >= u_numModes) break;
+        float mu = (float(m) + 0.5) / u_modesTexWidth;
+        vec4 mode1 = texture2D(u_modesTexture1, vec2(mu, 0.5));
+        float phase = mode1.x * gPos.x + mode1.y * gPos.y;
+        float sp = sin(phase);
+        float cp = cos(phase);
+        // dψ/dphase = −a sin(phase) + b cos(phase)
+        float dPsi = -mode1.z * sp + mode1.w * cp;
+        dPsi_du += dPsi * mode1.x;   // * kx
+        dPsi_dv += dPsi * mode1.y;   // * ky
+      }
+      // Chain rule: ∇_r ψ(g·r) = R_g^T · ∇ψ(gPos)
+      // R_g = [[a,b],[c,d]], so R_g^T · (du,dv) = (a*du + c*dv, b*du + d*dv)
+      float dPsi_dx = abcd.x * dPsi_du + abcd.z * dPsi_dv;
+      float dPsi_dy = abcd.y * dPsi_du + abcd.w * dPsi_dv;
+
+      // Weight: 1.0 for invariant, det(R_g) for negate-under-reflection mode
+      float w = 1.0;
+      if (u_curlMode == 2) {
+        w = abcd.x * abcd.w - abcd.y * abcd.z;  // det([[a,b],[c,d]]) = ad − bc
+      }
+
+      // curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
+      V += w * vec2(dPsi_dy, -dPsi_dx);
+    } else {
+      // ── Default: two-GP equivariant vector field ──
+      float val1 = u_dc1;
+      float val2 = u_dc2;
+      for (int m = 0; m < 512; m++) {
+        if (m >= u_numModes) break;
+        float mu = (float(m) + 0.5) / u_modesTexWidth;
+        vec4 mode1 = texture2D(u_modesTexture1, vec2(mu, 0.5));
+        vec4 mode2 = texture2D(u_modesTexture2, vec2(mu, 0.5));
+        float phase = mode1.x * gPos.x + mode1.y * gPos.y;
+        float cp = cos(phase);
+        float sp = sin(phase);
+        val1 += mode1.z * cp + mode1.w * sp;
+        val2 += mode2.z * cp + mode2.w * sp;
+      }
+      V += vec2(
+        abcd.x * val1 + abcd.z * val2,
+        abcd.y * val1 + abcd.w * val2
+      );
     }
-    V += vec2(
-      abcd.x * val1 + abcd.z * val2,
-      abcd.y * val1 + abcd.w * val2
-    );
   }
   V /= float(u_numCosets);
   V *= u_speedScale;
@@ -249,6 +288,17 @@ function computeWindSpeedScale(modes1, modes2) {
   return 1.0 / sigma;
 }
 
+/** Speed scale for curl mode: energy comes from |k|² · (a² + b²) (gradient of stream fn). */
+function computeCurlSpeedScale(modes) {
+  let energy = 0;
+  for (const { kx, ky, a, b } of modes) {
+    const k2 = kx * kx + ky * ky;
+    energy += k2 * (a * a + b * b);
+  }
+  const sigma = Math.sqrt(energy) || 1;
+  return 1.0 / sigma;
+}
+
 /** Wrap (px,py) into [0,1)×[0,1) lattice coords, then back to physical. */
 function wrapToFundamentalDomain(px, py, v1, v2) {
   const det = v1.x * v2.y - v1.y * v2.x;
@@ -285,7 +335,7 @@ export default function ParticleCanvas({
   windCoeffs, cosetReps, bounds, latticeVectors,
   width, height, displayWidth, displayHeight,
   spawnRate, fadeSpeed, tailLength, maxParticles,
-  dotSize, resetTrigger,
+  dotSize, resetTrigger, curlMode,
 }) {
   const canvasRef       = useRef(null);
   const rendererRef     = useRef(null);
@@ -381,6 +431,7 @@ export default function ParticleCanvas({
         u_numModes:       { value: 1 },
         u_numCosets:      { value: 1 },
         u_speedScale:     { value: 1.0 },
+        u_curlMode:       { value: 0 },
         u_modesTexture1:  { value: phModes1 },
         u_modesTexture2:  { value: phModes2 },
         u_cosetsTexture:  { value: phCosets },
@@ -774,8 +825,11 @@ export default function ParticleCanvas({
     m.uniforms.u_dc2.value = gp2.dc;
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
-    m.uniforms.u_speedScale.value = computeWindSpeedScale(gp1.modes, gp2.modes);
-  }, [windCoeffs, cosetReps]);
+    m.uniforms.u_curlMode.value = curlMode || 0;
+    m.uniforms.u_speedScale.value = (curlMode > 0)
+      ? computeCurlSpeedScale(gp1.modes)
+      : computeWindSpeedScale(gp1.modes, gp2.modes);
+  }, [windCoeffs, cosetReps, curlMode]);
 
   /* ── Clear accumulation when viewport bounds change (e.g. zoom) ── */
   // Old trail pixels are at wrong screen positions under the new coordinate

@@ -78,6 +78,8 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
+  const [particleCurl, setParticleCurl] = useState(false)
+  const [particleCurlNegate, setParticleCurlNegate] = useState(false)
   const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
   const [particleTailLength, setParticleTailLength] = useState(40)
@@ -435,6 +437,24 @@ export default function App() {
         {/* Particle-specific controls */}
         {showParticles && (
           <div className="display-sub">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={particleCurl}
+                onChange={(e) => setParticleCurl(e.target.checked)}
+              />
+              Curl only (stream function)
+            </label>
+            {particleCurl && (
+              <label className="toggle-label" style={{ marginLeft: '1.2em' }}>
+                <input
+                  type="checkbox"
+                  checked={particleCurlNegate}
+                  onChange={(e) => setParticleCurlNegate(e.target.checked)}
+                />
+                Negate under reflections
+              </label>
+            )}
             <label className="slider-inline">
               Spawn rate: {particleSpawnRate.toFixed(1)}
               <input
@@ -540,6 +560,7 @@ export default function App() {
           gpEquivariant={gpEquivariant}
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
+          curlMode={particleCurl ? (particleCurlNegate ? 2 : 1) : 0}
         />
       )}
 

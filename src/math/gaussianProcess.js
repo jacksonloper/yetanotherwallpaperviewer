@@ -284,6 +284,29 @@ export function shoStepWindCoefficients(windCoeffs, dt, omega, damping) {
   };
 }
 
+/* ---------- Curl (stream-function) coefficients -------------------------- */
+
+/**
+ * Draw random Fourier coefficients for a single GP used as a stream function.
+ * The velocity field is the curl: V = (∂ψ/∂y, −∂ψ/∂x).
+ * Returns the same {gp1,gp2} shape as drawWindCoefficients for compatibility
+ * with the texture-upload code — gp2 mirrors gp1 (only gp1 is read in the
+ * curl shader path).  Both references share the same immutable object; this
+ * is safe because SHO stepping always creates fresh objects.
+ */
+export function drawCurlCoefficients(latticeVectors, seed, maxFreq = 5, lengthScale = 0.1) {
+  const gp = drawGPCoefficients(latticeVectors, seed, maxFreq, lengthScale);
+  return { gp1: gp, gp2: gp };
+}
+
+/**
+ * Advance the single stream-function GP by one SHO step.
+ */
+export function shoStepCurlCoefficients(curlCoeffs, dt, omega, damping) {
+  const gp = shoStepGPCoefficients(curlCoeffs.gp1, dt, omega, damping);
+  return { gp1: gp, gp2: gp };
+}
+
 /* ---------- P3 equivariant (3-GP) coefficients --------------------------- */
 
 /**
