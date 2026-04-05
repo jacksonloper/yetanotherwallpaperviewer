@@ -107,7 +107,7 @@ void main() {
       // Weight: 1.0 for invariant, det(R_g) for negate-under-reflection mode
       float w = 1.0;
       if (u_curlMode == 2) {
-        w = abcd.x * abcd.w - abcd.y * abcd.z;  // det(R_g)
+        w = abcd.x * abcd.w - abcd.y * abcd.z;  // det([[a,b],[c,d]]) = ad − bc
       }
 
       // curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
