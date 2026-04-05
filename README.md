@@ -1,6 +1,6 @@
 # Wallpaper Group Viewer
 
-A lightweight React + Vite web application for visualizing the 17 wallpaper groups (plane symmetry groups).  Main live at https://main--yetanotherwallpaperviewer.netlify.app/
+A lightweight React + Vite web application for visualizing the 17 wallpaper groups (plane symmetry groups).  Main live at https://main--yetanotherwallpaperviewer.netlify.app/ production live at https://yetanotherwallpaperviewer.netlify.app/
 
 ## Features
 
