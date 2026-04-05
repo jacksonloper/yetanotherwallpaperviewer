@@ -47,6 +47,7 @@ void main() {
  * u_curlMode: 0 = two-GP direct vector field (default)
  *             1 = single-GP stream function, invariant symmetrisation
  *             2 = single-GP stream function, negate under det(R_g) = −1
+ * u_invariantWind: when 1, skip R_g^T rotation and sum GPs directly (invariant vector field)
  */
 const velocityFS = /* glsl */ `
 precision highp float;
@@ -59,6 +60,7 @@ uniform int   u_numModes;
 uniform int   u_numCosets;
 uniform float u_speedScale;
 uniform int   u_curlMode;
+uniform int   u_invariantWind;
 
 uniform sampler2D u_modesTexture1;
 uniform sampler2D u_modesTexture2;
@@ -113,7 +115,7 @@ void main() {
       // curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
       V += w * vec2(dPsi_dy, -dPsi_dx);
     } else {
-      // ── Default: two-GP equivariant vector field ──
+      // ── Default: two-GP vector field ──
       float val1 = u_dc1;
       float val2 = u_dc2;
       for (int m = 0; m < 512; m++) {
@@ -127,10 +129,16 @@ void main() {
         val1 += mode1.z * cp + mode1.w * sp;
         val2 += mode2.z * cp + mode2.w * sp;
       }
-      V += vec2(
-        abcd.x * val1 + abcd.z * val2,
-        abcd.y * val1 + abcd.w * val2
-      );
+      if (u_invariantWind == 1) {
+        // Invariant: just sum (val1, val2) without R_g^T rotation
+        V += vec2(val1, val2);
+      } else {
+        // Equivariant: apply R_g^T to (val1, val2)
+        V += vec2(
+          abcd.x * val1 + abcd.z * val2,
+          abcd.y * val1 + abcd.w * val2
+        );
+      }
     }
   }
   V /= float(u_numCosets);
@@ -335,7 +343,7 @@ export default function ParticleCanvas({
   windCoeffs, cosetReps, bounds, latticeVectors,
   width, height, displayWidth, displayHeight,
   spawnRate, fadeSpeed, tailLength, maxParticles,
-  dotSize, resetTrigger, curlMode,
+  dotSize, resetTrigger, curlMode, invariantWind,
 }) {
   const canvasRef       = useRef(null);
   const rendererRef     = useRef(null);
@@ -432,6 +440,7 @@ export default function ParticleCanvas({
         u_numCosets:      { value: 1 },
         u_speedScale:     { value: 1.0 },
         u_curlMode:       { value: 0 },
+        u_invariantWind:  { value: 0 },
         u_modesTexture1:  { value: phModes1 },
         u_modesTexture2:  { value: phModes2 },
         u_cosetsTexture:  { value: phCosets },
@@ -826,10 +835,11 @@ export default function ParticleCanvas({
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
     m.uniforms.u_curlMode.value = curlMode || 0;
+    m.uniforms.u_invariantWind.value = invariantWind ? 1 : 0;
     m.uniforms.u_speedScale.value = (curlMode > 0)
       ? computeCurlSpeedScale(gp1.modes)
       : computeWindSpeedScale(gp1.modes, gp2.modes);
-  }, [windCoeffs, cosetReps, curlMode]);
+  }, [windCoeffs, cosetReps, curlMode, invariantWind]);
 
   /* ── Clear accumulation when viewport bounds change (e.g. zoom) ── */
   // Old trail pixels are at wrong screen positions under the new coordinate

@@ -80,6 +80,7 @@ export default function App() {
   const [showParticles, setShowParticles] = useState(false)
   const [particleCurl, setParticleCurl] = useState(false)
   const [particleCurlNegate, setParticleCurlNegate] = useState(false)
+  const [particleInvariant, setParticleInvariant] = useState(false)
   const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
   const [particleTailLength, setParticleTailLength] = useState(40)
@@ -445,6 +446,16 @@ export default function App() {
               />
               Curl only (stream function)
             </label>
+            {!particleCurl && (
+              <label className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={particleInvariant}
+                  onChange={(e) => setParticleInvariant(e.target.checked)}
+                />
+                Invariant vector field
+              </label>
+            )}
             {particleCurl && (
               <label className="toggle-label" style={{ marginLeft: '1.2em' }}>
                 <input
@@ -561,6 +572,7 @@ export default function App() {
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
           curlMode={particleCurl ? (particleCurlNegate ? 2 : 1) : 0}
+          particleInvariant={!particleCurl && particleInvariant}
         />
       )}
 
