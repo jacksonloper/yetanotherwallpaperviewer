@@ -246,7 +246,8 @@ export default function App() {
     })
   }, [wallpaperType, variantIndex, latticeVec])
 
-  // Groups whose point group contains at least one det=-1 element (reflection/glide)
+  // Groups whose point group contains at least one det=-1 element (reflection/glide).
+  // The 5 rotation-only groups (p1, p2, p3, p4, p6) have all det=+1 cosets.
   const hasReflection = ['pm', 'pg', 'pmm', 'pmg', 'pgg', 'cm', 'cmm', 'p4m', 'p4g', 'p3m1', 'p31m', 'p6m'].includes(wallpaperType)
 
   // GP equivariance options depend on the wallpaper type
@@ -565,7 +566,7 @@ export default function App() {
           gpEqMode={gpEqMode}
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
-          curlMode={particleEqMode === 'pseudovector' ? 1 : 0}
+          curlMode={particleEqMode === 'pseudovector' ? 1 : 0}  // 0=two-GP vector, 1=curl-of-invariant (pseudovector)
         />
       )}
 

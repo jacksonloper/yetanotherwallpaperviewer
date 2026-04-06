@@ -154,11 +154,11 @@ void main() {
 
     // Apply sign based on equivariant mode:
     //   eqMode=0: invariant (all +1)
-    //   eqMode=1: pseudoscalar (sign = det(R_g))
+    //   eqMode=1: pseudoscalar (sign = det(R_g) = ad − bc, from abcd = [a,b,c,d])
     //   eqMode=3: P2 permutation (sign = -1 for non-identity coset)
     float sign = 1.0;
     if (u_eqMode == 1) {
-      sign = abcd.x * abcd.w - abcd.y * abcd.z;  // det(R_g)
+      sign = abcd.x * abcd.w - abcd.y * abcd.z;  // det([[a,b],[c,d]]) = ad − bc
     } else if (u_eqMode == 3 && g > 0) {
       sign = -1.0;
     }
