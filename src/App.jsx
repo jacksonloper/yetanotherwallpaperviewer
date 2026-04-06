@@ -27,6 +27,25 @@ import {
 import './App.css'
 
 /**
+ * Map particleMode names → curlMode integers for the velocity shader.
+ *   0 = two-GP Reynolds (vector)       1 = curl of invariant (pseudovector)
+ *   2 = curl of pseudoscalar (vector)  3 = gradient of invariant (vector)
+ *   4 = gradient of pseudoscalar (pseudovector)  5 = det-weighted Reynolds (pseudovector)
+ */
+const PARTICLE_CURL_MODE = {
+  vector: 0, curl: 1, divergence: 3,
+  'vector-v': 0, 'vector-pv': 5,
+  'curl-v': 2, 'curl-pv': 1,
+  'div-v': 3, 'div-pv': 4,
+};
+
+// Groups whose point group contains at least one det=-1 element (reflection/glide).
+// The 5 rotation-only groups (p1, p2, p3, p4, p6) have all det=+1 cosets.
+const REFLECTION_GROUPS = new Set([
+  'pm', 'pg', 'pmm', 'pmg', 'pgg', 'cm', 'cmm', 'p4m', 'p4g', 'p3m1', 'p31m', 'p6m',
+]);
+
+/**
  * Compute the second lattice vector from the app state.
  */
 function getLatticeVector(wpType, latticeState) {
@@ -246,9 +265,7 @@ export default function App() {
     })
   }, [wallpaperType, variantIndex, latticeVec])
 
-  // Groups whose point group contains at least one det=-1 element (reflection/glide).
-  // The 5 rotation-only groups (p1, p2, p3, p4, p6) have all det=+1 cosets.
-  const hasReflection = ['pm', 'pg', 'pmm', 'pmg', 'pgg', 'cm', 'cmm', 'p4m', 'p4g', 'p3m1', 'p31m', 'p6m'].includes(wallpaperType)
+  const hasReflection = REFLECTION_GROUPS.has(wallpaperType)
 
   // GP equivariance options depend on the wallpaper type
   const gpEqOptions = wallpaperType === 'p2'
@@ -578,12 +595,7 @@ export default function App() {
           gpEqMode={gpEqMode}
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
-          curlMode={{
-            vector: 0, curl: 1, divergence: 3,
-            'vector-v': 0, 'vector-pv': 5,
-            'curl-v': 2, 'curl-pv': 1,
-            'div-v': 3, 'div-pv': 4,
-          }[particleMode] || 0}
+          curlMode={PARTICLE_CURL_MODE[particleMode] || 0}
         />
       )}
 
