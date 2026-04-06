@@ -78,7 +78,7 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
-  const [particleEqMode, setParticleEqMode] = useState('vector') // 'vector' or 'pseudovector'
+  const [particleMode, setParticleMode] = useState('vector') // 'vector','curl','divergence','eq-vector','eq-pseudovector'
   const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
   const [particleTailLength, setParticleTailLength] = useState(40)
@@ -125,7 +125,7 @@ export default function App() {
     setWallpaperType(typeName)
     setVariantIndex(0)
     setGpEqMode(0)
-    setParticleEqMode('vector')
+    setParticleMode('vector')
     setActiveSupergroup(null)
   }
 
@@ -450,17 +450,29 @@ export default function App() {
         {/* Particle-specific controls */}
         {showParticles && (
           <div className="display-sub">
-            {hasReflection && (
-              <label className="toggle-label">
-                <select
-                  value={particleEqMode}
-                  onChange={(e) => setParticleEqMode(e.target.value)}
-                >
-                  <option value="vector">Equivariant (vector)</option>
-                  <option value="pseudovector">Equivariant (pseudovector)</option>
-                </select>
-              </label>
-            )}
+            <label className="toggle-label">
+              <select
+                value={particleMode}
+                onChange={(e) => setParticleMode(e.target.value)}
+              >
+                {hasReflection ? (
+                  <>
+                    <option value="vector-v">Vector field (vector)</option>
+                    <option value="vector-pv">Vector field (pseudovector)</option>
+                    <option value="curl-v">Curl only (vector)</option>
+                    <option value="curl-pv">Curl only (pseudovector)</option>
+                    <option value="div-v">Divergence only (vector)</option>
+                    <option value="div-pv">Divergence only (pseudovector)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="vector">Vector field</option>
+                    <option value="curl">Curl only</option>
+                    <option value="divergence">Divergence only</option>
+                  </>
+                )}
+              </select>
+            </label>
             <label className="slider-inline">
               Spawn rate: {particleSpawnRate.toFixed(1)}
               <input
@@ -566,7 +578,12 @@ export default function App() {
           gpEqMode={gpEqMode}
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
-          curlMode={particleEqMode === 'pseudovector' ? 1 : 0}  // 0=two-GP vector, 1=curl-of-invariant (pseudovector)
+          curlMode={{
+            vector: 0, curl: 1, divergence: 3,
+            'vector-v': 0, 'vector-pv': 5,
+            'curl-v': 2, 'curl-pv': 1,
+            'div-v': 3, 'div-pv': 4,
+          }[particleMode] || 0}
         />
       )}
 

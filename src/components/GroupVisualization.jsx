@@ -261,13 +261,15 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
   }, [gpSpeed, gpDamping]);
 
   // ── Wind coefficients (for particle advection) ────────────
+  // curlModes 1-4 use single GP; curlModes 0,5 use two GPs
+  const singleGPMode = curlMode >= 1 && curlMode <= 4;
   const windInitialCoeffs = useMemo(() => {
     if (!showParticles || !latticeVectors) return null;
-    if (curlMode > 0) {
+    if (singleGPMode) {
       return drawCurlCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
     }
     return drawWindCoefficients(latticeVectors, gpSeed ?? 0, gpN ?? 5, gpEll ?? 0.1);
-  }, [showParticles, latticeVectors, gpSeed, gpEll, gpN, curlMode]);
+  }, [showParticles, latticeVectors, gpSeed, gpEll, gpN, singleGPMode]);
 
   const [windCoeffs, setWindCoeffs] = useState(null);
   const [prevWindInitialCoeffs, setPrevWindInitialCoeffs] = useState(null);
@@ -297,7 +299,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     let animId;
     let lastTime = null;
     const damping = gpDamping;
-    const stepFn = curlMode > 0 ? shoStepCurlCoefficients : shoStepWindCoefficients;
+    const stepFn = singleGPMode ? shoStepCurlCoefficients : shoStepWindCoefficients;
 
     const animate = (timestamp) => {
       if (lastTime !== null) {
@@ -312,7 +314,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
 
     animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [showParticles, gpSpeed, gpDamping, curlMode]);
+  }, [showParticles, gpSpeed, gpDamping, singleGPMode]);
 
   // ── P3 equivariant coefficients (3 independent GPs) ───────
   const p3Active = showGP && gpEqMode === 2 && cosetReps && cosetReps.length === 3;
