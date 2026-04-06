@@ -187,7 +187,7 @@ function GlideReflectionLine({ angle, px, py, svgCx, svgCy, viewWidth, scale }) 
 /**
  * SVG visualization of a wallpaper group.
  */
-export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, particleDotSize, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEquivariant, showGroupElements, viewZoom, canvasResolution, curlMode }) {
+export default function GroupVisualization({ elements, latticeVectors, cosetReps, showF, fOffset, showGP, showParticles, particleSpawnRate, particleFadeSpeed, particleTailLength, particleMaxCount, particleDotSize, gpSeed, gpEll, gpN, gpSpeed, gpDamping, gpEqMode, showGroupElements, viewZoom, canvasResolution, curlMode }) {
   const zoom = viewZoom || 1.0;
   const resolution = canvasResolution || 1.0;
   const effectiveScale = SCALE * zoom;
@@ -315,7 +315,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
   }, [showParticles, gpSpeed, gpDamping, curlMode]);
 
   // ── P3 equivariant coefficients (3 independent GPs) ───────
-  const p3Active = showGP && gpEquivariant && cosetReps && cosetReps.length === 3;
+  const p3Active = showGP && gpEqMode === 2 && cosetReps && cosetReps.length === 3;
 
   const p3InitialCoeffs = useMemo(() => {
     if (!p3Active || !latticeVectors) return null;
@@ -446,7 +446,7 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
             height={renderHeight}
             displayWidth={width}
             displayHeight={height}
-            equivariant={gpEquivariant}
+            gpEqMode={gpEqMode || 0}
           />
         )}
 

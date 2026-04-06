@@ -30,7 +30,7 @@ uniform float u_dc;          // DC offset (GP1 / single GP)
 uniform int   u_numModes;    // number of Fourier modes per GP
 uniform int   u_numCosets;   // number of G/T coset representatives
 uniform float u_normScale;   // normalization for tanh colormap / softmax temperature
-uniform int   u_eqMode;      // 0 = invariant, 1 = sign-flip (|G/T|=2), 2 = P3 cyclic permutation
+uniform int   u_eqMode;      // 0 = invariant, 1 = pseudoscalar (det sign), 2 = P3 permutation, 3 = P2 permutation
 
 uniform sampler2D u_modesTexture;   // GP1 modes: width=numModes, height=1, RGBA float
                                     // texel i = (kx, ky, a, b)
@@ -152,9 +152,16 @@ void main() {
       val += mode.z * cos(phase) + mode.w * sin(phase);
     }
 
-    // Apply sign: +1 for invariant, −1 for non-identity coset in equivariant mode
+    // Apply sign based on equivariant mode:
+    //   eqMode=0: invariant (all +1)
+    //   eqMode=1: pseudoscalar (sign = det(R_g))
+    //   eqMode=3: P2 permutation (sign = -1 for non-identity coset)
     float sign = 1.0;
-    if (u_eqMode == 1 && g > 0) sign = -1.0;
+    if (u_eqMode == 1) {
+      sign = abcd.x * abcd.w - abcd.y * abcd.z;  // det(R_g)
+    } else if (u_eqMode == 3 && g > 0) {
+      sign = -1.0;
+    }
     sum += sign * val;
   }
 
@@ -251,9 +258,9 @@ function computeNormScale(modes) {
  * @param {{minX,maxX,minY,maxY}} props.bounds  Viewport bounds in math coords
  * @param {number}  props.width       Canvas width in pixels
  * @param {number}  props.height      Canvas height in pixels
- * @param {boolean} [props.equivariant=false]  If true and |cosetReps|=2, use f−f∘g.
+ * @param {number}  [props.gpEqMode=0]    Equivariant mode: 0=invariant, 1=pseudoscalar, 2=P3, 3=P2.
  */
-export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, width, height, displayWidth, displayHeight, equivariant }) {
+export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, width, height, displayWidth, displayHeight, gpEqMode }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
@@ -344,8 +351,8 @@ export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, 
     if (!material || !renderer || !scene || !camera) return;
     if (!cosetReps || !bounds) return;
 
-    // Determine equivariant mode: 0=invariant, 1=sign-flip, 2=P3 cyclic
-    const eqMode = p3Coeffs ? 2 : (equivariant ? 1 : 0);
+    // Determine equivariant mode from prop (p3Coeffs overrides to mode 2)
+    const eqMode = p3Coeffs ? 2 : (gpEqMode || 0);
 
     // Select the primary GP modes for texture updates
     const primaryCoeffs = eqMode === 2 ? p3Coeffs.gp1 : gpCoeffs;
@@ -465,7 +472,7 @@ export default function GPShaderCanvas({ gpCoeffs, p3Coeffs, cosetReps, bounds, 
 
     // Render
     renderer.render(scene, camera);
-  }, [gpCoeffs, p3Coeffs, cosetReps, bounds, equivariant]);
+  }, [gpCoeffs, p3Coeffs, cosetReps, bounds, gpEqMode]);
 
   return (
     <canvas

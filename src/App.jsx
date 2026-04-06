@@ -78,8 +78,7 @@ export default function App() {
   const [fOffsetY, setFOffsetY] = useState(0)
   const [showGP, setShowGP] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
-  const [particleCurl, setParticleCurl] = useState(false)
-  const [particleCurlNegate, setParticleCurlNegate] = useState(false)
+  const [particleEqMode, setParticleEqMode] = useState('vector') // 'vector' or 'pseudovector'
   const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
   const [particleTailLength, setParticleTailLength] = useState(40)
@@ -91,7 +90,7 @@ export default function App() {
   const [gpN, setGpN] = useState(5)
   const [gpSpeed, setGpSpeed] = useState(0)
   const [gpDamping, setGpDamping] = useState(0.5)
-  const [gpEquivariant, setGpEquivariant] = useState(false)
+  const [gpEqMode, setGpEqMode] = useState(0) // 0=invariant, 1=pseudoscalar, 2=p3 perm, 3=p2 perm
   const [viewZoom, setViewZoom] = useState(2.25)
   const [canvasResolution, setCanvasResolution] = useState(1.5)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
@@ -125,7 +124,8 @@ export default function App() {
   const handleWallpaperTypeChange = (typeName) => {
     setWallpaperType(typeName)
     setVariantIndex(0)
-    setGpEquivariant(false)
+    setGpEqMode(0)
+    setParticleEqMode('vector')
     setActiveSupergroup(null)
   }
 
@@ -233,7 +233,7 @@ export default function App() {
 
   const handleSupergroupToggle = useCallback((sgName) => {
     setActiveSupergroup(prev => prev === sgName ? null : sgName)
-    setGpEquivariant(false)
+    setGpEqMode(0)
   }, [])
 
   const copyToClipboard = useCallback(() => {
@@ -245,6 +245,18 @@ export default function App() {
       // Clipboard API may be unavailable (e.g. insecure context)
     })
   }, [wallpaperType, variantIndex, latticeVec])
+
+  // Groups whose point group contains at least one det=-1 element (reflection/glide)
+  const hasReflection = ['pm', 'pg', 'pmm', 'pmg', 'pgg', 'cm', 'cmm', 'p4m', 'p4g', 'p3m1', 'p31m', 'p6m'].includes(wallpaperType)
+
+  // GP equivariance options depend on the wallpaper type
+  const gpEqOptions = wallpaperType === 'p2'
+    ? [{ value: 0, label: 'Invariant' }, { value: 3, label: 'Equivariant (permutation)' }]
+    : wallpaperType === 'p3'
+    ? [{ value: 0, label: 'Invariant' }, { value: 2, label: 'Equivariant (permutation)' }]
+    : hasReflection
+    ? [{ value: 0, label: 'Invariant' }, { value: 1, label: 'Equivariant (pseudoscalar)' }]
+    : null // p1, p4, p6: invariant only
 
   return (
     <div className="app-container">
@@ -397,14 +409,14 @@ export default function App() {
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
-            {showGP && rationalCosets.cosets && (rationalCosets.cosets.length === 2 || rationalCosets.cosets.length === 3) && (
+            {showGP && gpEqOptions && (
               <label className="toggle-label">
-                <input
-                  type="checkbox"
-                  checked={gpEquivariant}
-                  onChange={(e) => { setGpEquivariant(e.target.checked); if (e.target.checked) setActiveSupergroup(null); }}
-                />
-                Equivariant
+                <select
+                  value={gpEqMode}
+                  onChange={(e) => { const v = Number(e.target.value); setGpEqMode(v); if (v > 0) setActiveSupergroup(null); }}
+                >
+                  {gpEqOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
               </label>
             )}
             <label className="slider-inline">
@@ -437,22 +449,15 @@ export default function App() {
         {/* Particle-specific controls */}
         {showParticles && (
           <div className="display-sub">
-            <label className="toggle-label">
-              <input
-                type="checkbox"
-                checked={particleCurl}
-                onChange={(e) => setParticleCurl(e.target.checked)}
-              />
-              Curl only (stream function)
-            </label>
-            {particleCurl && (
-              <label className="toggle-label" style={{ marginLeft: '1.2em' }}>
-                <input
-                  type="checkbox"
-                  checked={particleCurlNegate}
-                  onChange={(e) => setParticleCurlNegate(e.target.checked)}
-                />
-                Negate under reflections
+            {hasReflection && (
+              <label className="toggle-label">
+                <select
+                  value={particleEqMode}
+                  onChange={(e) => setParticleEqMode(e.target.value)}
+                >
+                  <option value="vector">Equivariant (vector)</option>
+                  <option value="pseudovector">Equivariant (pseudovector)</option>
+                </select>
               </label>
             )}
             <label className="slider-inline">
@@ -557,10 +562,10 @@ export default function App() {
           gpN={gpN}
           gpSpeed={gpSpeed}
           gpDamping={gpDamping}
-          gpEquivariant={gpEquivariant}
+          gpEqMode={gpEqMode}
           viewZoom={viewZoom}
           canvasResolution={canvasResolution}
-          curlMode={particleCurl ? (particleCurlNegate ? 2 : 1) : 0}
+          curlMode={particleEqMode === 'pseudovector' ? 1 : 0}
         />
       )}
 
