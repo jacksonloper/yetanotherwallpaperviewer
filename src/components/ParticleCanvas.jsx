@@ -44,9 +44,12 @@ void main() {
  * Velocity field computation – evaluates equivariant vector field on a grid.
  * Output: RG channels encode (Vx, Vy) mapped to [0,1] for UnsignedByte storage.
  *
- * u_curlMode: 0 = two-GP direct vector field (default)
- *             1 = single-GP stream function, invariant symmetrisation
- *             2 = single-GP stream function, negate under det(R_g) = −1
+ * u_curlMode: 0 = two-GP Reynolds vector field (vector)
+ *             1 = curl of invariant scalar (pseudovector, divergence-free)
+ *             2 = curl of pseudoscalar (vector, divergence-free)
+ *             3 = gradient of invariant scalar (vector, curl-free)
+ *             4 = gradient of pseudoscalar (pseudovector, curl-free)
+ *             5 = two-GP det-weighted Reynolds (pseudovector)
  */
 const velocityFS = /* glsl */ `
 precision highp float;
@@ -82,11 +85,11 @@ void main() {
       abcd.z * pos.x + abcd.w * pos.y + txty.y
     );
 
-    if (u_curlMode > 0) {
-      // ── Curl mode: single-GP stream function ψ, velocity = curl(ψ_sym) ──
-      // Compute ∇ψ at gPos analytically from Fourier modes.
-      float dPsi_du = 0.0;
-      float dPsi_dv = 0.0;
+    if (u_curlMode >= 1 && u_curlMode <= 4) {
+      // ── Single-GP gradient mode (curl or divergence) ──
+      // Compute ∇φ at gPos analytically from Fourier modes.
+      float dPhi_du = 0.0;
+      float dPhi_dv = 0.0;
       for (int m = 0; m < 512; m++) {
         if (m >= u_numModes) break;
         float mu = (float(m) + 0.5) / u_modesTexWidth;
@@ -94,26 +97,31 @@ void main() {
         float phase = mode1.x * gPos.x + mode1.y * gPos.y;
         float sp = sin(phase);
         float cp = cos(phase);
-        // dψ/dphase = −a sin(phase) + b cos(phase)
-        float dPsi = -mode1.z * sp + mode1.w * cp;
-        dPsi_du += dPsi * mode1.x;   // * kx
-        dPsi_dv += dPsi * mode1.y;   // * ky
+        // dφ/dphase = −a sin(phase) + b cos(phase)
+        float dPhi = -mode1.z * sp + mode1.w * cp;
+        dPhi_du += dPhi * mode1.x;   // * kx
+        dPhi_dv += dPhi * mode1.y;   // * ky
       }
-      // Chain rule: ∇_r ψ(g·r) = R_g^T · ∇ψ(gPos)
+      // Chain rule: ∇_r φ(g·r) = R_g^T · ∇φ(gPos)
       // R_g = [[a,b],[c,d]], so R_g^T · (du,dv) = (a*du + c*dv, b*du + d*dv)
-      float dPsi_dx = abcd.x * dPsi_du + abcd.z * dPsi_dv;
-      float dPsi_dy = abcd.y * dPsi_du + abcd.w * dPsi_dv;
+      float dPhi_dx = abcd.x * dPhi_du + abcd.z * dPhi_dv;
+      float dPhi_dy = abcd.y * dPhi_du + abcd.w * dPhi_dv;
 
-      // Weight: 1.0 for invariant, det(R_g) for negate-under-reflection mode
+      // det(R_g) weight for pseudoscalar modes (2 = curl, 4 = gradient)
       float w = 1.0;
-      if (u_curlMode == 2) {
+      if (u_curlMode == 2 || u_curlMode == 4) {
         w = abcd.x * abcd.w - abcd.y * abcd.z;  // det([[a,b],[c,d]]) = ad − bc
       }
 
-      // curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
-      V += w * vec2(dPsi_dy, -dPsi_dx);
+      if (u_curlMode >= 3) {
+        // Divergence: V = ∇φ = (∂φ/∂x, ∂φ/∂y)
+        V += w * vec2(dPhi_dx, dPhi_dy);
+      } else {
+        // Curl: V = curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
+        V += w * vec2(dPhi_dy, -dPhi_dx);
+      }
     } else {
-      // ── Default: two-GP equivariant vector field ──
+      // ── Two-GP Reynolds equivariant vector field (curlMode 0 or 5) ──
       float val1 = u_dc1;
       float val2 = u_dc2;
       for (int m = 0; m < 512; m++) {
@@ -127,7 +135,14 @@ void main() {
         val1 += mode1.z * cp + mode1.w * sp;
         val2 += mode2.z * cp + mode2.w * sp;
       }
-      V += vec2(
+
+      // det(R_g) weight for pseudovector mode (curlMode=5)
+      float det_g = 1.0;
+      if (u_curlMode == 5) {
+        det_g = abcd.x * abcd.w - abcd.y * abcd.z;
+      }
+
+      V += det_g * vec2(
         abcd.x * val1 + abcd.z * val2,
         abcd.y * val1 + abcd.w * val2
       );
@@ -826,7 +841,7 @@ export default function ParticleCanvas({
     m.uniforms.u_numModes.value = gp1.modes.length;
     m.uniforms.u_numCosets.value = cosetReps.length;
     m.uniforms.u_curlMode.value = curlMode || 0;
-    m.uniforms.u_speedScale.value = (curlMode > 0)
+    m.uniforms.u_speedScale.value = (curlMode >= 1 && curlMode <= 4)
       ? computeCurlSpeedScale(gp1.modes)
       : computeWindSpeedScale(gp1.modes, gp2.modes);
   }, [windCoeffs, cosetReps, curlMode]);
