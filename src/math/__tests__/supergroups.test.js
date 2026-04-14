@@ -600,3 +600,110 @@ describe('supergroup coset counts within shader MAX_COSETS (24)', () => {
     })
   }
 })
+
+// ───────────────────────────────────────────────────
+//  Lattice-dependent generators: not-well-rounded centered rectangular
+// ───────────────────────────────────────────────────
+//
+// On a not-well-rounded centered rectangular lattice (y ≈ 0.5, |b| > 1),
+// the cm mirror generators σ+ and σ- are NOT valid isometries.
+// getExtraGenerators must return different generators (σ_v, σ_h) when
+// the lattice vector is provided.
+
+import { validateGenerators } from '../rationalGroup.js'
+
+describe('not-well-rounded centered rectangular: p1→cm and p2→cmm', () => {
+  // e₁ = (0,1), e₂ = (1, 0.5) — centered rectangular but |b| = √1.25 ≠ 1
+  const nwrVec = { x: 1, y: 0.5 }
+  // e₁ = (0,1), e₂ = (2, 0.5) — another not-well-rounded centered rectangular
+  const nwrVec2 = { x: 2, y: 0.5 }
+  // Well-rounded: e₂ on the unit circle
+  const wrVec = { x: Math.sqrt(3) / 2, y: 0.5 }  // hexagonal (well-rounded)
+  const wrVec2 = { x: Math.cos(Math.PI / 5), y: Math.sin(Math.PI / 5) }  // arbitrary well-rounded
+
+  it('p1→cm returns σ_v on not-well-rounded, σ+ on well-rounded', () => {
+    const extraNwr = getExtraGenerators('p1', 0, 'cm', nwrVec)
+    const extraWr = getExtraGenerators('p1', 0, 'cm', wrVec)
+    const extraNoVec = getExtraGenerators('p1', 0, 'cm')
+
+    // Not-well-rounded should return σ_v = [[1,1],[0,-1]]
+    expect(extraNwr).toHaveLength(1)
+    expect(rmatEqual(rmodT(extraNwr[0]), rmodT(extraNoVec[0]))).toBe(false)
+
+    // Well-rounded and no-vec should return σ+ = [[0,1],[1,0]]
+    expect(extraWr).toHaveLength(1)
+    expect(rmatEqual(rmodT(extraWr[0]), rmodT(extraNoVec[0]))).toBe(true)
+  })
+
+  it('p2→cmm returns σ_v on not-well-rounded, σ+ on well-rounded', () => {
+    const extraNwr = getExtraGenerators('p2', 0, 'cmm', nwrVec)
+    const extraWr = getExtraGenerators('p2', 0, 'cmm', wrVec)
+    const extraNoVec = getExtraGenerators('p2', 0, 'cmm')
+
+    expect(extraNwr).toHaveLength(1)
+    expect(rmatEqual(rmodT(extraNwr[0]), rmodT(extraNoVec[0]))).toBe(false)
+
+    expect(extraWr).toHaveLength(1)
+    expect(rmatEqual(rmodT(extraWr[0]), rmodT(extraNoVec[0]))).toBe(true)
+  })
+
+  it('p1→cm on nwr lattice: generator preserves metric', () => {
+    const extra = getExtraGenerators('p1', 0, 'cm', nwrVec)
+    const { ok, warnings } = validateGenerators(extra, nwrVec)
+    expect(warnings).toEqual([])
+    expect(ok).toBe(true)
+  })
+
+  it('p1→cm on nwr lattice (x=2): generator preserves metric', () => {
+    const extra = getExtraGenerators('p1', 0, 'cm', nwrVec2)
+    const { ok, warnings } = validateGenerators(extra, nwrVec2)
+    expect(warnings).toEqual([])
+    expect(ok).toBe(true)
+  })
+
+  it('p2→cmm on nwr lattice: generator preserves metric', () => {
+    const extra = getExtraGenerators('p2', 0, 'cmm', nwrVec)
+    const { ok, warnings } = validateGenerators(extra, nwrVec)
+    expect(warnings).toEqual([])
+    expect(ok).toBe(true)
+  })
+
+  it('p1→cm σ+ does NOT preserve metric on nwr lattice', () => {
+    // Without latticeVec, the default σ+ is returned
+    const extra = getExtraGenerators('p1', 0, 'cm')
+    const { ok } = validateGenerators(extra, nwrVec)
+    expect(ok).toBe(false)
+  })
+
+  it('p1→cm on nwr lattice produces correct |G/T|', () => {
+    const extra = getExtraGenerators('p1', 0, 'cm', nwrVec)
+    const { order, isDegenerate, error } = processGroup(extra)
+    expect(error).toBeFalsy()
+    expect(isDegenerate).toBe(false)
+    expect(order).toBe(2)  // cm has |G/T| = 2
+  })
+
+  it('p2→cmm on nwr lattice produces correct |G/T|', () => {
+    const extra = getExtraGenerators('p2', 0, 'cmm', nwrVec)
+    const srcGens = standardGenerators('p2', 0)?.generators ?? []
+    const allGens = [...srcGens, ...extra]
+    const { order, isDegenerate, error } = processGroup(allGens)
+    expect(error).toBeFalsy()
+    expect(isDegenerate).toBe(false)
+    expect(order).toBe(4)  // cmm has |G/T| = 4
+  })
+
+  it('well-rounded lattice: p1→cm σ+ preserves metric', () => {
+    const extra = getExtraGenerators('p1', 0, 'cm', wrVec2)
+    const { ok, warnings } = validateGenerators(extra, wrVec2)
+    expect(warnings).toEqual([])
+    expect(ok).toBe(true)
+  })
+
+  it('well-rounded lattice: p2→cmm σ+ preserves metric', () => {
+    const extra = getExtraGenerators('p2', 0, 'cmm', wrVec2)
+    const { ok, warnings } = validateGenerators(extra, wrVec2)
+    expect(warnings).toEqual([])
+    expect(ok).toBe(true)
+  })
+})

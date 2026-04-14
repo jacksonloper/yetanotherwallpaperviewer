@@ -30,6 +30,30 @@
 import { rimat } from './rational.js'
 
 // ───────────────────────────────────────────────────
+//  Lattice shape helpers
+// ───────────────────────────────────────────────────
+
+/**
+ * Check whether a lattice vector represents a not-well-rounded
+ * centered-rectangular lattice (y ≈ 0.5, |b| > 1).
+ *
+ * On such lattices the cm mirror directions are along a and 2b−a
+ * (physical vertical and horizontal), NOT along a+b and b−a.
+ * The lattice-coordinate reflection matrices are different:
+ *   σ_v = [[1,1],[0,−1]]   (along a, vertical)
+ *   σ_h = [[−1,−1],[0,1]]  (along 2b−a, horizontal)
+ * instead of the well-rounded
+ *   σ+  = [[0,1],[1,0]]    (along a+b)
+ *   σ−  = [[0,−1],[−1,0]]  (along b−a)
+ */
+function isNotWellRoundedCenteredRect(latticeVec) {
+  if (!latticeVec) return false
+  const { x, y } = latticeVec
+  const r2 = x * x + y * y
+  return Math.abs(y - 0.5) < 1e-4 && r2 > 1 + 1e-4
+}
+
+// ───────────────────────────────────────────────────
 //  One-step supergroup inclusion map (type-level)
 // ───────────────────────────────────────────────────
 //
@@ -190,7 +214,8 @@ const EXTRA_GENERATORS = {
   'p1:p2':  { generators: [rimat(-1, 0, 0, -1)] },              // R₂
   'p1:pm':  { generators: [rimat(1, 0, 0, -1)] },               // σ_a
   'p1:pg':  { generators: [rimat(1, 0, 0, -1, 1, 2)] },         // glide_a = σ_a+(1/2,0)
-  'p1:cm':  { generators: [rimat(0, 1, 1, 0)] },                // σ+
+  'p1:cm':  { generators: [rimat(0, 1, 1, 0)],                // σ+  (well-rounded)
+              nwrGenerators: [rimat(1, 1, 0, -1)] },           // σ_v (not-well-rounded centered rect)
   'p1:p4':  { generators: [rimat(0, 1, -1, 0)] },               // R₄
   'p1:p3':  { generators: [rimat(0, 1, -1, -1)] },              // R₃
   'p1:p6':  { generators: [rimat(1, 1, -1, 0)] },               // R₆
@@ -198,7 +223,8 @@ const EXTRA_GENERATORS = {
   // ── p2 → ... (no variants) ──
   'p2:pmm': { generators: [rimat(1, 0, 0, -1)] },               // σ_a  (R₂∘σ_a = σ_b)
   'p2:pgg': { generators: [rimat(1, 0, 0, -1, 1, 2, 1, 2)] },   // σ_a+(1/2,1/2)
-  'p2:cmm': { generators: [rimat(0, 1, 1, 0)] },                // σ+   (R₂∘σ+ = σ-)
+  'p2:cmm': { generators: [rimat(0, 1, 1, 0)],                // σ+  (R₂∘σ+ = σ-) (well-rounded)
+              nwrGenerators: [rimat(1, 1, 0, -1)] },           // σ_v (R₂∘σ_v = σ_h) (not-well-rounded centered rect)
   'p2:p4':  { generators: [rimat(0, 1, -1, 0)] },               // R₄
   'p2:p6':  { generators: [rimat(1, 1, -1, 0)] },               // R₆
 
@@ -317,9 +343,12 @@ export function latticeSupportsGroupType(currentLatticeType, requiredLatticeType
  * @param {string} sourceType – IUCr short name of the current group
  * @param {number} variantIndex – which direction variant of the source (0 or 1)
  * @param {string} targetType – IUCr short name of the target supergroup
+ * @param {{ x: number, y: number }} [latticeVec] – second lattice vector (optional;
+ *        needed for transitions where the generator depends on the lattice shape,
+ *        e.g. p1→cm on non-well-rounded centered rectangular)
  * @returns {rmat[]|null}
  */
-export function getExtraGenerators(sourceType, variantIndex, targetType) {
+export function getExtraGenerators(sourceType, variantIndex, targetType, latticeVec) {
   const key = `${sourceType}:${targetType}`
   const entry = EXTRA_GENERATORS[key]
   if (!entry) return null
@@ -327,6 +356,11 @@ export function getExtraGenerators(sourceType, variantIndex, targetType) {
   if (entry.variants) {
     const idx = Math.min(variantIndex, entry.variants.length - 1)
     return entry.variants[idx]  // may be null if invalid for this variant
+  }
+
+  // Use not-well-rounded generators when the lattice requires it
+  if (entry.nwrGenerators && isNotWellRoundedCenteredRect(latticeVec)) {
+    return entry.nwrGenerators
   }
 
   return entry.generators
