@@ -11,21 +11,11 @@ export default function LatticeControls({ wpType, latticeState, latticeVec, latt
   const control = wpType.latticeControl
 
   return (
-    <div className="panel">
-      <h3 className="panel-heading">
-        Lattice
-        {latticeType && <span className="lattice-type-badge">{latticeType}</span>}
-      </h3>
+    <div>
       <p className="lattice-info">
         First translation: <strong>(0, 1)</strong>.
         Second translation: <strong>({latticeVec.x.toFixed(4)}, {latticeVec.y.toFixed(4)})</strong>
       </p>
-
-      {control === 'none' && (
-        <div className="slider-info">
-          Fixed {wpType.fixedLattice} lattice — no adjustable parameters.
-        </div>
-      )}
 
       {control === 'rect-to-square' && (
         <RectToSquareSlider
