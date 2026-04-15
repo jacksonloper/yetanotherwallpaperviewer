@@ -424,6 +424,22 @@ export default function App() {
           </label>
         </div>
 
+        {/* Zoom — always visible */}
+        <div className="display-sub">
+          <label className="slider-inline">
+            Zoom: {viewZoom.toFixed(2)}×
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.25"
+              value={viewZoom}
+              onChange={(e) => setViewZoom(parseFloat(e.target.value))}
+              className="gen-slider"
+            />
+          </label>
+        </div>
+
         {/* GP / Particle shared controls — revealed when texture is active */}
         {(showGP || showParticles) && (
           <div className="display-sub">
@@ -477,9 +493,6 @@ export default function App() {
                 />
               </label>
             )}
-            <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
-              🎲 New Draw
-            </button>
             {showGP && gpEqOptions && (
               <label className="toggle-label">
                 <select
@@ -490,18 +503,6 @@ export default function App() {
                 </select>
               </label>
             )}
-            <label className="slider-inline">
-              Zoom: {viewZoom.toFixed(2)}×
-              <input
-                type="range"
-                min="0.5"
-                max="4"
-                step="0.25"
-                value={viewZoom}
-                onChange={(e) => setViewZoom(parseFloat(e.target.value))}
-                className="gen-slider"
-              />
-            </label>
             <label className="slider-inline">
               Resolution: {canvasResolution.toFixed(1)}×
               <input
@@ -514,6 +515,9 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
+            <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
+              🎲 New Draw
+            </button>
           </div>
         )}
 
