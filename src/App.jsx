@@ -46,6 +46,22 @@ const REFLECTION_GROUPS = new Set([
 ]);
 
 /**
+ * Collapsible panel wrapper.
+ */
+function CollapsiblePanel({ title, badge, open, onToggle, children, className }) {
+  return (
+    <div className={`panel ${className || ''}`}>
+      <h3 className="panel-heading panel-heading--collapsible" onClick={onToggle}>
+        <span className={`panel-chevron ${open ? 'panel-chevron--open' : ''}`}>▸</span>
+        {title}
+        {!open && badge && <span className="panel-badge">{badge}</span>}
+      </h3>
+      {open && children}
+    </div>
+  )
+}
+
+/**
  * Compute the second lattice vector from the app state.
  */
 function getLatticeVector(wpType, latticeState) {
@@ -95,8 +111,10 @@ export default function App() {
   const [showF, setShowF] = useState(true)
   const [fOffsetX, setFOffsetX] = useState(0)
   const [fOffsetY, setFOffsetY] = useState(0)
-  const [showGP, setShowGP] = useState(false)
-  const [showParticles, setShowParticles] = useState(false)
+  // Texture mode: 'none', 'gp', 'particles'
+  const [textureMode, setTextureMode] = useState('none')
+  const showGP = textureMode === 'gp'
+  const showParticles = textureMode === 'particles'
   const [particleMode, setParticleMode] = useState('vector') // 'vector','curl','divergence','eq-vector','eq-pseudovector'
   const [particleSpawnRate, setParticleSpawnRate] = useState(8.5)
   const [particleFadeSpeed, setParticleFadeSpeed] = useState(0.015)
@@ -113,6 +131,9 @@ export default function App() {
   const [viewZoom, setViewZoom] = useState(2.25)
   const [canvasResolution, setCanvasResolution] = useState(1.5)
   const [activeSupergroup, setActiveSupergroup] = useState(null)
+  const [groupOpen, setGroupOpen] = useState(false)
+  const [latticeOpen, setLatticeOpen] = useState(false)
+  const [displayOpen, setDisplayOpen] = useState(false)
 
   const wpType = useMemo(() => getWallpaperTypeByName(wallpaperType), [wallpaperType])
 
@@ -276,6 +297,12 @@ export default function App() {
     ? [{ value: 0, label: 'Invariant' }, { value: 1, label: 'Equivariant (pseudoscalar)' }]
     : null // p1, p4, p6: invariant only
 
+  const textureBadge = textureMode === 'gp' ? 'Color field'
+    : textureMode === 'particles' ? 'Particles'
+    : null
+
+  const hasLatticeControls = wpType.latticeControl !== 'none'
+
   return (
     <div className="app-container">
       <h1>Wallpaper Group Viewer</h1>
@@ -283,10 +310,13 @@ export default function App() {
         Pick a wallpaper group, then adjust the lattice. Updates live.
       </p>
 
-      {/* ── Section 1: Symmetry Group ── */}
-      <div className="panel">
-        <h3 className="panel-heading">Symmetry Group</h3>
-
+      {/* ── Section 1: Symmetry Group (collapsible) ── */}
+      <CollapsiblePanel
+        title="Symmetry Group"
+        badge={wallpaperType}
+        open={groupOpen}
+        onToggle={() => setGroupOpen(o => !o)}
+      >
         <WallpaperGroupSelector
           value={wallpaperType}
           onChange={handleWallpaperTypeChange}
@@ -309,33 +339,37 @@ export default function App() {
             ))}
           </div>
         )}
-      </div>
+      </CollapsiblePanel>
 
-      {/* ── Section 2: Lattice ── */}
-      <LatticeControls
-        wpType={wpType}
-        latticeState={latticeState}
-        latticeVec={latticeVec}
-        latticeType={latticeType}
-        onChange={handleLatticeStateChange}
-      />
+      {/* ── Section 2: Lattice (collapsible, hidden for fixed-lattice groups) ── */}
+      {hasLatticeControls && (
+        <CollapsiblePanel
+          title="Lattice"
+          badge={latticeType}
+          open={latticeOpen}
+          onToggle={() => setLatticeOpen(o => !o)}
+        >
+          <LatticeControls
+            wpType={wpType}
+            latticeState={latticeState}
+            latticeVec={latticeVec}
+            latticeType={latticeType}
+            onChange={handleLatticeStateChange}
+          />
+        </CollapsiblePanel>
+      )}
 
-      {/* ── Section 3: Display Settings ── */}
-      <div className="panel">
-        <h3 className="panel-heading">Display Settings</h3>
-
+      {/* ── Section 3: Display Settings (collapsible) ── */}
+      <CollapsiblePanel
+        title="Display Settings"
+        badge={textureBadge}
+        open={displayOpen}
+        onToggle={() => setDisplayOpen(o => !o)}
+      >
         <div className="display-toggles">
           <label className="toggle-label">
             <input type="checkbox" checked={showF} onChange={(e) => setShowF(e.target.checked)} />
             Show F
-          </label>
-          <label className="toggle-label">
-            <input type="checkbox" checked={showGP} onChange={(e) => { setShowGP(e.target.checked); if (e.target.checked) { setShowParticles(false); } }} />
-            Show GP
-          </label>
-          <label className="toggle-label">
-            <input type="checkbox" checked={showParticles} onChange={(e) => { setShowParticles(e.target.checked); if (e.target.checked) { setShowGP(false); } }} />
-            Show Particles
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showGroupElements} onChange={(e) => setShowGroupElements(e.target.checked)} />
@@ -373,7 +407,24 @@ export default function App() {
           </div>
         )}
 
-        {/* GP / Particle controls — revealed when Show GP or Show Particles is on */}
+        {/* ── Texture subsection ── */}
+        <div className="display-sub">
+          <span className="subsection-label">Texture</span>
+          <label className="toggle-label">
+            <input type="radio" name="textureMode" value="none" checked={textureMode === 'none'} onChange={() => setTextureMode('none')} />
+            None
+          </label>
+          <label className="toggle-label">
+            <input type="radio" name="textureMode" value="gp" checked={textureMode === 'gp'} onChange={() => setTextureMode('gp')} />
+            Color field
+          </label>
+          <label className="toggle-label">
+            <input type="radio" name="textureMode" value="particles" checked={textureMode === 'particles'} onChange={() => setTextureMode('particles')} />
+            Particles
+          </label>
+        </div>
+
+        {/* GP / Particle shared controls — revealed when texture is active */}
         {(showGP || showParticles) && (
           <div className="display-sub">
             <label className="slider-inline">
@@ -412,18 +463,20 @@ export default function App() {
                 className="gen-slider"
               />
             </label>
-            <label className="slider-inline">
-              Damping: {gpDamping.toFixed(2)}
-              <input
-                type="range"
-                min="0.05"
-                max="2"
-                step="0.05"
-                value={gpDamping}
-                onChange={(e) => setGpDamping(parseFloat(e.target.value))}
-                className="gen-slider"
-              />
-            </label>
+            {gpSpeed > 0 && (
+              <label className="slider-inline">
+                Damping: {gpDamping.toFixed(2)}
+                <input
+                  type="range"
+                  min="0.05"
+                  max="2"
+                  step="0.05"
+                  value={gpDamping}
+                  onChange={(e) => setGpDamping(parseFloat(e.target.value))}
+                  className="gen-slider"
+                />
+              </label>
+            )}
             <button className="btn-secondary" onClick={() => setGpSeed(s => s + 1)}>
               🎲 New Draw
             </button>
@@ -552,14 +605,7 @@ export default function App() {
             </label>
           </div>
         )}
-
-        <div className="display-actions">
-          <button className="btn-copy" onClick={copyToClipboard}>
-            📋 Copy JSON
-          </button>
-          {copySuccess && <span className="copy-success">✓ Copied!</span>}
-        </div>
-      </div>
+      </CollapsiblePanel>
 
       {/* Error display */}
       {error && (
@@ -608,9 +654,13 @@ export default function App() {
         onToggle={handleSupergroupToggle}
       />
 
-      <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
+      <div className="footer-links">
+        <button className="btn-copy-subtle" onClick={copyToClipboard} title="Copy wallpaper group specification as JSON">
+          📋 Copy JSON spec
+        </button>
+        {copySuccess && <span className="copy-success">✓ Copied!</span>}
         <Link to="/math">🔢 Math Explorer</Link>
-      </p>
+      </div>
     </div>
   )
 }

@@ -34,6 +34,46 @@ h1 {
   gap: 8px;
 }
 
+/* Collapsible panel heading */
+.panel-heading--collapsible {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.panel-heading--collapsible:hover {
+  color: var(--color-btn-selected-bg);
+}
+
+.panel-chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.panel-chevron--open {
+  transform: rotate(90deg);
+}
+
+.panel-badge {
+  font-size: 13px;
+  font-weight: normal;
+  color: var(--color-btn-selected-text);
+  background: var(--color-btn-selected-bg);
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+/* Texture subsection label */
+.subsection-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-label);
+  margin-right: 4px;
+}
+
 /* ── Lattice section (uses .panel) ── */
 .lattice-info {
   font-size: 14px;
@@ -209,15 +249,7 @@ h1 {
   border-top: 1px solid var(--color-separator);
 }
 
-.display-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-separator);
-  margin-top: 8px;
-}
-
+/* ── Status ── */
 .btn-secondary {
   background: #546e7a;
   color: white;
@@ -231,8 +263,6 @@ h1 {
 .btn-secondary:hover {
   background: #455a64;
 }
-
-/* ── Status ── */
 .timing-info {
   font-size: 13px;
   color: var(--color-text-muted);
@@ -264,19 +294,30 @@ h1 {
   outline: none;
 }
 
-/* Copy button */
-.btn-copy {
-  background: #8e44ad;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
+/* Footer links */
+.footer-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
-.btn-copy:hover {
-  background: #7d3c98;
+.btn-copy-subtle {
+  background: none;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.btn-copy-subtle:hover {
+  background: var(--color-btn-hover-bg);
+  border-color: var(--color-btn-hover-border);
 }
 
 .copy-success {

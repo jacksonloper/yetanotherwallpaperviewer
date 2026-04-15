@@ -420,22 +420,8 @@ export default function GroupVisualization({ elements, latticeVectors, cosetReps
     return lines;
   }, [classified]);
 
-  // Count by type
-  const counts = useMemo(() => {
-    const c = { identity: 0, translation: 0, rotation: 0, reflection: 0, 'glide-reflection': 0 };
-    for (const el of classified) {
-      c[el.type] = (c[el.type] || 0) + 1;
-    }
-    return c;
-  }, [classified]);
-
   return (
     <div>
-      <div style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--color-text-secondary, #666)' }}>
-        Elements: {elements?.length || 0} |{' '}
-        Rot: {counts.rotation} | Refl: {counts.reflection} |{' '}
-        Glide: {counts['glide-reflection']} | Trans: {counts.translation}
-      </div>
       <div style={{ position: 'relative', width, height, border: '1px solid var(--color-svg-container-border, #ccc)', borderRadius: '4px', overflow: 'hidden' }}>
         {/* Three.js GP canvas (behind SVG) */}
         {showGP && gpCoeffs && cosetReps && (
