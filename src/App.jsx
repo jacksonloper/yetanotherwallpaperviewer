@@ -224,7 +224,7 @@ export default function App() {
   const supergroupResult = useMemo(() => {
     if (!activeSupergroup) return null
     try {
-      const extra = getExtraGenerators(wallpaperType, variantIndex, activeSupergroup)
+      const extra = getExtraGenerators(wallpaperType, variantIndex, activeSupergroup, latticeVec)
       if (!extra) return null
       const currentGens = standardGenerators(wallpaperType, variantIndex)?.generators ?? []
       const allGens = [...currentGens, ...extra]
