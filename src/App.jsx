@@ -664,6 +664,7 @@ export default function App() {
         </button>
         {copySuccess && <span className="copy-success">✓ Copied!</span>}
         <Link to="/math">🔢 Math Explorer</Link>
+        <Link to="/p3orbifold" style={{ color: 'var(--color-text-muted)' }}>P3 Orbifold</Link>
       </div>
     </div>
   )
