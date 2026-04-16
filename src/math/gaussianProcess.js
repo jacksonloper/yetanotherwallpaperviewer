@@ -349,6 +349,26 @@ export function evaluateGP(gpCoeffs, x, y) {
   return val;
 }
 
+/**
+ * Evaluate the gradient of the (unsymmetrized) GP at a point.
+ *
+ * For f(r) = dc + Σ [a cos(k·r) + b sin(k·r)]:
+ *   ∂f/∂x = Σ kx [-a sin(k·r) + b cos(k·r)]
+ *   ∂f/∂y = Σ ky [-a sin(k·r) + b cos(k·r)]
+ *
+ * @returns {{ dx: number, dy: number }}
+ */
+export function evaluateGPGradient(gpCoeffs, x, y) {
+  let dx = 0, dy = 0;
+  for (const { kx, ky, a, b } of gpCoeffs.modes) {
+    const phase = kx * x + ky * y;
+    const dPhase = -a * Math.sin(phase) + b * Math.cos(phase);
+    dx += kx * dPhase;
+    dy += ky * dPhase;
+  }
+  return { dx, dy };
+}
+
 /* ---------- Point-group extraction --------------------------------------- */
 
 /**

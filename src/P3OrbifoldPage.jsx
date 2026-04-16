@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   drawGPCoefficients,
-  evaluateGP,
+  evaluateGPGradient,
 } from './math/gaussianProcess.js'
 import {
   standardGenerators,
@@ -52,17 +52,22 @@ function getP3Setup() {
 // ───────────────────────────────────────────────────
 
 /**
- * Evaluate the P3-equivariant 2D vector field at a point (x, y).
+ * Evaluate the P3-equivariant 2D vector field at a point (x, y),
+ * decomposed into curl (divergence-free) and gradient (curl-free) parts.
  *
- * Uses the Reynolds averaging approach: given two independent GPs
- * (gp1, gp2 from wind coefficients), the equivariant field is:
- *   V_sym(r) = (1/|P|) Σ_{g ∈ P} R_g^{-1} · V_raw(g(r))
- * where V_raw = (gp1, gp2) and R_g is the linear part of coset rep g.
+ * Uses two invariant scalar GPs:
+ *   - gp1 as stream function ψ → curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)  (divergence-free)
+ *   - gp2 as potential φ → grad(φ) = (∂φ/∂x, ∂φ/∂y)         (curl-free)
  *
- * For P3 specifically (rotation-only group), R_g^{-1} = R_g^T.
+ * Each is symmetrized under the P3 point group via:
+ *   grad(ψ_sym)(r) = (1/|P|) Σ_g R_g^T · ∇ψ(g(r))
+ *
+ * Then the field is:
+ *   V = curlAmount · curl(ψ_sym) + divAmount · grad(φ_sym)
  */
-function evaluateEquivariantField(windCoeffs, x, y, physicalCosets) {
-  let vx = 0, vy = 0
+function evaluateEquivariantField(windCoeffs, x, y, physicalCosets, curlAmount, divAmount) {
+  let curlVx = 0, curlVy = 0
+  let divVx = 0, divVy = 0
   const n = physicalCosets.length
 
   for (const g of physicalCosets) {
@@ -70,17 +75,32 @@ function evaluateEquivariantField(windCoeffs, x, y, physicalCosets) {
     const gx = g.a * x + g.b * y + g.tx
     const gy = g.c * x + g.d * y + g.ty
 
-    // Evaluate raw field at g(r)
-    const f1 = evaluateGP(windCoeffs.gp1, gx, gy)
-    const f2 = evaluateGP(windCoeffs.gp2, gx, gy)
+    // Gradient of stream function ψ at g(r)
+    const gradPsi = evaluateGPGradient(windCoeffs.gp1, gx, gy)
+    // Gradient of potential φ at g(r)
+    const gradPhi = evaluateGPGradient(windCoeffs.gp2, gx, gy)
 
-    // Apply R_g^{-1} = R_g^T (since R_g is orthogonal rotation)
-    // R_g = [[g.a, g.b], [g.c, g.d]], so R_g^T = [[g.a, g.c], [g.b, g.d]]
-    vx += g.a * f1 + g.c * f2
-    vy += g.b * f1 + g.d * f2
+    // Apply R_g^T to rotate gradients back
+    // R_g = [[g.a, g.b], [g.c, g.d]], R_g^T = [[g.a, g.c], [g.b, g.d]]
+    const psiX = g.a * gradPsi.dx + g.c * gradPsi.dy
+    const psiY = g.b * gradPsi.dx + g.d * gradPsi.dy
+
+    const phiX = g.a * gradPhi.dx + g.c * gradPhi.dy
+    const phiY = g.b * gradPhi.dx + g.d * gradPhi.dy
+
+    // curl(ψ) = (∂ψ/∂y, −∂ψ/∂x)
+    curlVx += psiY
+    curlVy += -psiX
+
+    // grad(φ) = (∂φ/∂x, ∂φ/∂y)
+    divVx += phiX
+    divVy += phiY
   }
 
-  return { vx: vx / n, vy: vy / n }
+  return {
+    vx: curlAmount * curlVx / n + divAmount * divVx / n,
+    vy: curlAmount * curlVy / n + divAmount * divVy / n,
+  }
 }
 
 // ───────────────────────────────────────────────────
@@ -132,9 +152,9 @@ function rediscretizePath(beads, n) {
 }
 
 /** Evolve beads by one Euler step. */
-function evolveBeads(beads, windCoeffs, physicalCosets, dt) {
+function evolveBeads(beads, windCoeffs, physicalCosets, dt, curlAmount, divAmount) {
   return beads.map(b => {
-    const { vx, vy } = evaluateEquivariantField(windCoeffs, b.x, b.y, physicalCosets)
+    const { vx, vy } = evaluateEquivariantField(windCoeffs, b.x, b.y, physicalCosets, curlAmount, divAmount)
     return { x: b.x + vx * dt, y: b.y + vy * dt }
   })
 }
@@ -201,6 +221,8 @@ export default function P3OrbifoldPage() {
   const [speed, setSpeed] = useState(DEFAULT_SPEED)
   const [seed, setSeed] = useState(42)
   const [running, setRunning] = useState(true)
+  const [curlAmount, setCurlAmount] = useState(1.0)
+  const [divAmount, setDivAmount] = useState(0.0)
 
   // P3 setup (memoized, never changes)
   const p3 = useMemo(() => getP3Setup(), [])
@@ -210,6 +232,12 @@ export default function P3OrbifoldPage() {
   const beadsRef = useRef(null)
   const frameCountRef = useRef(0)
   const animRef = useRef(null)
+  const curlRef = useRef(curlAmount)
+  const divRef = useRef(divAmount)
+
+  // Keep curl/div refs in sync with state (for animation loop)
+  useEffect(() => { curlRef.current = curlAmount }, [curlAmount])
+  useEffect(() => { divRef.current = divAmount }, [divAmount])
 
   // SVG drawing state
   const [pathData, setPathData] = useState([])
@@ -218,7 +246,7 @@ export default function P3OrbifoldPage() {
   const reset = useCallback((newSeed) => {
     const s = newSeed ?? seed
     const latticeVectors = { v1: V1, v2: V2 }
-    // Draw two independent GPs for the 2D vector field
+    // Draw two independent GPs: one for stream function (curl), one for potential (divergence)
     windRef.current = {
       gp1: drawGPCoefficients(latticeVectors, s, 5, 0.15),
       gp2: drawGPCoefficients(latticeVectors, s + 1000, 5, 0.15),
@@ -259,7 +287,8 @@ export default function P3OrbifoldPage() {
       if (dt > 0) {
         // Evolve beads
         beadsRef.current = evolveBeads(
-          beadsRef.current, windRef.current, p3.physicalCosets, dt
+          beadsRef.current, windRef.current, p3.physicalCosets, dt,
+          curlRef.current, divRef.current
         )
         frameCountRef.current++
 
@@ -366,6 +395,24 @@ export default function P3OrbifoldPage() {
               style={{ width: 120 }}
             />
             <span className="slider-value">{speed.toFixed(2)}</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+            Curl:
+            <input
+              type="range" min="0" max="2" step="0.05" value={curlAmount}
+              onChange={e => setCurlAmount(Number(e.target.value))}
+              style={{ width: 120 }}
+            />
+            <span className="slider-value">{curlAmount.toFixed(2)}</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+            Divergence:
+            <input
+              type="range" min="0" max="2" step="0.05" value={divAmount}
+              onChange={e => setDivAmount(Number(e.target.value))}
+              style={{ width: 120 }}
+            />
+            <span className="slider-value">{divAmount.toFixed(2)}</span>
           </label>
           <button className="btn-secondary" onClick={() => setRunning(r => !r)}>
             {running ? '⏸ Pause' : '▶ Play'}
