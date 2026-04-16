@@ -232,8 +232,8 @@ export default function P3OrbifoldPage() {
   const beadsRef = useRef(null)
   const frameCountRef = useRef(0)
   const animRef = useRef(null)
-  const curlRef = useRef(curlAmount)
-  const divRef = useRef(divAmount)
+  const curlRef = useRef(1.0)
+  const divRef = useRef(0.0)
 
   // Keep curl/div refs in sync with state (for animation loop)
   useEffect(() => { curlRef.current = curlAmount }, [curlAmount])
