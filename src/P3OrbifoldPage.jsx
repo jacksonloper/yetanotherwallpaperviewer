@@ -154,8 +154,8 @@ function generateVisibleElements(physicalCosets, bounds) {
         // Compose translation with rep
         const elem = {
           a: rep.a, b: rep.b, c: rep.c, d: rep.d,
-          tx: rep.a * 0 + rep.b * 0 + rep.tx + tx,
-          ty: rep.c * 0 + rep.d * 0 + rep.ty + ty,
+          tx: rep.tx + tx,
+          ty: rep.ty + ty,
         }
         // Actually: compose(translation(tx,ty), rep) = same linear, translation = rep_trans + (tx,ty)
         // Check if origin image is in bounds
@@ -194,7 +194,6 @@ function pathToSvgD(beads, cx, cy) {
 
 const DEFAULT_BEADS = 60
 const DEFAULT_SPEED = 0.3
-const DT = 0.016 // ~60fps timestep
 const REDISCRETIZE_INTERVAL = 20 // re-discretize every N frames
 
 export default function P3OrbifoldPage() {
@@ -230,15 +229,10 @@ export default function P3OrbifoldPage() {
     setPathData([...beadsRef.current])
   }, [seed, numBeads])
 
-  // Initialize on mount
+  // Initialize on mount and reinitialize when seed or numBeads changes
   useEffect(() => {
     reset(seed)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Re-initialize when seed or numBeads changes
-  useEffect(() => {
-    reset(seed)
-  }, [seed, numBeads]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reset, seed])
 
   // Animation loop
   useEffect(() => {
