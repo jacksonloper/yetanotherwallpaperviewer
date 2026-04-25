@@ -295,7 +295,7 @@ export default function P3OrbifoldPage() {
       // Cap dt to avoid huge jumps
       const dt = Math.min(elapsed, 0.05) * speed * directionRef.current
 
-      if (dt > 0) {
+      if (Math.abs(dt) > 1e-9) {
         // Evolve beads
         beadsRef.current = evolveBeads(
           beadsRef.current, windRef.current, p3.physicalCosets, dt,
@@ -378,6 +378,8 @@ export default function P3OrbifoldPage() {
 
   const handleStop = () => {
     setRunning(false)
+    setDirection(1)
+    reset()
   }
 
   const handleReverse = () => {
