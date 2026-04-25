@@ -213,7 +213,15 @@ function pathToSvgD(beads, cx, cy) {
 // ───────────────────────────────────────────────────
 
 const DEFAULT_BEADS = 60
-const DEFAULT_SPEED = 0.3
+const DEFAULT_SPEED = 0.05
+const DEFAULT_CURL = 0.2
+const DEFAULT_DIVERGENCE = 0
+const MIN_SPEED = 0.01
+const MAX_SPEED = 0.5
+const SPEED_STEP = 0.01
+const MIN_COMPONENT_AMOUNT = 0
+const MAX_COMPONENT_AMOUNT = 1
+const COMPONENT_STEP = 0.05
 const REDISCRETIZE_INTERVAL = 20 // re-discretize every N frames
 
 export default function P3OrbifoldPage() {
@@ -221,8 +229,9 @@ export default function P3OrbifoldPage() {
   const [speed, setSpeed] = useState(DEFAULT_SPEED)
   const [seed, setSeed] = useState(42)
   const [running, setRunning] = useState(true)
-  const [curlAmount, setCurlAmount] = useState(1.0)
-  const [divAmount, setDivAmount] = useState(0.0)
+  const [curlAmount, setCurlAmount] = useState(DEFAULT_CURL)
+  const [divAmount, setDivAmount] = useState(DEFAULT_DIVERGENCE)
+  const [direction, setDirection] = useState(1)
 
   // P3 setup (memoized, never changes)
   const p3 = useMemo(() => getP3Setup(), [])
@@ -232,12 +241,14 @@ export default function P3OrbifoldPage() {
   const beadsRef = useRef(null)
   const frameCountRef = useRef(0)
   const animRef = useRef(null)
-  const curlRef = useRef(1.0)
-  const divRef = useRef(0.0)
+  const curlRef = useRef(DEFAULT_CURL)
+  const divRef = useRef(DEFAULT_DIVERGENCE)
+  const directionRef = useRef(1)
 
   // Keep curl/div refs in sync with state (for animation loop)
   useEffect(() => { curlRef.current = curlAmount }, [curlAmount])
   useEffect(() => { divRef.current = divAmount }, [divAmount])
+  useEffect(() => { directionRef.current = direction }, [direction])
 
   // SVG drawing state
   const [pathData, setPathData] = useState([])
@@ -282,7 +293,7 @@ export default function P3OrbifoldPage() {
       lastTime = timestamp
 
       // Cap dt to avoid huge jumps
-      const dt = Math.min(elapsed, 0.05) * speed
+      const dt = Math.min(elapsed, 0.05) * speed * directionRef.current
 
       if (dt > 0) {
         // Evolve beads
@@ -365,6 +376,15 @@ export default function P3OrbifoldPage() {
     setSeed(newSeed)
   }
 
+  const handleStop = () => {
+    setRunning(false)
+  }
+
+  const handleReverse = () => {
+    setDirection(current => -current)
+    setRunning(true)
+  }
+
   return (
     <div className="app-container">
       <h1>P3 Orbifold Path Explorer</h1>
@@ -390,7 +410,7 @@ export default function P3OrbifoldPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             Speed:
             <input
-              type="range" min="0.05" max="2" step="0.05" value={speed}
+              type="range" min={MIN_SPEED} max={MAX_SPEED} step={SPEED_STEP} value={speed}
               onChange={e => setSpeed(Number(e.target.value))}
               style={{ width: 120 }}
             />
@@ -399,7 +419,11 @@ export default function P3OrbifoldPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             Curl:
             <input
-              type="range" min="0" max="2" step="0.05" value={curlAmount}
+              type="range"
+              min={MIN_COMPONENT_AMOUNT}
+              max={MAX_COMPONENT_AMOUNT}
+              step={COMPONENT_STEP}
+              value={curlAmount}
               onChange={e => setCurlAmount(Number(e.target.value))}
               style={{ width: 120 }}
             />
@@ -408,7 +432,11 @@ export default function P3OrbifoldPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             Divergence:
             <input
-              type="range" min="0" max="2" step="0.05" value={divAmount}
+              type="range"
+              min={MIN_COMPONENT_AMOUNT}
+              max={MAX_COMPONENT_AMOUNT}
+              step={COMPONENT_STEP}
+              value={divAmount}
               onChange={e => setDivAmount(Number(e.target.value))}
               style={{ width: 120 }}
             />
@@ -416,6 +444,12 @@ export default function P3OrbifoldPage() {
           </label>
           <button className="btn-secondary" onClick={() => setRunning(r => !r)}>
             {running ? '⏸ Pause' : '▶ Play'}
+          </button>
+          <button className="btn-secondary" onClick={handleStop}>
+            ⏹ Stop
+          </button>
+          <button className="btn-secondary" onClick={handleReverse}>
+            {direction > 0 ? '↩ Reverse' : '↪ Forward'}
           </button>
           <button className="btn-secondary" onClick={handleNewField}>
             🎲 New Field
